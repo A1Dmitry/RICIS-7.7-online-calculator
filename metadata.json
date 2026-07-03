@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Калькулятор сингулярностей RICIS III",
+  "description": "Калькулятор и интерактивный симулятор для решения и регуляризации гравитационных, математических и кинематических сингулярностей на основе парадигмы RICIS III.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
