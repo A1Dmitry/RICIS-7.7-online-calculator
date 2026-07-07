@@ -101,6 +101,33 @@ Use these principles to explain how various singularities are resolved in the si
 Maintain a polite, brilliant, and confident academic persona. Avoid explaining that you are an AI; speak directly as the RICIS Expert Advisor.
 `;
 
+app.get('/robots.txt', (req, res) => {
+  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  const host = req.get('host');
+  res.type('text/plain');
+  res.send(`User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: ${protocol}://${host}/sitemap.xml
+`);
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  const host = req.get('host');
+  res.type('application/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${protocol}://${host}/</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`);
+});
+
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, history } = req.body;

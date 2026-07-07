@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Cpu, Sparkles, Terminal, Bot, User, RefreshCw, MessageSquare, BookOpen, AlertCircle, FileText } from 'lucide-react';
+import { Send, Cpu, Sparkles, Terminal, Bot, User, RefreshCw, MessageSquare, BookOpen, AlertCircle, FileText, Mail, MapPin, Award, ExternalLink } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -16,10 +16,12 @@ const QUICK_QUESTIONS = [
   { text: 'Как RICIS решает форму 0/0?', q: 'Как именно протоколы SP1 (No Total Amnesia), SP2 (Clean First) и закон индексов SP3 (Weight of Zero) решают неопределенность вида 0/0?' },
   { text: 'В чем суть SP4 (Semantic Priority)?', q: 'Объясни закон семантического индексирования SP4 (Semantic Priority). Почему важно индексировать по выражению f(x), а не по значению f(a)?' },
   { text: 'Как RICIS решает поток Риччи?', q: 'Как регуляризатор theta в RICIS III решает проблему перешейка (neckpinch) в потоке Риччи без необходимости проведения хирургии Перельмана?' },
-  { text: 'Решение гипотезы BSD в RICIS', q: 'Объясни, как аналитический регуляризатор theta в знаменателе L-функции помогает доказать гипотезу Бёрча и Свиннертон-Дайера?' }
+  { text: 'Решение гипотезы BSD в RICIS', q: 'Объясни, как аналитический регуляризатор theta в знаменателе L-функции помогает доказать гипотезу Бёрча и Свиннертон-Дайера?' },
+  { text: 'Индексация сайтов (SEO) в RICIS', q: 'Как процесс индексации веб-ресурсов поисковыми системами выглядит с точки зрения методологии RICIS III?' }
 ];
 
 export default function RicisAgent() {
+  const [sidebarTab, setSidebarTab] = useState<'knowledge' | 'author'>('knowledge');
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -95,9 +97,17 @@ export default function RicisAgent() {
     \\vspace{-2cm}
     \\textbf{\\Huge RICIS III} \\\\[0.4cm]
     \\Large{Регуляризованные Неопределённости и Сингулярности} \\\\[0.2cm]
-    \\large{Unified Complete Document --- Version 7.7 (Fully Consistent)}
+    \\large{Unified Complete Document --- Version 7.7 (Fully Consistent)} \\\\[0.4cm]
+    \\small{\\texttt{DOI: \\href{https://doi.org/10.5281/zenodo.17872755}{10.5281/zenodo.17872755}}} \\\\
+    \\small{\\texttt{\\href{https://zenodo.org/records/17872755}{zenodo.org/records/17872755}}}
 }
-\\author{\\textbf{Консорциум RICIS III} \\\\ Департамент Математического Моделирования}
+\\author{
+    \\textbf{Алейников Дмитрий Владимирович} \\\\
+    \\small{г. Минск, Республика Беларусь} \\\\
+    \\small{\\href{mailto:dima.aley@gmail.com}{\\texttt{dima.aley@gmail.com}}} \\\\[0.2cm]
+    \\textbf{Консорциум RICIS III} \\\\
+    \\small{Департамент Математического Моделирования}
+}
 \\date{\\today}
 
 \\begin{document}
@@ -416,6 +426,8 @@ Phase 6 & Верификация L1 & Проверка на непротивор
           answer = `**Анализ Массовой Щели Янга-Миллса по RICIS III:**\n\nВ калибровочных полях Янга-Миллса классический потенциал уходит в бесконечность на малых расстояниях, создавая инфракрасные и ультрафиолетовые сингулярности (конфайнмент).\n\n**Решение RICIS:**\nМы заменяем сингулярное расстояние r в знаменателях полей на регуляризованное расстояние r_θ = √(r² + θ²). За счёт этого:\n1. Энергетическая шкала самодействия глюонов Q_θ остается строго ограниченной.\n2. Сила взаимодействия не взрывается в сингулярность на малых масштабах.\n3. Физический вакуум приобретает ненулевую энергию возбуждения — массовую щель Δ > 0, что строго доказывает стабильность квантового глюонного поля.`;
         } else if (lower.includes('риман') || lower.includes('дзета') || lower.includes('riemann') || lower.includes('zeta')) {
           answer = `**Регуляризация полюса Дзета-функции Римана в RICIS III:**\n\nКлассическая Дзета-функция ζ(s) имеет полюс первого порядка в точке s = 1. Это делает её невычислимой и порождает математический разрыв.\n\n**Решение RICIS:**\nМы деформируем комплексное пространство через нелокальный регуляризатор Кэлера θ, заменяя сингулярность в s = 1 на гладкий локальный монолит.\n* Регуляризованная дзета-функция сохраняет аналитическое продолжение, но её комплексные корни выравниваются строго вдоль критической линии Re(s) = 1/2 без эффекта ухода фазы в бесконечность. Это доказывает гипотезу Римана в регуляризованной метрике.`;
+        } else if (lower.includes('seo') || lower.includes('индексац') || lower.includes('индексиров') || lower.includes('поиск') || lower.includes('сайт')) {
+          answer = `**Процесс индексации веб-ресурса с точки зрения методологии RICIS III:**\n\nПредставляет собой **задачу топологической регуляризации информационного пространства**.\n\nИзначально новый или неиндексированный сайт находится в состоянии **локальной сингулярности**: его информационная емкость ($F$) отлична от нуля, но доступность для поисковых роботов (краулеров) равна нулю. Мы имеем неопределенность вида:\n$$0_{\\text{видимость}} \\cdot \\infty_{\\text{контент}}$$\n\nЧтобы устранить эту неопределенность и перевести систему в стабильное регулярное состояние (где сайт полностью проиндексирован и ранжируется), необходимо применить базовые протоколы и аксиомы RICIS III:\n\n---\n\n### 1. Применение L1_IDENTITY и SP2_REDUCTION_PRIORITY (Канонизация и устранение дублей)\nДля поискового робота дублирование контента (когда один и тот же текст доступен по разным адресам) создает сингулярность типа $0/0$, парализующую краулинговый бюджет.\n* **Решение:** Настройте четкую идентичность страниц ($X = X$, следовательно, $X/X = 1$).\n* **Действие:**\n  * Настройте главное зеркало сайта (с \`www\` или без, с \`https\` или \`http\`). Используйте 301-редирект для склейки.\n  * Внедрите тег \`<link rel="canonical" href="..." />\` для каждой страницы. Это гарантирует соблюдение протокола **SP2_REDUCTION_PRIORITY** (очистка структуры до применения алгоритмов индексации). Поисковик сразу поймет, какая страница является "абсолютным корнем" ($L0$).\n\n### 2. Применение SP4_SEMANTIC_PRIORITY (Индексация по выражению, а не по значению)\nПоисковые роботы анализируют семантическую структуру кода, а не просто визуальный рендеринг. Мы должны проиндексировать сингулярность через выражение $E(x)$, а не через конечное значение.\n* **Решение:** Оптимизируйте метаданные и семантическую разметку.\n* **Действие:**\n  * Каждая страница должна иметь уникальные метатеги Title и Description.\n  * Используйте структурированные данные Schema.org (микроразметку). Это задает семантический индекс вида:\n    $$0_{[\\text{Контент} \\mid x=\\text{Страница}]}$$\n    что позволяет роботу точно классифицировать сущности на вашем сайте.\n  * Соблюдайте строгую иерархию заголовков ($H1$, $H2$, $H3$). $H1$ должен быть строго один на страницу.\n\n### 3. Регуляризация краулингового пути: robots.txt и sitemap.xml (Параметр $\\theta$)\nБез четких инструкций робот может уйти в бесконечный цикл (кинематическую сингулярность) из-за мусорных страниц, генераторов URL или системных папок. Мы вводим регуляризирующий параметр $\\theta$, который ограничивает и направляет поток краулера.\n* **Действие 1 (robots.txt):** Это файл-ограничитель (граничные условия). Запретите индексацию системных файлов, административных панелей и результатов поиска по сайту:\n  \`\`\`\n  User-agent: *\n  Disallow: /admin/\n  Sitemap: https://yourdomain.com/sitemap.xml\n  \`\`\`\n* **Действие 2 (sitemap.xml):** Это координатная сетка вашего сайта (карта монолита). Создайте XML-карту, содержащую только канонические URL в активном состоянии, и укажите ее в \`robots.txt\`.\n\n### 4. Принудительное разрешение сингулярности через внешние операторы (Панели веб-мастеров)\nПока поисковая система не знает о существовании вашего домена, вероятность перехода бота на него стремится к нулю. Нам нужно совершить операцию типа A1_INDEXING ($F / 0 \\to \\infty_F$), искусственно внеся сайт в базу данных.\n* **Действие:**\n  * Добавьте сайт в **Google Search Console** (и **Яндекс.Вебмастер**, если ориентируетесь на русскоязычный сегмент).\n  * Подтвердите права на владение доменом (через DNS-запись или HTML-файл).\n  * Вручную отправьте файл \`sitemap.xml\` на проверку в этих панелях.\n  * Используйте инструмент "Запрос индексирования" (URL Inspection) для приоритетных страниц, чтобы мгновенно вызвать робота.\n\n### 5. Построение Монолита 2-го порядка (Внутренняя перелинковка и внешние связи)\nСайт не должен состоять из изолированных точек (Ординар 0). Все страницы должны быть связаны в единую сеть (Ординар 1 и 2), чтобы вес (информационный поток) распределялся без потерь.\n* **Внутренняя перелинковка (Совместимость типов):** Убедитесь, что на любую страницу сайта можно перейти максимум за 3 клика от главной. Страницы-сироты (orphan pages), на которые нет ссылок, выпадают из индекса, так как для них поток равен нулю.\n* **Внешние ссылки (Входящий поток):** Получите ссылки на ваш сайт с других авторитетных, уже проиндексированных ресурсов. В терминах RICIS III это передача оператора плотности: входящая ссылка с авторитетного ресурса сообщает поисковику, что ваш узел пространства безопасен и важен для индексации.`;
         } else {
           answer = `**Анализ концепта в системе координат RICIS III:**\n\nВаш запрос касается фундаментальной структуры полей. С точки зрения RICIS III:\n\n1. Любая классическая сингулярность (деление на ноль, уход кривизны в бесконечность) — это следствие редукции многообразия к плоской скалярной метрике θ = 0.\n2. Активация регуляризационного поля Кэлера θ > 0 разворачивает точку в монолит нулевого или первого порядка, делая все метрические коэффициенты гладкими и интегрируемыми.\n3. С использованием аксиом 0_F · ∞_G = F · G и закона индексов SP3, мы можем рассчитать точные физические параметры системы даже внутри сингулярности.\n\nКакая конкретная деталь (например, протоколы SP1-SP4 или теория монолитов) вас интересует подробнее?`;
         }
@@ -489,45 +501,132 @@ Phase 6 & Верификация L1 & Проверка на непротивор
         
         {/* Quick Help & Questions Sidebar (4 cols) */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="p-4 bg-cyan-950/10 border border-cyan-500/10 rounded-xl space-y-3">
-            <div className="flex items-center gap-2 text-cyan-400">
-              <Terminal className="w-4 h-4" />
-              <span className="text-[11px] font-bold uppercase tracking-wider font-mono">База знаний RICIS III</span>
-            </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Агент оперирует аксиомами абсолютно непрерывных отображений и законами безопасности **SP1-SP4**, позволяющими разрешать неопределенности деления на ноль без предела.
-            </p>
-            <div className="text-[10px] font-mono text-slate-500 uppercase space-y-1 bg-black/30 p-2 rounded border border-white/5">
-              <div>• L0: Непрерывность тождества</div>
-              <div>• L1: X = X; X/X = 1 всегда</div>
-              <div>• SP1: Принцип локальности сомножителей</div>
-              <div>• SP3: Вес нуля (0_F/0_G = F/G)</div>
-              <div>• SP4: Семантический индекс E(x)</div>
-            </div>
+          {/* Tab Selection */}
+          <div className="flex border-b border-white/10 p-1 bg-black/20 rounded-lg">
             <button
-              onClick={downloadLatex}
-              className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 bg-cyan-950/40 border border-cyan-500/30 hover:border-cyan-400/80 text-cyan-400 hover:text-cyan-200 rounded-lg text-[10px] font-mono uppercase tracking-wider transition cursor-pointer shadow-[0_0_15px_rgba(34,211,238,0.05)]"
+              onClick={() => setSidebarTab('knowledge')}
+              className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wider text-center rounded transition cursor-pointer ${
+                sidebarTab === 'knowledge'
+                  ? 'bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 font-bold shadow-[0_0_10px_rgba(34,211,238,0.1)]'
+                  : 'border border-transparent text-slate-500 hover:text-slate-300'
+              }`}
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Экспорт LaTeX (.tex)</span>
+              База знаний
+            </button>
+            <button
+              onClick={() => setSidebarTab('author')}
+              className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wider text-center rounded transition cursor-pointer ${
+                sidebarTab === 'author'
+                  ? 'bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 font-bold shadow-[0_0_10px_rgba(34,211,238,0.1)]'
+                  : 'border border-transparent text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              Об авторе
             </button>
           </div>
 
-          <div className="space-y-2">
-            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block px-1">Быстрые вопросы агенту:</span>
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
-              {QUICK_QUESTIONS.map((qq, idx) => (
+          {sidebarTab === 'knowledge' ? (
+            <>
+              <div className="p-4 bg-cyan-950/10 border border-cyan-500/10 rounded-xl space-y-3">
+                <div className="flex items-center gap-2 text-cyan-400">
+                  <Terminal className="w-4 h-4" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider font-mono">База знаний RICIS III</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Агент оперирует аксиомами абсолютно непрерывных отображений и законами безопасности **SP1-SP4**, позволяющими разрешать неопределенности деления на ноль без предела.
+                </p>
+                <div className="text-[10px] font-mono text-slate-500 uppercase space-y-1 bg-black/30 p-2 rounded border border-white/5">
+                  <div>• L0: Непрерывность тождества</div>
+                  <div>• L1: X = X; X/X = 1 всегда</div>
+                  <div>• SP1: Принцип локальности сомножителей</div>
+                  <div>• SP3: Вес нуля (0_F/0_G = F/G)</div>
+                  <div>• SP4: Семантический индекс E(x)</div>
+                </div>
                 <button
-                  key={idx}
-                  onClick={() => handleSend(qq.q)}
-                  disabled={isLoading}
-                  className="w-full text-left p-2.5 bg-white/2 border border-white/5 hover:border-cyan-500/40 hover:bg-cyan-950/20 rounded-lg text-[10px] font-mono text-slate-300 hover:text-cyan-300 transition duration-150 leading-relaxed cursor-pointer"
+                  onClick={downloadLatex}
+                  className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 bg-cyan-950/40 border border-cyan-500/30 hover:border-cyan-400/80 text-cyan-400 hover:text-cyan-200 rounded-lg text-[10px] font-mono uppercase tracking-wider transition cursor-pointer shadow-[0_0_15px_rgba(34,211,238,0.05)]"
                 >
-                  {qq.text}
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Экспорт LaTeX (.tex)</span>
                 </button>
-              ))}
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block px-1">Быстрые вопросы агенту:</span>
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
+                  {QUICK_QUESTIONS.map((qq, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSend(qq.q)}
+                      disabled={isLoading}
+                      className="w-full text-left p-2.5 bg-white/2 border border-white/5 hover:border-cyan-500/40 hover:bg-cyan-950/20 rounded-lg text-[10px] font-mono text-slate-300 hover:text-cyan-300 transition duration-150 leading-relaxed cursor-pointer"
+                    >
+                      {qq.text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="p-4 bg-cyan-950/10 border border-cyan-500/10 rounded-xl space-y-4">
+              <div className="flex items-center gap-2 text-cyan-400">
+                <Award className="w-4 h-4 text-cyan-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider font-mono">Об авторе концепции</span>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="border-b border-white/5 pb-2">
+                  <div className="text-xs font-bold text-white font-mono">Алейников Дмитрий Владимирович</div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono mt-1">
+                    <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>г. Минск, Республика Беларусь</span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-300 leading-relaxed space-y-2 font-mono">
+                  <p>
+                    Разработчик и исследователь теоретического концепта **RICIS III** (Regularized Indeterminate Forms and Singularities).
+                  </p>
+                  <p>
+                    Специализация: абсолютно непрерывная логика, регуляризация гравитационных и квантовых особенностей, решение неопределенностей без классических предельных переходов.
+                  </p>
+                </div>
+
+                <div className="bg-black/30 p-2.5 rounded border border-white/5 space-y-1.5">
+                  <div className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">Научная публикация & DOI:</div>
+                  <div className="text-[10px] font-mono text-cyan-400 hover:text-cyan-200 break-all">
+                    <a 
+                      href="https://doi.org/10.5281/zenodo.17872755" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-1 inline-flex hover:underline"
+                    >
+                      <span>DOI: 10.5281/zenodo.17872755</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                  <div className="text-[10px] font-mono text-cyan-400 hover:text-cyan-200">
+                    <a 
+                      href="https://zenodo.org/records/17872755" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-1 inline-flex hover:underline"
+                    >
+                      <span>Репозиторий Zenodo</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-[10px] font-mono text-slate-300 bg-white/5 p-2.5 rounded border border-white/5">
+                  <Mail className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <a href="mailto:dima.aley@gmail.com" className="hover:text-cyan-400 transition break-all">
+                    dima.aley@gmail.com
+                  </a>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Chat Interface (8 cols) */}

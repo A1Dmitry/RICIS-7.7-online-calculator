@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { SingularityMode } from '../types';
 import { 
   Orbit, Sparkles, Cpu, Droplet, LineChart, Flame, 
-  HelpCircle, ShieldAlert, CheckCircle2, Play, Info, ArrowRight, BookOpen, Terminal, Scale, ShieldCheck
+  HelpCircle, ShieldAlert, CheckCircle2, Play, Info, ArrowRight, BookOpen, Terminal, Scale, ShieldCheck, Globe
 } from 'lucide-react';
 
 interface CaseStudy {
@@ -223,6 +223,28 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       },
       colorClass: 'text-purple-400 border-purple-500/30',
       bgGlow: 'from-purple-500/10'
+    },
+    {
+      id: 'seo_indexing',
+      title: 'Индексация веб-ресурсов (SEO)',
+      category: 'Информационная Топология',
+      icon: Globe,
+      mode: SingularityMode.THEORY,
+      classicalFail: 'Локальная сингулярность неиндексированного сайта: информационная емкость (F) контента отлична от нуля, но доступность для поисковых краулеров равна нулю. Неопределенность вида: 0_видимость · ∞_контент.',
+      classicalFormula: '0_{visibility} \\cdot \\infty_{content} \\quad (\\text{Неопределенность})',
+      ricisSolution: 'Топологическая регуляризация информационного пространства через протоколы L1_IDENTITY (канонизация), SP2 (устранение дублей) и введение регуляризирующего параметра θ (robots.txt и sitemap.xml).',
+      ricisFormula: '0_F \\times \\infty_G = F \\cdot G = \\text{Конечная Индексация}',
+      explanation: 'Процесс перевода сайта в регулярное проиндексированное состояние. Включение L1_IDENTITY и SP2 гарантирует уникальность каждой страницы (X=X, X/X=1), исключая дубли из краулингового бюджета. Семантический индекс SP4 (Schema.org и микроразметка) позволяет роботу классифицировать сущности через исходное выражение E(x).',
+      steps: [
+        'Настройка главного зеркала и канонических тегов canonical (SP2_REDUCTION_PRIORITY)',
+        'Оптимизация семантической разметки и уникальных метатегов Schema.org (SP4_SEMANTIC_PRIORITY)',
+        'Регуляризация краулингового пути robots.txt и карты сайта sitemap.xml (введение параметра θ)',
+        'Искусственное разрешение сингулярности в панелях веб-мастеров Google Search Console (A1_INDEXING)',
+        'Создание связанного информационного монолита 2-го порядка через внутреннюю перелинковку и внешние ссылки'
+      ],
+      presetParams: {},
+      colorClass: 'text-emerald-400 border-emerald-500/30',
+      bgGlow: 'from-emerald-500/10'
     }
   ];
 
