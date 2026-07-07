@@ -6,7 +6,7 @@
 
 This contains everything you need to run your app locally.
 
-View your app in AI Studio: https://ai.studio/apps/fa78a6fc-d30a-44bc-895e-162e5fa19104
+View your app in AI Studio: https://remix-ricis-iii-501343051156.europe-west2.run.app/
 
 ## Run Locally
 
