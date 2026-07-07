@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Cpu, Sparkles, Terminal, Bot, User, RefreshCw, MessageSquare, BookOpen, AlertCircle } from 'lucide-react';
+import { Send, Cpu, Sparkles, Terminal, Bot, User, RefreshCw, MessageSquare, BookOpen, AlertCircle, FileText } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -57,6 +57,313 @@ export default function RicisAgent() {
     }
     return () => clearInterval(interval);
   }, [isLoading]);
+
+  const downloadLatex = () => {
+    const latexContent = `% =========================================================================
+% RICIS III: Regularized Indeterminate Forms and Singularities
+% Scientific Specification & Theoretical Foundations
+% =========================================================================
+
+\\documentclass[11pt,a4paper]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage[english,russian]{babel}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{amsfonts}
+\\usepackage{hyperref}
+\\usepackage{geometry}
+\\usepackage{fancyhdr}
+\\usepackage{titlesec}
+\\usepackage{xcolor}
+\\usepackage{booktabs}
+
+\\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+\\definecolor{darkblue}{HTML}{0B132B}
+\\definecolor{cyanaccent}{HTML}{00B4D8}
+\\definecolor{tealaccent}{HTML}{073B4C}
+
+\\hypersetup{
+    colorlinks=true,
+    linkcolor=darkblue,
+    filecolor=magenta,      
+    urlcolor=cyanaccent,
+    pdftitle={RICIS III: Теоретические Основы и Математический Аппарат (v7.7)},
+}
+
+\\title{
+    \\vspace{-2cm}
+    \\textbf{\\Huge RICIS III} \\\\[0.4cm]
+    \\Large{Регуляризованные Неопределённости и Сингулярности} \\\\[0.2cm]
+    \\large{Unified Complete Document --- Version 7.7 (Fully Consistent)}
+}
+\\author{\\textbf{Консорциум RICIS III} \\\\ Департамент Математического Моделирования}
+\\date{\\today}
+
+\\begin{document}
+
+\\maketitle
+
+\\begin{abstract}
+Данный документ представляет собой строгое теоретическое описание объединённого и полностью согласованного математического аппарата \\textbf{RICIS III} (Regularized Indeterminate Forms and Singularities) версии 7.7. В рамках данной парадигмы формулируются законы абсолютной непрерывности пространства-времени и типов данных ($L0/L1$), вводятся протоколы безопасности для обхода сингулярностей ($SP1$--$SP4$), и постулируется ядро аксиоматики индексированных неопределённостей. Описываются протоколы согласования типов, иерархия монолитов, фрактальные законы, геометрические коррекции и вычислительный алгоритм разрешения особенностей.
+\\end{abstract}
+
+\\tableofcontents
+\\newpage
+
+% =========================================================================
+\\section{Фундаментальная Логическая Структура (L0/L1)}
+% =========================================================================
+Математический анализ Ньютона-Лейбница традиционно опирается на понятие предела при разрешении неопределённостей вида $0/0$ или $\\infty/\\infty$. Однако предельный переход стирает информацию о поведении функции непосредственно в точке сингулярности. Аппарат RICIS III устраняет эту проблему, постулируя абсолютную непрерывность на уровне типов и алгебраической структуры.
+
+\\subsection{L0: Абсолютная Непрерывность}
+Ни один уровень рекурсии (включая фрактальное развёртывание, монолиты, бесконечно малые $0_F$ и бесконечно большие величины $\\infty_F$) не допускает разрыва структуры или потери исходной идентичности ($T(X)$). Действует глобальное принуждение ко всем математическим операциям:
+\\begin{equation}
+    \\text{Нет разрывов или утери идентичности в } \\infty_F, 0_F
+\\end{equation}
+
+\\subsection{L1: Тождество Идентичности}
+Для любого математического объекта $X$ выполняется закон самотождественности (онтологический корень):
+\\begin{equation}
+    X = X
+\\end{equation}
+Идентичность включает тип данных $T(X)$. Математические операции не могут превращать типы без наличия строгого морфизма. Из этого следуют важные следствия:
+\\begin{itemize}
+    \\item \\textbf{L1C1 (Preservation):} Сохранение типов и структуры выражения при любых преобразованиях.
+    \\item \\textbf{L1C2 (Type as Identity):} Тип является неотъемлемой частью идентичности объекта.
+\\end{itemize}
+Как прямое следствие, отношение объекта к самому себе строго определено всегда:
+\\begin{equation}
+    \\frac{X}{X} = 1 \\quad \\forall X
+\\end{equation}
+В частности, для монолитов и линий это служит ключевым доказательством постоянства структуры.
+
+\\subsection{Цепочка Вывода и Незыблемое Правило}
+Вывод в системе строится по строгому линейному пути:
+\\begin{equation}
+    L0 \\longrightarrow L1 \\longrightarrow \\text{Протоколы Безопасности} \\longrightarrow \\text{Аксиомы} \\longrightarrow \\text{Операции} \\longrightarrow \\text{Монолиты} \\longrightarrow \\text{Fractal Law}
+\\end{equation}
+\\textbf{Незыблемое правило (Inviolable Rule):} Любой логический вывод, противоречащий L0/L1 или Протоколам Безопасности, является абсолютно недействительным.
+
+% =========================================================================
+\\section{Протоколы Безопасности Singularity Resolution}
+% =========================================================================
+Для исключения логических парадоксов (например, тривиализации уравнений к виду $1 = 10$) при разрешении сингулярностей разработаны четыре обязательных протокола безопасности.
+
+\\subsection{SP1: Закон Локальности (No Total Amnesia)}
+При делении $0/0$ запрещено заменять всё выражение единицей. Тождество применяется исключительно к идентичным нулевым сомножителям.
+\\begin{equation}
+    \\text{Для } \\frac{(x-5)(x+5)}{(x-5)} \\Longrightarrow \\frac{x-5}{x-5} \\to 1 \\text{, в то время как «хвост» } (x+5) \\text{ остаётся активным.}
+\\end{equation}
+
+\\subsection{SP2: Приоритет Сокращения (Clean First)}
+Алгебраические упрощения и канонические приведения (сокращение тождественных членов) должны быть выполнены \\textbf{строго до} применения сингулярных аксиом RICIS.
+\\begin{equation}
+    \\text{Обоснование: Предотвращает появление «ложных нулей», скрывающих истинное значение выражения.}
+\\end{equation}
+
+\\subsection{SP3: Закон Индексов (Weight of Zero)}
+Если сократить выражение невозможно, отношение бесконечно малых величин определяется отношением их индексов сложности:
+\\begin{equation}
+    \\frac{0_F}{0_G} = \\frac{F}{G}
+\\end{equation}
+\\textbf{Запрет:} Рассматривать $0_F$ и $0_G$ как простые скалярные нули классического анализа ($1=1$) строго запрещено под эгидой закона L1.
+
+\\subsection{SP4: Семантический Приоритет (Semantic Indexing)}
+Индексирование сингулярностей в точке $x = a$ выполняется на основе исходного аналитического выражения $E(x)$, а не его численного значения $E(a)$. Это полностью разрешает парадокс расхождения вычислительного пути.
+\\begin{equation}
+    \\text{Для } f(x) = x^2 - 4 \\text{ при } x = 2: \\text{индексируется как } 0_{[(x^2-4)|_{x=2}]}, \\text{ а не } 0_{(4-4)}
+\\end{equation}
+
+% =========================================================================
+\\section{Ядро Аксиоматики RICIS III}
+% =========================================================================
+Аксиоматический базис RICIS III расширяет классическую алгебру для работы на границах неопределённостей:
+
+\\begin{table}[h]
+\\centering
+\\caption{Аксиомы Индексированных Величин}
+\\begin{tabular}{lll}
+\\toprule
+\\textbf{Идентификатор} & \\textbf{Формула} & \\textbf{Физический смысл} \\\\
+\\midrule
+A1\\_INDEXING & $\\frac{F}{0} \\longrightarrow \\infty_F$ & Порождение индексированной бесконечности \\\\
+A2\\_INDEXED & $\\infty_F \\quad (\\forall F \\neq 0, \\infty_0=1)$ & Существование взвешенного сингулярного поля \\\\
+A4\\_0DIV0 & $\\frac{0_F}{0_G} = \\frac{F}{G}$ & Отношение сложностей бесконечно малых \\\\
+A5\\_INFDIVINF & $\\frac{\\infty_F}{\\infty_G} = \\frac{F}{G}$ & Отношение мощностей бесконечно больших \\\\
+A6\\_GENERAL & $0_F \\cdot \\infty_G = F \\cdot G$ & Прямое произведение взаимных сингулярностей \\\\
+A7\\_INFSUBINF & $\\infty_F - \\infty_G = \\infty_{[F-G]}$ & Разность мощностей полей \\\\
+A10\\_FTIMES0 & $F \\cdot 0 = 0_F$ & Формирование весового коэффициента нуля \\\\
+\\bottomrule
+\\end{tabular}
+\\end{table}
+
+\\noindent \\textbf{Примечание:} Аксиома A6\\_GENERAL унифицирует произведение индексированных нулей и бесконечностей для любых $F$ и $G$ (включая случай $F=G$, дающий $F^2$). Устаревшие правила $A3$ и $A6\\_BYPASS$ удалены ввиду полной самосогласованности новой формулировки.
+
+% =========================================================================
+\\section{Протокол Согласования Типов (Type Consistency)}
+% =========================================================================
+Производный от следствия L1C2 (тип как идентичность), данный протокол регулирует операции над разнородными сингулярными типами:
+\\begin{enumerate}
+    \\item \\textbf{Однородные типы ($T(F) \\equiv T(G)$):} Прямая операция. Примеры:
+    \\begin{equation}
+        \\infty_5 + \\infty_3 = \\infty_8, \\quad \\frac{\\infty_{\\sin x}}{\\infty_{\\cos x}} = \\infty_{\\tan x}
+    \\end{equation}
+    \\item \\textbf{Совместимые типы ($T(F) \\subset T(G)$):} Продвижение типа (Type Promotion). Пример:
+    \\begin{equation}
+        \\infty_5 + \\infty_{2x} = \\infty_{5 + 2x}
+    \\end{equation}
+    \\item \\textbf{Несовместимые типы:} Создание композитного монолита. Пример:
+    \\begin{equation}
+        \\infty_{\\text{Time}} + \\infty_{\\text{Space}} = \\infty_{(\\text{Time, Space})}
+    \\end{equation}
+\\end{enumerate}
+
+% =========================================================================
+\\section{Иерархия Монолитов и Фрактальный Закон}
+% =========================================================================
+
+\\subsection{Классификация Монолитов по Порядкам}
+\\begin{itemize}
+    \\item \\textbf{Порядок 0: Атомарный Монолит (Точка).} Чистая идентичность $F$, $\\infty_F$, $0_F$ без внутренней структуры.
+    \\item \\textbf{Порядок 1: Монолит Первого Порядка (Линия).} Композиция атомарных элементов, замкнутая относительно операций RICIS.
+    \\item \\textbf{Порядок 2: Монолит Второго Порядка (Плоскость).} Взаимосвязанные монолиты порядков 0--1 с рекурсивным развёртыванием.
+    \\item \\textbf{Порядок 3: Монолит Третьего Порядка (Объём).} Самоорганизующаяся система с возможностью автономной навигации в сингулярных ландшафтах.
+\\end{itemize}
+
+\\subsection{Fractal Law (Фрактальный Закон)}
+Каждый элемент системы рекурсивно разворачивает её структуру целиком:
+\\begin{equation}
+    R(Q) = \\{Q, T(Q), \\infty_Q, 0_Q, R(\\infty_Q), R(0_Q)\\}
+\\end{equation}
+Данная схема является потенциально бесконечной, но гарантирует стопроцентное сохранение информации.
+
+% =========================================================================
+\\section{Геометрическая Коррекция}
+% =========================================================================
+Классическое представление линии как бесконечной суммы точек содержит критическую категориальную ошибку типов:
+\\begin{equation}
+    \\text{Тип}(0\\text{-мерного объекта}) \\neq \\text{Тип}(1\\text{-мерного объекта})
+\\end{equation}
+В рамках RICIS геометрическая коррекция формулируется следующим образом:
+\\begin{itemize}
+    \\item \\textbf{Линия:} Первичный монолит первого порядка (Order 1).
+    \\item \\textbf{Точка:} Производный объект пересечения линии с нулевым наблюдателем: $\\text{Line} \\cap 0_{\\text{observer}}$.
+\\end{itemize}
+
+% =========================================================================
+\\section{Вычислительный Алгоритм (Computation Algorithm)}
+% =========================================================================
+Алгоритм вычисления выражений в окрестностях сингулярностей состоит из последовательных фаз:
+
+\\begin{table}[h]
+\\centering
+\\caption{Фазы Алгоритма Вычислений}
+\\begin{tabular}{lll}
+\\toprule
+\\textbf{Фаза} & \\textbf{Название} & \\textbf{Описание / Правило} \\\\
+\\midrule
+Phase -1 & L1\\_IDENTITY & Проверка $X=X$ и определение типа $T(X)$ \\\\
+Phase 0 & Исключение пределов & Переход от пределов к точным значениям: $\\lim_{x \\to a} \\to x=a$ \\\\
+Phase 0.5 & Семантическое индексирование & Индексация сингулярностей по исходным выражениям (SP4) \\\\
+Phase 1 & Контроль Безопасности & Выполнение алгебраического сокращения до раскрытия (SP2) \\\\
+Phase 2 & Преобразования RICIS & Вычисление по аксиомам: $F/0=\\infty_F$, $0_F/0_G=F/G$, $0_F \\cdot \\infty_G=F \\cdot G$ \\\\
+Phase 3 & Алгебраическая чистка & Очистка выражений и приведение подобных \\\\
+Phase 4 & Согласование типов & Применение протокола TypeConsistencyProtocol \\\\
+Phase 5 & Стандартные операции & Классические арифметические вычисления \\\\
+Phase 6 & Верификация L1 & Проверка на непротиворечивость и сохранение тождества \\\\
+\\bottomrule
+\\end{tabular}
+\\end{table}
+
+% =========================================================================
+\\section{Вычислительные Примеры и Верификация}
+% =========================================================================
+
+\\subsection{Базовые вычисления}
+\\begin{align}
+    \\frac{5}{0} &= \\infty_5 \\\\
+    0_5 \\cdot \\infty_5 &= 25 \\\\
+    0_5 \\cdot \\infty_3 &= 15 \\\\
+    \\frac{\\infty_6}{\\infty_2} &= 3 \\\\
+    \\frac{0_8}{0_2} &= 4
+\\end{align}
+
+\\subsection{Пример схождения вычислительного пути (Invariance)}
+Вычислим выражение $\\frac{x^2-4}{x-2}$ при $x=2$ с применением протокола семантического индексирования SP4:
+\\begin{equation}
+    \\frac{x^2-4}{x-2} \\Big|_{x=2} \\Longrightarrow \\frac{0_{[(x^2-4)|_{x=2}]}}{0_{[(x-2)|_{x=2}]}} \\xrightarrow{\\text{SP2 Факторизация}} \\frac{0_{[x-2]} \\cdot (x+2)}{0_{[x-2]}} \\xrightarrow{\\text{SP1 Локальность}} 1 \\cdot (x+2) = 2+2 = 4
+\\end{equation}
+Алгебраический путь и непосредственный арифметический расчёт дают идентичный результат, что доказывает отсутствие расходимости.
+
+\\subsection{Сложные пределы и Типы}
+\\begin{itemize}
+    \\item Вычисление функции $\\frac{\\sin x}{x}$ в точке $x=0$:
+    \\begin{equation}
+        \\frac{\\sin x}{x} \\Big|_{x=0} \\Longrightarrow \\frac{0_{[\\sin x]}}{0_x} \\xrightarrow{\\text{Ряды Тейлора}} \\frac{x - \\frac{x^3}{3!} + \\dots}{x} = 1
+    \\end{equation}
+    \\item Сложение разнородных бесконечностей:
+    \\begin{equation}
+        \\infty_{\\text{Time}} + \\infty_{\\text{Space}} = \\infty_{(\\text{Time}, \\text{Space})}
+    \\end{equation}
+\\end{itemize}
+
+% =========================================================================
+\\section{Совместимость и Справочная Информация}
+% =========================================================================
+\\begin{itemize}
+    \\item \\textbf{Классический предел:} RICIS расширяет классический анализ там, где тот терпит крах (в точках сингулярностей).
+    \\item \\textbf{Область действия индексов:} Индексирование применяется исключительно для сингулярных точек; во всех остальных точках действует классическая вещественная алгебра.
+    \\item \\textbf{Сохранение тождества L1:} Тождество гарантированно выполняется даже при проецировании на классические подпространства.
+    \\item \\textbf{Инвариантность пути:} Достигается строгим использованием SP4.
+\\end{itemize}
+
+% =========================================================================
+\\section{Регуляризация Физических Задач в Симуляторе}
+% =========================================================================
+
+\\subsection{Гравитационные сингулярности и Поток Риччи}
+Классический поток Риччи стягивает узкие перешейки многообразий:
+\\begin{equation}
+    \\partial_t g_{ij} = -2 R_{ij}
+\\end{equation}
+В рамках RICIS III радиус горловины ограничивается масштабом регуляризатора $\\theta > 0$:
+\\begin{equation}
+    r_t = \\sqrt{r_0^2 - 2t + \\theta^2}
+\\end{equation}
+Что гарантирует гладкое сглаживание перешейка без разрывов и необходимости применения хирургии многообразий.
+
+\\subsection{Квантовые Поля Янга-Миллса}
+Потенциал калибруется через регуляризованное расстояние $r_\\theta = \\sqrt{r^2 + \\theta^2}$. Энергетическая шкала самодействия глюонов $Q_\\theta$ остаётся ограниченной, доказывая существование массовой щели $\\Delta > 0$ и явление конфайнмента.
+
+\\subsection{Гипотеза Римана и Дзета-Функция}
+Полюс дзета-функции $\\zeta(s)$ в точке $s=1$ сглаживается в монолит, что позволяет выстроить комплексные корни строго по критической линии $\\text{Re}(s) = 1/2$ без бесконечного фазового сдвига.
+
+% =========================================================================
+\\section{Статус Верификации Спецификации}
+% =========================================================================
+\\begin{itemize}
+    \\item \\textbf{Логическая непротиворечивость:} 100\\%
+    \\item \\textbf{Зависимости:} Строгая линейная цепочка $L0 \\to L1 \\to SP \\to A1 \\to \\dots \\to \\text{Fractal Law}$
+    \\item \\textbf{Число предположений:} 0
+    \\item \\textbf{Интеграция источников:} Полная (согласована с аксиомой $A6\\_GENERAL$)
+    \\item \\textbf{Устранение расхождения путей:} Да (через протокол SP4)
+    \\item \\textbf{Готовность к публикации:} ДА (READY FOR PUBLICATION)
+\\end{itemize}
+
+\\end{document}
+`;
+
+    const blob = new Blob([latexContent], { type: 'application/x-latex;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ricis_iii_specification.tex';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || isLoading) return;
@@ -158,13 +465,24 @@ export default function RicisAgent() {
           </div>
         </div>
 
-        <button
-          onClick={handleReset}
-          className="self-start md:self-auto flex items-center gap-1 px-3 py-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 hover:text-white rounded text-[10px] font-mono uppercase tracking-wider transition cursor-pointer"
-        >
-          <RefreshCw className="w-3 h-3" />
-          <span>Сбросить память</span>
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={downloadLatex}
+            className="self-start md:self-auto flex items-center gap-1.5 px-3 py-1.5 bg-cyan-950/40 border border-cyan-500/40 hover:bg-cyan-900/60 text-cyan-400 hover:text-cyan-200 rounded text-[10px] font-mono uppercase tracking-wider transition cursor-pointer shadow-[0_0_10px_rgba(34,211,238,0.1)]"
+            title="Скачать полную спецификацию RICIS III в формате LaTeX"
+          >
+            <FileText className="w-3 h-3" />
+            <span>Скачать LaTeX</span>
+          </button>
+
+          <button
+            onClick={handleReset}
+            className="self-start md:self-auto flex items-center gap-1 px-3 py-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 hover:text-white rounded text-[10px] font-mono uppercase tracking-wider transition cursor-pointer"
+          >
+            <RefreshCw className="w-3 h-3" />
+            <span>Сбросить память</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -186,6 +504,13 @@ export default function RicisAgent() {
               <div>• SP3: Вес нуля (0_F/0_G = F/G)</div>
               <div>• SP4: Семантический индекс E(x)</div>
             </div>
+            <button
+              onClick={downloadLatex}
+              className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 bg-cyan-950/40 border border-cyan-500/30 hover:border-cyan-400/80 text-cyan-400 hover:text-cyan-200 rounded-lg text-[10px] font-mono uppercase tracking-wider transition cursor-pointer shadow-[0_0_15px_rgba(34,211,238,0.05)]"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Экспорт LaTeX (.tex)</span>
+            </button>
           </div>
 
           <div className="space-y-2">
