@@ -12,8 +12,13 @@ import RicisTheory from './components/RicisTheory';
 import NavierStokesSingularity from './components/NavierStokesSingularity';
 import RiemannSingularity from './components/RiemannSingularity';
 import YangMillsSingularity from './components/YangMillsSingularity';
+import PVsNPSingularity from './components/PVsNPSingularity';
+import HodgeSingularity from './components/HodgeSingularity';
+import BSDSingularity from './components/BSDSingularity';
+import PoincareSingularity from './components/PoincareSingularity';
 import CasesAndSolutions from './components/CasesAndSolutions';
-import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame } from 'lucide-react';
+import RicisAgent from './components/RicisAgent';
+import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare } from 'lucide-react';
 
 export default function App() {
   const [activeMode, setActiveMode] = useState<SingularityMode>(SingularityMode.GRAVITATIONAL);
@@ -25,6 +30,10 @@ export default function App() {
   const [navierStokesPreset, setNavierStokesPreset] = useState<any>(undefined);
   const [riemannPreset, setRiemannPreset] = useState<any>(undefined);
   const [yangMillsPreset, setYangMillsPreset] = useState<any>(undefined);
+  const [pVsNPPreset, setPVsNPPreset] = useState<any>(undefined);
+  const [hodgePreset, setHodgePreset] = useState<any>(undefined);
+  const [bsdPreset, setBsdPreset] = useState<any>(undefined);
+  const [poincarePreset, setPoincarePreset] = useState<any>(undefined);
 
   const handleLoadPreset = (mode: SingularityMode, params: any) => {
     if (mode === SingularityMode.GRAVITATIONAL) {
@@ -39,6 +48,14 @@ export default function App() {
       setRiemannPreset(params);
     } else if (mode === SingularityMode.YANG_MILLS) {
       setYangMillsPreset(params);
+    } else if (mode === SingularityMode.P_VS_NP) {
+      setPVsNPPreset(params);
+    } else if (mode === SingularityMode.HODGE) {
+      setHodgePreset(params);
+    } else if (mode === SingularityMode.BSD) {
+      setBsdPreset(params);
+    } else if (mode === SingularityMode.POINCARE) {
+      setPoincarePreset(params);
     }
     setActiveMode(mode);
   };
@@ -171,6 +188,54 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => setActiveMode(SingularityMode.P_VS_NP)}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
+              activeMode === SingularityMode.P_VS_NP
+                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
+                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Target className={`w-4 h-4 ${activeMode === SingularityMode.P_VS_NP ? 'text-cyan-400' : 'text-gray-400'}`} />
+            <span>P vs NP (Сложность)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveMode(SingularityMode.HODGE)}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
+              activeMode === SingularityMode.HODGE
+                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
+                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Globe className={`w-4 h-4 ${activeMode === SingularityMode.HODGE ? 'text-cyan-400' : 'text-gray-400'}`} />
+            <span>Гипотеза Ходжа</span>
+          </button>
+
+          <button
+            onClick={() => setActiveMode(SingularityMode.BSD)}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
+              activeMode === SingularityMode.BSD
+                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
+                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <LineChart className={`w-4 h-4 ${activeMode === SingularityMode.BSD ? 'text-cyan-400' : 'text-gray-400'}`} />
+            <span>Гипотеза BSD</span>
+          </button>
+
+          <button
+            onClick={() => setActiveMode(SingularityMode.POINCARE)}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
+              activeMode === SingularityMode.POINCARE
+                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
+                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Globe className={`w-4 h-4 ${activeMode === SingularityMode.POINCARE ? 'text-cyan-400' : 'text-gray-400'}`} />
+            <span>Сфера Пуанкаре</span>
+          </button>
+
+          <button
             onClick={() => setActiveMode(SingularityMode.THEORY)}
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
               activeMode === SingularityMode.THEORY
@@ -193,6 +258,21 @@ export default function App() {
             <ShieldCheck className={`w-4 h-4 ${activeMode === SingularityMode.CASES_AND_SOLUTIONS ? 'text-cyan-400' : 'text-gray-400'}`} />
             <span>Решенные проблемы (RICIS)</span>
           </button>
+
+          <button
+            onClick={() => setActiveMode(SingularityMode.RICIS_AGENT)}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
+              activeMode === SingularityMode.RICIS_AGENT
+                ? 'bg-cyan-950/20 border-cyan-400/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
+                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <MessageSquare className={`w-4 h-4 ${activeMode === SingularityMode.RICIS_AGENT ? 'text-cyan-400' : 'text-gray-400'}`} />
+            <span className="flex items-center gap-1.5">
+              <span>ИИ Ассистент RICIS</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            </span>
+          </button>
         </div>
 
         {/* Dynamic Mode Screen Rendering */}
@@ -203,8 +283,13 @@ export default function App() {
           {activeMode === SingularityMode.NAVIER_STOKES && <NavierStokesSingularity preset={navierStokesPreset} />}
           {activeMode === SingularityMode.RIEMANN && <RiemannSingularity preset={riemannPreset} />}
           {activeMode === SingularityMode.YANG_MILLS && <YangMillsSingularity preset={yangMillsPreset} />}
+          {activeMode === SingularityMode.P_VS_NP && <PVsNPSingularity preset={pVsNPPreset} />}
+          {activeMode === SingularityMode.HODGE && <HodgeSingularity preset={hodgePreset} />}
+          {activeMode === SingularityMode.BSD && <BSDSingularity preset={bsdPreset} />}
+          {activeMode === SingularityMode.POINCARE && <PoincareSingularity preset={poincarePreset} />}
           {activeMode === SingularityMode.THEORY && <RicisTheory />}
           {activeMode === SingularityMode.CASES_AND_SOLUTIONS && <CasesAndSolutions onLoadPreset={handleLoadPreset} />}
+          {activeMode === SingularityMode.RICIS_AGENT && <RicisAgent />}
         </main>
 
         {/* Humble and Clean Scientific Footer */}

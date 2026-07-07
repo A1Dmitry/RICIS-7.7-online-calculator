@@ -10,8 +10,13 @@ export enum SingularityMode {
   NAVIER_STOKES = 'NAVIER_STOKES',
   RIEMANN = 'RIEMANN',
   YANG_MILLS = 'YANG_MILLS',
+  P_VS_NP = 'P_VS_NP',
+  HODGE = 'HODGE',
+  BSD = 'BSD',
+  POINCARE = 'POINCARE',
   THEORY = 'THEORY',
-  CASES_AND_SOLUTIONS = 'CASES_AND_SOLUTIONS'
+  CASES_AND_SOLUTIONS = 'CASES_AND_SOLUTIONS',
+  RICIS_AGENT = 'RICIS_AGENT'
 }
 
 export interface GravitationalState {
@@ -62,5 +67,33 @@ export interface YangMillsState {
   distance: number;         // distance r from color charge (0 to 2)
   regularization: number;   // RICIS III parameter theta (0 to 1)
   energyScale: number;      // energy scale Q (0.1 to 5)
+}
+
+export interface PVsNPState {
+  dimension: number;        // complexity size N (10 to 100)
+  ruggedness: number;       // ruggedness of the NP landscape (0 to 1)
+  regularization: number;   // RICIS theta parameter (0 to 1)
+  algorithmSpeed: number;   // speed factor
+}
+
+export interface HodgeState {
+  genus: number;            // genus (1 to 5)
+  cycleDimension: number;   // algebraic cycle dimension (1 to 3)
+  regularization: number;   // RICIS theta parameter (0 to 1)
+  noiseLevel: number;       // noise level
+}
+
+export interface BSDState {
+  coefA: number;            // y^2 = x^3 + Ax + B
+  coefB: number;            // y^2 = x^3 + Ax + B
+  regularization: number;   // RICIS theta parameter (0 to 1)
+  centralPointS: number;    // central evaluation point s (usually 1)
+}
+
+export interface PoincareState {
+  neckRadius: number;       // size of the bottleneck
+  flowTime: number;         // time t of the Ricci flow
+  regularization: number;   // RICIS theta parameter (0 to 1)
+  mode: 'neckpinch' | 'sphere';
 }
 
