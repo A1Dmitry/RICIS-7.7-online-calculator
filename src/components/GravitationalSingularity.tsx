@@ -7,12 +7,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GravitationalState } from '../types';
 import { Shield, Sparkles, AlertTriangle, RefreshCw, Zap, Disc } from 'lucide-react';
 import ExportToSheetsButton from './ExportToSheetsButton';
+import { useLanguage } from '../lib/i18n';
 
 interface GravitationalSingularityProps {
   preset?: GravitationalState;
 }
 
 export default function GravitationalSingularity({ preset }: GravitationalSingularityProps = {}) {
+  const { t, language } = useLanguage();
   const [state, setState] = useState<GravitationalState>({
     mass: 5,           // M_sun
     spin: 0.3,         // a (normalized angular momentum, 0 to 0.99)
@@ -159,7 +161,7 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
       // Horizon text label
       ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
       ctx.font = '10px monospace';
-      ctx.fillText('Горизонт r+', centerX + horizonRadiusX + 5, centerY);
+      ctx.fillText(t('Горизонт r+', 'Event Horizon r+'), centerX + horizonRadiusX + 5, centerY);
     }
 
     // Draw quantum core (for theta > 0)
@@ -208,9 +210,9 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
 
     ctx.fillStyle = '#10b981';
     ctx.font = '10px monospace';
-    ctx.fillText('Наблюдатель', observerX - 35, centerY - 18);
+    ctx.fillText(t('Наблюдатель', 'Observer'), observerX - 35, centerY - 18);
 
-  }, [state, M, r_plus, r_minus, isNaked]);
+  }, [state, M, r_plus, r_minus, isNaked, t]);
 
   return (
     <div id="gravitational-root" className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in text-slate-300">
@@ -220,15 +222,15 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2.5">
               <Disc className="w-5 h-5 text-cyan-400 animate-spin-slow" />
-              <h3 className="font-semibold text-white text-sm uppercase tracking-wider">Сечение пространства-времени</h3>
+              <h3 className="font-semibold text-white text-sm uppercase tracking-wider">{t('Сечение пространства-времени', 'Space-Time Section')}</h3>
             </div>
             <span className="text-[10px] font-mono bg-cyan-950/30 text-cyan-400 border border-cyan-500/30 px-3 py-1 rounded-full flex items-center gap-1.5 uppercase tracking-wider">
               <Zap className="w-3 h-3 text-cyan-400" />
-              Гравитационное поле
+              {t('Гравитационное поле', 'Gravitational Field')}
             </span>
           </div>
           <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-            Визуализация гравитационного колодца черной дыры. Регуляризатор сглаживает сингулярность, формируя устойчивое квантовое ядро конечной плотности.
+            {t('Визуализация гравитационного колодца черной дыры. Регуляризатор сглаживает сингулярность, формируя устойчивое квантовое ядро конечной плотности.', 'Visualization of the gravitational well of a black hole. The regularizer smooths the singularity, forming a stable quantum core of finite density.')}
           </p>
         </div>
 
@@ -245,25 +247,25 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
             {isInsideHorizon && (
               <div className="bg-red-950/80 border border-red-500/30 text-red-200 text-[10px] uppercase font-mono tracking-wider px-3 py-1.5 rounded flex items-center space-x-1.5 shadow-lg backdrop-blur-sm animate-pulse">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                <span>Горизонт событий пройден!</span>
+                <span>{t('Горизонт событий пройден!', 'Event Horizon Crossed!')}</span>
               </div>
             )}
             {isSpaghettified && (
               <div className="bg-amber-950/80 border border-amber-500/30 text-amber-200 text-[10px] uppercase font-mono tracking-wider px-3 py-1.5 rounded flex items-center space-x-1.5 shadow-lg backdrop-blur-sm">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                <span>Критический приливный градиент</span>
+                <span>{t('Критический приливный градиент', 'Critical Tidal Gradient')}</span>
               </div>
             )}
             {state.regularization > 0.05 && (
               <div className="bg-cyan-950/80 border border-cyan-500/30 text-cyan-200 text-[10px] uppercase font-mono tracking-wider px-3 py-1.5 rounded flex items-center space-x-1.5 shadow-lg backdrop-blur-sm">
                 <Shield className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Регуляризация RICIS III Активна</span>
+                <span>{t('Регуляризация RICIS III Активна', 'RICIS III Regularization Active')}</span>
               </div>
             )}
             {isNaked && (
               <div className="bg-purple-950/80 border border-purple-500/30 text-purple-200 text-[10px] uppercase font-mono tracking-wider px-3 py-1.5 rounded flex items-center space-x-1.5 shadow-lg backdrop-blur-sm">
                 <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                <span>Голая сингулярность (Naked Singularity)</span>
+                <span>{t('Голая сингулярность (Naked Singularity)', 'Naked Singularity')}</span>
               </div>
             )}
           </div>
@@ -272,34 +274,34 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
         {/* Dynamic Telemetry Panel */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
           <div className="bg-white/5 border border-white/5 rounded-lg p-4">
-            <span className="text-[10px] text-slate-500 font-mono block uppercase tracking-wider">Радиус R_s</span>
-            <span className="text-sm font-semibold text-white font-mono block mt-1">{realRsKm} км</span>
+            <span className="text-[10px] text-slate-500 font-mono block uppercase tracking-wider">{t('Радиус R_s', 'Radius R_s')}</span>
+            <span className="text-sm font-semibold text-white font-mono block mt-1">{realRsKm} {t('км', 'km')}</span>
             <span className="text-[9px] text-slate-500 font-mono block mt-0.5">2GM / c²</span>
           </div>
           <div className="bg-white/5 border border-white/5 rounded-lg p-4">
-            <span className="text-[10px] text-slate-500 font-mono block uppercase tracking-wider">Кривизна (Кретчман)</span>
+            <span className="text-[10px] text-slate-500 font-mono block uppercase tracking-wider">{t('Кривизна (Кретчман)', 'Curvature (Kretschmann)')}</span>
             <span className="text-sm font-semibold text-cyan-400 font-mono block mt-1">
-              {r_eval_zero && theta_zero ? '∞_G (Аксиома А1)' : (K_ricis_val > 1e6 ? K_ricis_val.toExponential(3) : K_ricis_val.toFixed(2))}
+              {r_eval_zero && theta_zero ? t('∞_G (Аксиома А1)', '∞_G (Axiom A1)') : (K_ricis_val > 1e6 ? K_ricis_val.toExponential(3) : K_ricis_val.toFixed(2))}
             </span>
             <span className="text-[9px] text-slate-500 font-mono block mt-0.5">
-              Кл: {K_classical_val === Infinity ? '∞ (Сингулярно)' : K_classical_val.toExponential(2)}
+              {t('Кл:', 'Cl:')} {K_classical_val === Infinity ? t('∞ (Сингулярно)', '∞ (Singular)') : K_classical_val.toExponential(2)}
             </span>
           </div>
           <div className="bg-white/5 border border-white/5 rounded-lg p-4">
-            <span className="text-[10px] text-slate-500 font-mono block uppercase tracking-wider">Приливное поле</span>
+            <span className="text-[10px] text-slate-500 font-mono block uppercase tracking-wider">{t('Приливное поле', 'Tidal Field')}</span>
             <span className="text-sm font-semibold text-amber-400 font-mono block mt-1">
-              {r_eval_zero && theta_zero ? '∞_F (Аксиома А1)' : (F_ricis_val > 1e4 ? F_ricis_val.toExponential(2) : F_ricis_val.toFixed(3))}
+              {r_eval_zero && theta_zero ? t('∞_F (Аксиома А1)', '∞_F (Axiom A1)') : (F_ricis_val > 1e4 ? F_ricis_val.toExponential(2) : F_ricis_val.toFixed(3))}
             </span>
             <span className="text-[9px] text-slate-500 font-mono block mt-0.5">
-              Кл: {F_classical_val === Infinity ? '∞' : F_classical_val.toExponential(1)}
+              {t('Кл:', 'Cl:')} {F_classical_val === Infinity ? '∞' : F_classical_val.toExponential(1)}
             </span>
           </div>
           <div className="bg-white/5 border border-white/5 rounded-lg p-4">
-            <span className="text-[10px] text-slate-500 font-mono block uppercase tracking-wider">Горизонт r+</span>
+            <span className="text-[10px] text-slate-500 font-mono block uppercase tracking-wider">{t('Горизонт r+', 'Horizon r+')}</span>
             <span className="text-sm font-semibold text-emerald-400 font-mono block mt-1">
-              {isNaked ? 'Нет (Голая)' : `${(r_plus / r_s).toFixed(2)} R_s`}
+              {isNaked ? t('Нет (Голая)', 'No (Naked)') : `${(r_plus / r_s).toFixed(2)} R_s`}
             </span>
-            <span className="text-[9px] text-slate-500 font-mono block mt-0.5">r-: {isNaked ? 'Нет' : `${(r_minus / r_s).toFixed(2)} R_s`}</span>
+            <span className="text-[9px] text-slate-500 font-mono block mt-0.5">r-: {isNaked ? t('Нет', 'None') : `${(r_minus / r_s).toFixed(2)} R_s`}</span>
           </div>
         </div>
       </div>
@@ -308,34 +310,34 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
       <div className="lg:col-span-5 bg-black/40 border border-white/10 rounded-xl p-6 flex flex-col justify-between space-y-6">
         <div className="space-y-6">
           <div className="border-b border-white/10 pb-4">
-            <h4 className="font-semibold text-white text-xs uppercase tracking-widest text-cyan-400">Характеристики сингулярности</h4>
-            <p className="text-[11px] text-slate-500 uppercase tracking-wider mt-1">Параметры черной дыры и масштабирования</p>
+            <h4 className="font-semibold text-white text-xs uppercase tracking-widest text-cyan-400">{t('Характеристики сингулярности', 'Singularity Characteristics')}</h4>
+            <p className="text-[11px] text-slate-500 uppercase tracking-wider mt-1">{t('Параметры черной дыры и масштабирования', 'Black Hole & Scaling Parameters')}</p>
           </div>
 
           {/* Preset Selector */}
           <div className="bg-[#09090B] border border-white/5 p-3 rounded-lg space-y-2">
-            <label className="text-slate-500 font-mono uppercase text-[9px] block tracking-wider">Типовой сценарий</label>
+            <label className="text-slate-500 font-mono uppercase text-[9px] block tracking-wider">{t('Типовой сценарий', 'Typical Scenario')}</label>
             <div className="flex flex-wrap gap-1.5">
               <button 
                 type="button"
                 onClick={() => setState({ mass: 5, spin: 0, charge: 0, radius: 0.1, regularization: 0 })}
                 className="px-2.5 py-1 bg-white/5 border border-white/5 rounded text-[10px] text-slate-300 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 font-mono transition-all duration-200 cursor-pointer"
               >
-                Коллапс Шварцшильда
+                {t('Коллапс Шварцшильда', 'Schwarzschild Collapse')}
               </button>
               <button 
                 type="button"
                 onClick={() => setState({ mass: 12, spin: 0.95, charge: 0.0, radius: 1.2, regularization: 0.1 })}
                 className="px-2.5 py-1 bg-white/5 border border-white/5 rounded text-[10px] text-slate-300 hover:bg-cyan-500/10 hover:border-cyan-500/20 hover:text-cyan-400 font-mono transition-all duration-200 cursor-pointer"
               >
-                Быстрое вращение Керра
+                {t('Быстрое вращение Керра', 'Fast Kerr Rotation')}
               </button>
               <button 
                 type="button"
                 onClick={() => setState({ mass: 5, spin: 0, charge: 0, radius: 0.1, regularization: 0.8 })}
                 className="px-2.5 py-1 bg-white/5 border border-white/5 rounded text-[10px] text-slate-300 hover:bg-emerald-500/10 hover:border-emerald-500/20 hover:text-emerald-400 font-mono transition-all duration-200 cursor-pointer"
               >
-                Регуляризация RICIS III
+                {t('Регуляризация RICIS III', 'RICIS III Regularization')}
               </button>
             </div>
           </div>
@@ -343,7 +345,7 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
           {/* Mass */}
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs">
-              <label className="text-slate-400 font-mono uppercase text-[10px]">Масса черной дыры (M)</label>
+              <label className="text-slate-400 font-mono uppercase text-[10px]">{t('Масса черной дыры (M)', 'Black Hole Mass (M)')}</label>
               <span className="font-mono text-white bg-white/5 border border-white/10 px-2.5 py-1 text-xs rounded">{state.mass} M_☉</span>
             </div>
             <input 
@@ -360,7 +362,7 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
           {/* Spin a */}
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs">
-              <label className="text-slate-400 font-mono uppercase text-[10px]">Вращение / Спин (a)</label>
+              <label className="text-slate-400 font-mono uppercase text-[10px]">{t('Вращение / Спин (a)', 'Rotation / Spin (a)')}</label>
               <span className="font-mono text-white bg-white/5 border border-white/10 px-2.5 py-1 text-xs rounded">{state.spin.toFixed(2)}</span>
             </div>
             <input 
@@ -377,7 +379,7 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
           {/* Charge Q */}
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs">
-              <label className="text-slate-400 font-mono uppercase text-[10px]">Электрический заряд (Q)</label>
+              <label className="text-slate-400 font-mono uppercase text-[10px]">{t('Электрический заряд (Q)', 'Electric Charge (Q)')}</label>
               <span className="font-mono text-white bg-white/5 border border-white/10 px-2.5 py-1 text-xs rounded">{state.charge.toFixed(2)}</span>
             </div>
             <input 
@@ -394,7 +396,7 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
           {/* Observer Radius */}
           <div className="space-y-2 pt-4 border-t border-white/5">
             <div className="flex justify-between items-center text-xs">
-              <label className="text-slate-400 font-mono uppercase text-[10px]">Позиция наблюдателя (r)</label>
+              <label className="text-slate-400 font-mono uppercase text-[10px]">{t('Позиция наблюдателя (r)', 'Observer Position (r)')}</label>
               <span className="font-mono text-white bg-white/5 border border-white/10 px-2.5 py-1 text-xs rounded">{(r_eval / r_s).toFixed(2)} R_s</span>
             </div>
             <input 
@@ -411,7 +413,7 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
           {/* RICIS Regularization θ */}
           <div className="space-y-2 pt-4 border-t border-white/5">
             <div className="flex justify-between items-center text-xs">
-              <label className="text-cyan-400 font-mono uppercase font-semibold text-[10px]">Регуляризатор RICIS III (θ)</label>
+              <label className="text-cyan-400 font-mono uppercase font-semibold text-[10px]">{t('Регуляризатор RICIS III (θ)', 'RICIS III Regularizer (θ)')}</label>
               <span className="font-mono text-cyan-400 bg-cyan-950/30 border border-cyan-500/30 px-2.5 py-1 text-xs rounded">{state.regularization.toFixed(2)} R_s</span>
             </div>
             <input 
@@ -431,15 +433,21 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
           <ExportToSheetsButton 
             mode="GRAVITATIONAL" 
             params={state} 
-            defaultDescription={`Гравитационная симуляция: М=${state.mass}, Спин=${state.spin}, Заряд=${state.charge}, θ=${state.regularization}`} 
+            defaultDescription={t(
+              `Гравитационная симуляция: М=${state.mass}, Спин=${state.spin}, Заряд=${state.charge}, θ=${state.regularization}`,
+              `Gravitational simulation: M=${state.mass}, Spin=${state.spin}, Charge=${state.charge}, θ=${state.regularization}`
+            )} 
           />
         </div>
 
         {/* Reset / Explanation (Styled as paradigm state box) */}
         <div className="mt-4 p-5 bg-cyan-950/10 border border-cyan-500/20 rounded-lg">
-          <span className="text-[10px] text-cyan-200/60 uppercase font-mono tracking-wider font-semibold block mb-2">Методология Регуляризации</span>
+          <span className="text-[10px] text-cyan-200/60 uppercase font-mono tracking-wider font-semibold block mb-2">{t('Методология Регуляризации', 'Regularization Methodology')}</span>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Сингулярности черных дыр, рассчитанные по методологии RICIS III, избегают коллапса пространства-времени путем удержания квантово-стабилизированного натяжения в ядре.
+            {t(
+              'Сингулярности черных дыр, рассчитанные по методологии RICIS III, избегают коллапса пространства-времени путем удержания квантово-стабилизированного натяжения в ядре.',
+              'Black hole singularities calculated using the RICIS III methodology avoid space-time collapse by maintaining quantum-stabilized tension in the core.'
+            )}
           </p>
         </div>
       </div>

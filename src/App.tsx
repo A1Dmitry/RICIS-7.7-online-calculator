@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { SingularityMode } from './types';
+import { useLanguage, setLanguage } from './lib/i18n';
 import GravitationalSingularity from './components/GravitationalSingularity';
 import ComplexSingularity from './components/ComplexSingularity';
 import KinematicSingularity from './components/KinematicSingularity';
@@ -39,6 +40,7 @@ const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.Compon
 };
 
 export default function App() {
+  const { language, setLanguage, t } = useLanguage();
   const [activeMode, setActiveMode] = useState<SingularityMode>(SingularityMode.CASES_AND_SOLUTIONS);
 
   // Shared preset states to feed into simulator modules
@@ -194,7 +196,7 @@ export default function App() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1 max-w-xl">
-                Интерактивный вычислительный комплекс для решения и регуляризации гравитационных, комплексных и кинематических сингулярностей.
+                {t('Интерактивный вычислительный комплекс для решения и регуляризации гравитационных, комплексных и кинематических сингулярностей.')}
               </p>
             </div>
           </div>
@@ -202,21 +204,47 @@ export default function App() {
           {/* Telemetry metrics from the design mockup */}
           <div className="flex flex-wrap gap-6 text-[10px] font-mono bg-black/40 border border-white/5 p-3 rounded-lg md:self-stretch items-center">
             <div className="flex flex-col items-start md:items-end">
-              <span className="text-slate-500 text-[9px] tracking-wider">SYSTEM STATUS</span>
+              <span className="text-slate-500 text-[9px] tracking-wider">{t('SYSTEM STATUS')}</span>
               <span className="text-emerald-400 font-bold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                STABLE / CORE OK
+                {t('STABLE / CORE OK')}
               </span>
             </div>
             <div className="w-px h-6 bg-white/10 hidden sm:block" />
             <div className="flex flex-col items-start md:items-end">
-              <span className="text-slate-500 text-[9px] tracking-wider">ENTROPY BIAS</span>
+              <span className="text-slate-500 text-[9px] tracking-wider">{t('ENTROPY BIAS')}</span>
               <span className="text-white font-semibold">0.000214%</span>
             </div>
             <div className="w-px h-6 bg-white/10 hidden sm:block" />
             <div className="flex flex-col items-start md:items-end">
-              <span className="text-slate-500 text-[9px] tracking-wider">UPTIME HOURS</span>
+              <span className="text-slate-500 text-[9px] tracking-wider">{t('UPTIME HOURS')}</span>
               <span className="text-white font-semibold">128:44:02</span>
+            </div>
+            <div className="w-px h-6 bg-white/10 hidden sm:block" />
+            <div className="flex flex-col items-start md:items-end">
+              <span className="text-slate-500 text-[9px] tracking-wider">{t('LANGUAGE / ЯЗЫК', 'LANGUAGE')}</span>
+              <div className="flex gap-1.5 mt-0.5">
+                <button
+                  onClick={() => setLanguage('ru')}
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider transition ${
+                    language === 'ru'
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                      : 'bg-transparent text-slate-500 border border-transparent hover:text-slate-300'
+                  }`}
+                >
+                  RU
+                </button>
+                <button
+                  onClick={() => setLanguage('en')}
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider transition ${
+                    language === 'en'
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                      : 'bg-transparent text-slate-500 border border-transparent hover:text-slate-300'
+                  }`}
+                >
+                  EN
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -250,7 +278,7 @@ export default function App() {
               >
                 <IconComp className={`w-4 h-4 ${iconColor}`} />
                 <span className="flex items-center gap-1.5">
-                  <span>{meta.label}</span>
+                  <span>{t(meta.label)}</span>
                   {mode === SingularityMode.RICIS_AGENT && (
                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                   )}
@@ -274,10 +302,10 @@ export default function App() {
                     ? 'bg-cyan-950/40 border-cyan-500/50 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
                     : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
-                title="Показать скрытые разделы"
+                title={t("Показать скрытые разделы", "Show hidden sections")}
               >
                 <MoreHorizontal className="w-4 h-4 text-slate-400" />
-                <span>Еще ({hiddenModes.length})</span>
+                <span>{t("Еще", "More")} ({hiddenModes.length})</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${dropdownOpen ? 'rotate-180 text-cyan-400' : 'text-slate-500'}`} />
               </button>
 
@@ -285,8 +313,8 @@ export default function App() {
                 <div className="absolute right-0 mt-2 w-72 bg-[#09090b]/95 border border-white/10 rounded-lg shadow-[0_4px_25px_rgba(0,0,0,0.6)] z-50 overflow-hidden backdrop-blur-md">
                   <div className="p-1.5 max-h-[350px] overflow-y-auto custom-scrollbar space-y-0.5">
                     <div className="px-2.5 py-1 text-[9px] font-mono text-slate-500 uppercase tracking-wider border-b border-white/5 mb-1 flex justify-between">
-                      <span>Раздел</span>
-                      <span>Вес</span>
+                      <span>{t("Раздел", "Section")}</span>
+                      <span>{t("Вес", "Weight")}</span>
                     </div>
                     {hiddenModes.map((mode) => {
                       const meta = MODE_METADATA[mode];
@@ -303,7 +331,7 @@ export default function App() {
                         >
                           <div className="flex items-center space-x-2 truncate">
                             <IconComp className={`w-3.5 h-3.5 shrink-0 ${meta.colorClass || 'text-slate-400'}`} />
-                            <span className="truncate">{meta.label}</span>
+                            <span className="truncate">{t(meta.label)}</span>
                           </div>
                           <span className="text-[9px] font-mono text-cyan-400/80 bg-cyan-950/40 px-1.5 py-0.5 rounded ml-2 shrink-0">
                             {modeWeight}%
@@ -339,11 +367,11 @@ export default function App() {
         {/* Humble and Clean Scientific Footer */}
         <footer className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-slate-600 font-mono uppercase tracking-wider">
           <div>
-            <span>NODES ACTIVE: 1,402 | CLUSTER: HYPERION-9</span>
+            <span>{t('NODES ACTIVE', 'NODES ACTIVE')}: 1,402 | {t('CLUSTER', 'CLUSTER')}: HYPERION-9</span>
           </div>
           <div className="flex items-center space-x-6">
-            <span>SECURE ENCLAVE ACTIVE | ENCRYPTION: RICIS-RSA-4096</span>
-            <span>2026 г.</span>
+            <span>{t('SECURE ENCLAVE ACTIVE', 'SECURE ENCLAVE ACTIVE')} | {t('ENCRYPTION', 'ENCRYPTION')}: RICIS-RSA-4096</span>
+            <span>{t('2026 г.', '2026')}</span>
           </div>
         </footer>
       </div>

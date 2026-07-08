@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { SingularityMode } from '../types';
+import { useLanguage } from '../lib/i18n';
 import { 
   Orbit, Sparkles, Cpu, Droplet, LineChart, Flame, 
   HelpCircle, ShieldAlert, CheckCircle2, Play, Info, ArrowRight, BookOpen, Terminal, Scale, ShieldCheck, Globe, Waves
@@ -13,15 +14,21 @@ import {
 interface CaseStudy {
   id: string;
   title: string;
+  titleEn?: string;
   category: string;
+  categoryEn?: string;
   icon: React.ComponentType<any>;
   mode: SingularityMode;
   classicalFail: string;
+  classicalFailEn?: string;
   classicalFormula: string;
   ricisSolution: string;
+  ricisSolutionEn?: string;
   ricisFormula: string;
   explanation: string;
+  explanationEn?: string;
   steps: string[];
+  stepsEn?: string[];
   presetParams: any;
   colorClass: string;
   bgGlow: string;
@@ -31,6 +38,7 @@ interface StressTest {
   id: string;
   level: string;
   name: string;
+  nameEn?: string;
   input: string;
   point: number;
   pointLabel: string;
@@ -38,7 +46,9 @@ interface StressTest {
   ricisFormula: string;
   safetyProtocol: string;
   explanation: string;
+  explanationEn?: string;
   derivationSteps: string[];
+  derivationStepsEn?: string[];
   compute: (x: number, theta: number) => { classical: string | number; regularized: number };
   sliderMin: number;
   sliderMax: number;
@@ -51,6 +61,7 @@ interface CasesAndSolutionsProps {
 }
 
 export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsProps) {
+  const { language, t } = useLanguage();
   const [activeSubTab, setActiveSubTab] = useState<'library' | 'stressTests'>('library');
   const [selectedCase, setSelectedCase] = useState<string>('gravitational');
   const [selectedTest, setSelectedTest] = useState<string>('L0');
@@ -63,19 +74,30 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
     {
       id: 'gravitational',
       title: 'Гравитационный коллапс Шварцшильда',
+      titleEn: 'Schwarzschild Gravitational Collapse',
       category: 'Астрофизика и ОТО',
+      categoryEn: 'Astrophysics & GR',
       icon: Orbit,
       mode: SingularityMode.GRAVITATIONAL,
       classicalFail: 'При приближении к центру чёрной дыры (r → 0) инвариант кривизны Кретчмана уходит в бесконечность, порождая бесконечную гравитацию и физическую сингулярность.',
+      classicalFailEn: 'As the black hole center is approached (r → 0), the Kretschmann curvature invariant goes to infinity, generating infinite gravity and a physical singularity.',
       classicalFormula: 'K_{classical} = \\frac{48 G^2 M^2}{c^4 r^6} \\to \\infty',
       ricisSolution: 'Пространственно-подобное квантовое ядро RICIS III заменяет точечную массу на гладкое распределение натяжения пространства-времени с регуляризационным масштабом θ.',
+      ricisSolutionEn: 'The space-like quantum core of RICIS III replaces the point mass with a smooth distribution of spacetime tension using a regularization scale θ.',
       ricisFormula: 'K_{RICIS} = \\frac{48 M^2}{r^6 + \\theta^6}',
       explanation: 'Благодаря сглаживанию знаменателя, при r = 0 кривизна остаётся строго конечной и пропорциональной M²/θ⁶, полностью предотвращая разрыв пространства-времени и бесконечную спагеттификацию.',
+      explanationEn: 'By smoothing the denominator, the curvature at r = 0 remains strictly finite and proportional to M²/θ⁶, completely preventing spacetime tearing and infinite spaghettification.',
       steps: [
         'Инициализация массы M и масштаба квантового ядра θ = regularization * R_s',
         'Отображение гравитационного колодца без разделения на сингулярные изолированные сингулярности',
         'Вычисление тензора кривизны при r = 0 через прямое сопряжение (схлопывание даёт точное конечное значение)',
         'Стабилизация приливных сил наблюдателя на безопасном пределе при пересечении горизонта событий'
+      ],
+      stepsEn: [
+        'Initialize mass M and quantum core scale θ = regularization * R_s',
+        'Display the gravitational well without separation into singular isolated singularities',
+        'Calculate the curvature tensor at r = 0 via direct conjugation (collapse yields an exact finite value)',
+        'Stabilize the observer\'s tidal forces at a safe limit when crossing the event horizon'
       ],
       presetParams: {
         mass: 5,
@@ -90,19 +112,30 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
     {
       id: 'complex',
       title: 'Существенная сингулярность exp(1/z)',
+      titleEn: 'Essential Singularity exp(1/z)',
       category: 'Комплексный Анализ',
+      categoryEn: 'Complex Analysis',
       icon: Sparkles,
       mode: SingularityMode.COMPLEX_ANALYSIS,
       classicalFail: 'Теорема Сохоцкого-Вейерштрасса: в любой сколь угодно малой окрестности z = 0 функция принимает абсолютно любые комплексные значения бесконечно часто, делая пределы неопределёнными и вызывая хаос фаз.',
+      classicalFailEn: 'Sokhotski–Weierstrass theorem: in any arbitrarily small neighborhood of z = 0, the function takes absolutely any complex values infinitely often, making limits undefined and causing phase chaos.',
       classicalFormula: 'f(z) = e^{\\frac{1}{z}} \\quad (z \\to 0)',
       ricisSolution: 'Метод ε-раздутия (Blow-up) комплексного полюса проецирует сингулярную точку z_0 в регулярный тор Римана, сглаживая фазовый вихрь.',
+      ricisSolutionEn: 'The ε-blow-up method of the complex pole projects the singular point z_0 onto a regular Riemann torus, smoothing the phase vortex.',
       ricisFormula: '1/z \\to \\frac{\\bar{z}}{|z|^2 + \\epsilon^2}',
       explanation: 'Введение комплексного зазора ε предотвращает бесконечную спираль фаз и обеспечивает гладкое domain coloring-отображение. Вместо неопределённости в ядре формируется регулярная симметричная область перехода.',
+      explanationEn: 'Introducing a complex gap ε prevents an infinite phase spiral and provides smooth domain coloring. Instead of uncertainty, a regular symmetrical transition region forms in the core.',
       steps: [
         'Замена комплексного деления 1/dz на сопряжённую форму с добавлением вещественного сдвига ε²',
         'Подавление экстремальной осцилляции вещественной и мнимой частей функции в окрестности 0',
         'Визуализация регулярной гладкой вихревой структуры без геометрического разрыва фаз',
         'Возможность сквозного дифференцирования в точке z = 0'
+      ],
+      stepsEn: [
+        'Replace complex division 1/dz with the conjugate form, adding a real shift ε²',
+        'Suppress extreme oscillations of real and imaginary parts of the function near 0',
+        'Visualize a regular smooth vortex structure without geometric phase disruption',
+        'Allow full differentiability at the point z = 0'
       ],
       presetParams: {
         funcType: 'essential',
@@ -119,19 +152,30 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
     {
       id: 'kinematic',
       title: 'Сингулярность Якобиана манипулятора',
+      titleEn: 'Manipulator Jacobian Singularity',
       category: 'Робототехника и Кинематика',
+      categoryEn: 'Robotics & Kinematics',
       icon: Cpu,
       mode: SingularityMode.KINEMATIC,
       classicalFail: 'При полном выпрямлении звеньев робота детерминант Якобиана det(J) обращается в ноль. Для движения рабочего органа требуются бесконечные угловые скорости приводов суставов dθ/dt = J⁻¹ v → ∞.',
+      classicalFailEn: 'When robotic links are fully straightened, the Jacobian determinant det(J) becomes zero. Moving the end-effector requires infinite joint velocities dθ/dt = J⁻¹ v → ∞.',
       classicalFormula: '\\dot{\\theta} = J^{-1} v = \\frac{1}{det(J)} Adj(J) v \\to \\infty',
       ricisSolution: 'Динамическое демпфирование по методу наименьших квадратов с введением RICIS-коэффициента стабилизации λ регулирует скорости суставов за счёт минимального временного отклонения от траектории.',
+      ricisSolutionEn: 'Damped Least Squares (DLS) method with a RICIS stabilization coefficient λ regulates joint velocities at the cost of a minimal temporary path deviation.',
       ricisFormula: 'J^* = J^T (J J^T + \\lambda^2 I)^{-1}',
       explanation: 'В сингулярных зонах, когда det(J) → 0, регуляризатор λ² плавно отключает «невозможные» направления движения, сохраняя угловые скорости суставов строго ограниченными на физически доступном уровне.',
+      explanationEn: 'In singular zones, when det(J) → 0, the regularizer λ² smoothly damps "impossible" directions of movement, keeping joint velocities strictly bounded at physically safe levels.',
       steps: [
         'Мониторинг индекса манипулируемости Ёсикавы (det(J * J^T))',
         'Приближение звеньев к выпрямленному состоянию (угол θ₂ ≈ 0° или 180°)',
         'Автоматическая замена сингулярного обращения J⁻¹ на сглаженную псевдообратную матрицу J*',
         'Абсолютная защита моторов приводов от перегрузки по току и неконтролируемых рывков'
+      ],
+      stepsEn: [
+        'Monitor Yoshikawa\'s manipulability index (det(J * J^T))',
+        'Detect links approaching a fully straightened state (angle θ₂ ≈ 0° or 180°)',
+        'Automatically replace singular inversion J⁻¹ with the smooth pseudoinverse matrix J*',
+        'Provide absolute actuator motor protection against current overload and uncontrolled jerks'
       ],
       presetParams: {
         angle1: 0,
@@ -148,19 +192,30 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
     {
       id: 'navier',
       title: 'Взрыв градиента Навье-Стокса',
+      titleEn: 'Navier-Stokes Gradient Blow-up',
       category: 'Гидродинамика',
+      categoryEn: 'Fluid Dynamics',
       icon: Droplet,
       mode: SingularityMode.NAVIER_STOKES,
       classicalFail: 'При экстремальных числах Рейнольдса или локальном закручивании потока возможно локальное схлопывание вихрей с бесконечным ростом завихренности ω → ∞ за конечное время.',
+      classicalFailEn: 'At extreme Reynolds numbers or local flow swirling, local vortex collapse is possible with infinite vorticity growth ω → ∞ in finite time.',
       classicalFormula: '\\omega = \\nabla \\times u \\to \\infty \\quad (t \\to t^* )',
       ricisSolution: 'Введение нелинейного масштаба фильтрации завихренности θ в вязкий тензор. Сверхвысокие градиенты скорости рассеиваются за счёт локального увеличения микроэффективной вязкости.',
+      ricisSolutionEn: 'Introducing a non-linear vorticity filtration scale θ into the viscous tensor. Ultra-high velocity gradients dissipate due to a local increase in micro-effective viscosity.',
       ricisFormula: '\\nu_{eff} = \\nu + \\theta^2 |\\nabla u|',
       explanation: 'Турбулентные вихри стабилизируются, не допуская бесконечного сжатия. Потери энергии ограничиваются на физически адекватном уровне, обеспечивая гладкость решения во всех точках.',
+      explanationEn: 'Turbulent vortices are stabilized, preventing infinite compression. Energy loss is bounded at a physically adequate level, ensuring solution smoothness at all points.',
       steps: [
         'Моделирование концентрированного осесимметричного вихря потока',
         'Расчёт локального градиента давления и градиента скорости завихренности',
         'Замена классической константной вязкости на адаптивный тензор RICIS III',
         'Предотвращение разрыва плотности линий тока и обеспечение устойчивой численной сходимости'
+      ],
+      stepsEn: [
+        'Model a concentrated axisymmetric flow vortex',
+        'Calculate local pressure gradient and vorticity velocity gradient',
+        'Replace classical constant viscosity with the adaptive RICIS III tensor',
+        'Prevent streamline density disruption and ensure robust numerical convergence'
       ],
       presetParams: {
         reynolds: 150,
@@ -175,19 +230,30 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
     {
       id: 'riemann',
       title: 'Полюс Дзета-функции Римана при s = 1',
+      titleEn: 'Riemann Zeta Function Pole at s = 1',
       category: 'Теория Чисел',
+      categoryEn: 'Number Theory',
       icon: LineChart,
       mode: SingularityMode.RIEMANN,
       classicalFail: 'Дзета-функция имеет простой полюс первого порядка в точке s = 1, где гармонический ряд расходится. Значение ζ(1) неопределено, стремясь к бесконечности с вычетом 1.',
+      classicalFailEn: 'The zeta function has a simple first-order pole at s = 1, where the harmonic series diverges. The value ζ(1) is undefined, approaching infinity with residue 1.',
       classicalFormula: '\\zeta(s) \\to \\frac{1}{s-1} + \\gamma \\to \\infty \\quad (s \\to 1)',
       ricisSolution: 'Аналитическая замена сингулярной составляющей регулярной гладкой функцией с комплексным весом θ, сохраняющей арифметические тождества теории чисел вне полюса.',
+      ricisSolutionEn: 'Analytical replacement of the singular component with a regular smooth function of complex weight θ, preserving arithmetic identities of number theory outside the pole.',
       ricisFormula: '\\zeta_{RICIS}(s) = \\zeta(s) - \\frac{1}{s-1} + \\frac{s-1}{(s-1)^2 + \\theta^2}',
       explanation: 'При s = 1 значение регуляризованной функции плавно переходит в постоянную Эйлера-Маскерони γ ≈ 0.5772. Дзета-функция становится непрерывной вдоль всей вещественной оси.',
+      explanationEn: 'At s = 1, the regularized function value smoothly transitions into the Euler-Mascheroni constant γ ≈ 0.5772. The zeta function becomes continuous along the entire real axis.',
       steps: [
         'Выделение сингулярного ядра 1/(s-1) из аналитического продолжения дзета-функции',
         'Добавление компенсирующего члена RICIS III в знаменатель полюса',
         'Сглаживание амплитудного пика в критической окрестности s = 1',
         'Построение непрерывного фазового портрета через точку расходимости классической теории'
+      ],
+      stepsEn: [
+        'Extract the singular core 1/(s-1) from the analytic continuation of the zeta function',
+        'Add the compensating RICIS III term to the pole denominator',
+        'Smooth the amplitude peak in the critical neighborhood of s = 1',
+        'Construct a continuous phase portrait through the classical divergence point'
       ],
       presetParams: {
         sigma: 1.0,
@@ -201,19 +267,30 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
     {
       id: 'yangmills',
       title: 'Инфракрасный предел Янга-Миллса',
+      titleEn: 'Yang-Mills Infrared Limit',
       category: 'Квантовая Теория Поля',
+      categoryEn: 'Quantum Field Theory',
       icon: Flame,
       mode: SingularityMode.YANG_MILLS,
       classicalFail: 'При уменьшении энергии Q (или росте расстояния r) эффективный заряд α_s неограниченно растет, упираясь в так называемый Ландау-полюс, что делает теорию возмущений неприменимой.',
+      classicalFailEn: 'At low energy scale Q (or large distance r), the effective coupling constant α_s grows unbounded, hitting the so-called Landau pole, which invalidates perturbation theory.',
       classicalFormula: '\\alpha_s(Q^2) = \\frac{4\\pi}{\\beta_0 \\ln(Q^2 / \\Lambda_{QCD}^2)} \\to \\infty',
       ricisSolution: 'Инфракрасное «замораживание» константы связи за счёт непертурбативного регуляризатора массы глюона θ. Знаменатель логарифма защищается от обращения в ноль.',
+      ricisSolutionEn: 'Infrared "freezing" of the coupling constant using a non-perturbative gluon mass regularizer θ. The logarithm denominator is protected from becoming zero.',
       ricisFormula: '\\alpha_s^{RICIS} = \\frac{4\\pi}{\\beta_0 \\ln(\\frac{Q^2 + 4\\theta^2}{\\Lambda^2})}',
       explanation: 'Константа связи монотонно выходит на плато (замораживается) в инфракрасной области. Это физически обосновывает отсутствие расходимости и существование массовой щели в SU(3) калибровочной теории.',
+      explanationEn: 'The coupling constant smoothly plateaus (freezes) in the infrared region. This physically explains the absence of divergence and the existence of a mass gap in SU(3) gauge theory.',
       steps: [
         'Анализ кварк-антикваркового потенциала взаимодействия',
         'Внедрение эффективной массы глюона θ как регуляризатора малых импульсов',
         'Устранение полюса Ландау в бегущей константе связи при энергии Q = Λ_QCD',
         'Доказательство конечной величины конфайнмента цвета без бесконечностей энергии'
+      ],
+      stepsEn: [
+        'Analyze the quark-antiquark interaction potential',
+        'Introduce an effective gluon mass θ as a low-momentum regularizer',
+        'Eliminate the Landau pole in the running coupling constant at energy Q = Λ_QCD',
+        'Prove a finite value for color confinement without energy infinities'
       ],
       presetParams: {
         coupling: 1.5,
@@ -227,20 +304,32 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
     {
       id: 'seo_indexing',
       title: 'Индексация веб-ресурсов (SEO)',
+      titleEn: 'Web Resource Indexing (SEO)',
       category: 'Информационная Топология',
+      categoryEn: 'Information Topology',
       icon: Globe,
       mode: SingularityMode.THEORY,
       classicalFail: 'Локальная сингулярность неиндексированного сайта: информационная емкость (F) контента отлична от нуля, но доступность для поисковых краулеров равна нулю. Неопределенность вида: 0_видимость · ∞_контент.',
+      classicalFailEn: 'Local singularity of an unindexed website: content capacity (F) is non-zero, but accessibility for search crawlers is zero. Indeterminacy of the type: 0_visibility · ∞_content.',
       classicalFormula: '0_{visibility} \\cdot \\infty_{content} \\quad (\\text{Неопределенность})',
       ricisSolution: 'Топологическая регуляризация информационного пространства через протоколы L1_IDENTITY (канонизация), SP2 (устранение дублей) и введение регуляризирующего параметра θ (robots.txt и sitemap.xml).',
+      ricisSolutionEn: 'Topological regularization of the information space via L1_IDENTITY (canonicalization), SP2 (duplicate resolution), and introducing a regularizing parameter θ (robots.txt & sitemap.xml).',
       ricisFormula: '0_F \\times \\infty_G = F \\cdot G = \\text{Конечная Индексация}',
       explanation: 'Процесс перевода сайта в регулярное проиндексированное состояние. Включение L1_IDENTITY и SP2 гарантирует уникальность каждой страницы (X=X, X/X=1), исключая дубли из краулингового бюджета. Семантический индекс SP4 (Schema.org и микроразметка) позволяет роботу классифицировать сущности через исходное выражение E(x).',
+      explanationEn: 'The process of bringing a website to a regular indexed state. L1_IDENTITY and SP2 guarantee uniqueness of each page (X=X, X/X=1), eliminating duplicates from the crawl budget. Semantic indexing via SP4 (Schema.org and microdata) allows crawlers to classify entities through the parent expression E(x).',
       steps: [
         'Настройка главного зеркала и канонических тегов canonical (SP2_REDUCTION_PRIORITY)',
         'Оптимизация семантической разметки и уникальных метатегов Schema.org (SP4_SEMANTIC_PRIORITY)',
         'Регуляризация краулингового пути robots.txt и карты сайта sitemap.xml (введение параметра θ)',
         'Искусственное разрешение сингулярности в панелях веб-мастеров Google Search Console (A1_INDEXING)',
         'Создание связанного информационного монолита 2-го порядка через внутреннюю перелинковку и внешние ссылки'
+      ],
+      stepsEn: [
+        'Configure the main mirror and canonical tags (SP2_REDUCTION_PRIORITY)',
+        'Optimize semantic microdata and Schema.org meta tags (SP4_SEMANTIC_PRIORITY)',
+        'Regularize the crawl path via robots.txt and sitemap.xml (introducing parameter θ)',
+        'Resolve indexing singularities directly inside Google Search Console (A1_INDEXING)',
+        'Build a connected 2nd-order information monolith via internal and external link architecture'
       ],
       presetParams: {},
       colorClass: 'text-emerald-400 border-emerald-500/30',
@@ -249,20 +338,32 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
     {
       id: 'chladni_resonance',
       title: 'Акустические волны и резонансы Хладни',
+      titleEn: 'Acoustic Waves & Chladni Resonances',
       category: 'Волновая Механика & Резонансы',
+      categoryEn: 'Wave Mechanics & Resonances',
       icon: Waves,
       mode: SingularityMode.CHLADNI,
       classicalFail: 'При совпадении частоты вынуждающего воздействия с собственной модой ω → ω_0 и нулевом затухании γ → 0 амплитуда волны устремляется в бесконечность. Также фазовые разрывы возникают в полярных координатах при r → 0.',
+      classicalFailEn: 'When driving frequency matches the natural mode ω → ω_0 and damping is zero γ → 0, wave amplitude approaches infinity. Phase discontinuities also occur in polar coordinates at r → 0.',
       classicalFormula: '\\lim_{\\omega \\to \\omega_0} \\frac{1}{\\sqrt{(\\omega^2 - \\omega_0^2)^2 + (\\gamma \\omega)^2}} = \\infty',
       ricisSolution: 'Применение регуляризационного θ-сдвига в знаменателе уравнения резонансного отклика и полярном счислении, что предотвращает появление разрывов амплитуды и фазы волнового поля.',
+      ricisSolutionEn: 'Applying a regularizing θ-shift to the resonance response denominator and polar calculations, preventing amplitude and phase discontinuities in the wave field.',
       ricisFormula: 'U(\\omega) = \\frac{\\Psi(x,y)}{\\sqrt{(\\omega^2 - \\omega_0^2)^2 + (\\gamma \\omega)^2 + \\theta^2}}',
       explanation: 'Методология RICIS III регуляризует классическое уравнение вынужденных колебаний упругих пластин. Замена нулевого регуляризационного параметра θ на гладкое значение θ > 0 устраняет бесконечность амплитуды при резонансе и исключает разрывы фазовых углов в упругой среде пластины Хладни.',
+      explanationEn: 'The RICIS III methodology regularizes the classical equation of forced vibrations of elastic plates. Replacing the zero regularizing parameter θ with a smooth value θ > 0 eliminates the infinite resonance amplitude and phase angle discontinuities inside Chladni plates.',
       steps: [
         'Перевод волнового поля круглой упругой мембраны в полярные координаты с RICIS θ-коррекцией',
         'Интегрирование гармоник по первому роду Бесселя для вычисления собственных частот ω_i',
         'Добавление затухания среды γ и регуляризирующей метрики θ² в делителе амплитуд',
         'Отрисовка тонких изолиний нулевого потенциала (чернила манускрипта) с использованием золотого сечения B/A',
         'Анализ накопления песка в узловых линиях при различной скважности и форме сигнала'
+      ],
+      stepsEn: [
+        'Convert circular elastic membrane wave field to polar coordinates with RICIS θ-correction',
+        'Integrate harmonics using Bessel functions of the first kind to compute natural frequencies ω_i',
+        'Add damping γ and regularizing metric θ² into the amplitude divisor',
+        'Draw fine zero-potential contours (manuscript ink) utilizing the golden ratio B/A',
+        'Analyze sand accumulation on nodal lines under various signal duty cycles and wave forms'
       ],
       presetParams: {
         activePackage: 3,
@@ -283,6 +384,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'L0',
       level: 'L0',
       name: 'Базовая сингулярность',
+      nameEn: 'Base Singularity',
       input: 'x => 10 / (x - 2)',
       point: 2.0,
       pointLabel: 'x = 2',
@@ -290,11 +392,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(2, \\theta) = \\frac{10 \\cdot (x-2)}{(x-2)^2 + \\theta^2} = 0',
       safetyProtocol: 'A1_INDEXING & L1_IDENTITY',
       explanation: 'В точке x = 2 знаменатель обращается в 0. Классическая математика прерывает вычисление из-за деления на ноль. В RICIS III сингулярная точка представляется как взвешенный бесконечный предел 10/0_F = ∞_10. При ненулевой регуляризации θ переход сглаживается, давая точное нулевое значение на самом полюсе и ограниченный пик в окрестности.',
+      explanationEn: 'At the point x = 2, the denominator becomes 0. Classical mathematics interrupts calculation due to division by zero. In RICIS III, the singular point is represented as a weighted infinite limit 10/0_F = ∞_10. With non-zero regularization θ, the transition is smoothed, giving an exact zero value at the pole itself and a bounded peak in the neighborhood.',
       derivationSteps: [
         'Идентификация сингулярной точки: x - 2 = 0 => x_0 = 2',
         'Применение аксиомы A1_INDEXING: числитель F=10, знаменатель 0_x-2 => результат ∞_10',
         'Ввод квантового зазора θ. Замена f(x) на непрерывный регуляризованный аналог',
         'Оценка в точке x=2: числитель равен 0, знаменатель равен θ². Точный предел = 0, устраняя бесконечный разрыв'
+      ],
+      derivationStepsEn: [
+        'Identify singular point: x - 2 = 0 => x_0 = 2',
+        'Apply axiom A1_INDEXING: numerator F=10, denominator 0_x-2 => result ∞_10',
+        'Introduce quantum gap θ. Replace f(x) with continuous regularized equivalent',
+        'Evaluate at x=2: numerator is 0, denominator is θ². Exact limit = 0, eliminating infinite discontinuity'
       ],
       compute: (x, t) => {
         const dx = x - 2;
@@ -311,6 +420,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'L1',
       level: 'L1',
       name: 'Устранимый разрыв квадратов',
+      nameEn: 'Removable Discontinuity of Squares',
       input: 'x => (x^2 - 25) / (x - 5)',
       point: 5.0,
       pointLabel: 'x = 5',
@@ -318,11 +428,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(5) = 5 + 5 = 10 \\quad (\\text{Точно})',
       safetyProtocol: 'SP2 (REDUCTION_PRIORITY) & SP1 (LOCALITY)',
       explanation: 'Классическое вычисление в точке x=5 даёт 0/0. Согласно Правилу Безопасности SP2, алгебраическое сокращение обязано производиться ДО применения каких-либо сингулярных аксиом. Дробь (x-5)(x+5)/(x-5) сокращается на (x-5), оставляя непрерывный хвост (x+5). Пределы с обеих сторон гарантированно сходятся к единому значению 10.',
+      explanationEn: 'Classical calculation at x=5 yields 0/0. According to Safety Rule SP2, algebraic reduction must be performed BEFORE applying any singularity axioms. The fraction (x-5)(x+5)/(x-5) is cancelled by (x-5), leaving a continuous tail (x+5). Limits from both sides are guaranteed to converge to a single value of 10.',
       derivationSteps: [
         'Определение выражения E(x) = (x^2 - 25) / (x-5)',
         'Факторизация числителя на множители: (x-5)(x+5)',
         'Применение протокола SP2: сокращение идентичных сомножителей (x-5)/(x-5) => 1',
         'Вычисление оставшегося непрерывного выражения при x=5: 5 + 5 = 10'
+      ],
+      derivationStepsEn: [
+        'Define expression E(x) = (x^2 - 25) / (x-5)',
+        'Factor the numerator: (x-5)(x+5)',
+        'Apply protocol SP2: cancel identical factors (x-5)/(x-5) => 1',
+        'Evaluate remaining continuous expression at x=5: 5 + 5 = 10'
       ],
       compute: (x, t) => {
         const den = x - 5;
@@ -340,6 +457,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'L3',
       level: 'L3',
       name: 'Квадратичный знаменатель',
+      nameEn: 'Quadratic Denominator',
       input: 'x => 1 / (x^2 - 4)',
       point: 2.0,
       pointLabel: 'x = 2',
@@ -347,11 +465,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(2, \\theta) = \\frac{x^2 - 4}{(x^2 - 4)^2 + \\theta^2} = 0',
       safetyProtocol: 'SP4 (SEMANTIC_PRIORITY) & A1',
       explanation: 'При x=2 знаменатель (x-2)(x+2) обращается в ноль. Согласно протоколу SP4, сингулярность индексируется по выражению: 0_{(x²-4)|_{x=2}}. Результат деления равен ∞_{1/4}. В регуляризованном поле RICIS III умножение на знаменатель сглаживает сингулярность, превращая бесконечный полюс в гладкий волновой переход с нулевым значением на оси симметрии.',
+      explanationEn: 'At x=2, the denominator (x-2)(x+2) becomes zero. According to protocol SP4, the singularity is indexed by the parent expression: 0_{(x²-4)|_{x=2}}. The division result is ∞_{1/4}. In the regularized field of RICIS III, multiplying by the denominator smooths the singularity, turning the infinite pole into a smooth wave transition with a zero value on the axis of symmetry.',
       derivationSteps: [
         'Разложение знаменателя: x^2 - 4 = (x-2)(x+2)',
         'Выделение регулярной части при x->2: 1/(x+2) -> 1/4',
         'Индексирование полюса по правилу SP4: 0_F = 0_{(x-2)} * 4',
         'Применение сглаживающего фактора θ: волновое сжатие превращает полюс в регулярную критическую точку'
+      ],
+      derivationStepsEn: [
+        'Factor the denominator: x^2 - 4 = (x-2)(x+2)',
+        'Extract regular part as x->2: 1/(x+2) -> 1/4',
+        'Index the pole according to SP4 rule: 0_F = 0_{(x-2)} * 4',
+        'Apply smoothing factor θ: wave compression turns the pole into a regular critical point'
       ],
       compute: (x, t) => {
         const den = x*x - 4;
@@ -368,6 +493,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'L6',
       level: 'L6',
       name: 'Замечательный предел (Sinc)',
+      nameEn: 'Notable Limit (Sinc)',
       input: 'x => sin(x) / x',
       point: 0.0,
       pointLabel: 'x = 0',
@@ -375,11 +501,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(0) = 1 \\quad (\\text{Аналитический предел})',
       safetyProtocol: 'SP3 (INDEX_LAW) & Тейлор-разложение',
       explanation: 'В точке x=0 функция даёт неопределенность 0/0. Согласно закону индексов SP3 и семантическому разложению SP4, отношение нулей определяется отношением их степенных рядов. Поскольку sin(x) = x - x³/6 + ..., отношение даёт строго 1, что полностью снимает сингулярность без необходимости предельного перехода.',
+      explanationEn: 'At the point x=0, the function yields 0/0 indeterminacy. According to index law SP3 and semantic expansion SP4, the ratio of zeros is determined by the ratio of their power series. Since sin(x) = x - x³/6 + ..., the ratio is strictly 1, which completely resolves the singularity without requiring a limit transition.',
       derivationSteps: [
         'Запись числителя в виде бесконечной суммы Тейлора: x - x^3/6 + x^5/120 - ...',
         'Применение закона SP3: деление каждого члена суммы на x',
         'Получение непрерывного ряда: 1 - x^2/6 + x^4/120 - ...',
         'Подстановка x = 0: все старшие степени обнуляются, давая точное решение 1'
+      ],
+      derivationStepsEn: [
+        'Write the numerator as an infinite Taylor sum: x - x^3/6 + x^5/120 - ...',
+        'Apply law SP3: divide each term of the sum by x',
+        'Obtain continuous series: 1 - x^2/6 + x^4/120 - ...',
+        'Substitute x = 0: all higher powers vanish, yielding the exact solution 1'
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '0/0 (Неопределено)' : Math.sin(x) / x;
@@ -395,6 +528,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'L10',
       level: 'L10',
       name: 'Экспоненциальный устранимый разрыв',
+      nameEn: 'Exponential Removable Discontinuity',
       input: 'x => (exp(x) - 1) / x',
       point: 0.0,
       pointLabel: 'x = 0',
@@ -402,11 +536,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(0) = 1',
       safetyProtocol: 'SP3 (INDEX_LAW) & Тейлор-разложение',
       explanation: 'Классическое деление в нуле невозможно. В RICIS III отношение бесконечно малых 0_{exp(x)-1} / 0_x разрешается через разложение экспоненты в ряд: e^x - 1 = x + x²/2 + ... Сокращение по правилу SP2 оставляет ряд 1 + x/2 + ..., значение которого при x=0 строго равно 1.',
+      explanationEn: 'Classical division at zero is impossible. In RICIS III, the ratio of infinitesimals 0_{exp(x)-1} / 0_x is resolved via exponential expansion: e^x - 1 = x + x²/2 + ... Cancellation according to rule SP2 leaves the series 1 + x/2 + ..., whose value at x=0 is strictly 1.',
       derivationSteps: [
         'Запись ряда Тейлора для exp(x) - 1: x + x^2/2 + x^3/6 + ...',
         'Деление на знаменатель x по правилу сокращения общих нулевых факторов',
         'Получение регулярной суммы: 1 + x/2 + x^2/6 + ...',
         'Прямое вычисление в точке x=0 даёт точный аналитический предел = 1'
+      ],
+      derivationStepsEn: [
+        'Write the Taylor series for exp(x) - 1: x + x^2/2 + x^3/6 + ...',
+        'Divide by denominator x according to the rule of cancelling common zero factors',
+        'Obtain the regular sum: 1 + x/2 + x^2/6 + ...',
+        'Direct calculation at x=0 yields the exact analytical limit = 1'
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '0/0 (Неопределено)' : (Math.exp(x) - 1) / x;
@@ -422,6 +563,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'L11',
       level: 'L11',
       name: 'Тригонометрический предел 1-cos(x)/x²',
+      nameEn: 'Trigonometric Limit 1-cos(x)/x²',
       input: 'x => (1 - cos(x)) / x^2',
       point: 0.0,
       pointLabel: 'x = 0',
@@ -429,11 +571,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(0) = 0.5',
       safetyProtocol: 'SP3 (INDEX_LAW)',
       explanation: 'Ещё один критический случай 0/0 в классическом анализе. С помощью Тейлор-разложения числитель представляется как x²/2 - x⁴/24 + ... Отношение индексов числителя и знаменателя даёт вторую степень, сокращение которой по правилу SP2 приводит к точному значению 1/2.',
+      explanationEn: 'Another critical 0/0 case in classical analysis. Using Taylor expansion, the numerator is represented as x²/2 - x⁴/24 + ... The ratio of numerator and denominator indices yields the second degree, cancellation of which by rule SP2 leads to the exact value 1/2.',
       derivationSteps: [
         'Использование ряда Тейлора для cos(x): 1 - x^2/2 + x^4/24 - ...',
         'Вычисление числителя 1 - cos(x) = x^2/2 - x^4/24 + ...',
         'Сокращение квадратичного фактора x^2 по правилу SP2',
         'Подстановка x=0 в регулярный остаток 1/2 - x^2/24 => результат 0.5'
+      ],
+      derivationStepsEn: [
+        'Use Taylor series for cos(x): 1 - x^2/2 + x^4/24 - ...',
+        'Compute the numerator 1 - cos(x) = x^2/2 - x^4/24 + ...',
+        'Cancel the quadratic factor x^2 according to rule SP2',
+        'Substitute x=0 into the regular remainder 1/2 - x^2/24 => result 0.5'
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '0/0 (Неопределено)' : (1 - Math.cos(x)) / (x * x);
@@ -449,6 +598,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'L15',
       level: 'L15',
       name: 'Существенная сингулярность Пикара',
+      nameEn: 'Picard\'s Essential Singularity',
       input: 'x => exp(1 / x)',
       point: 0.0,
       pointLabel: 'x = 0',
@@ -456,11 +606,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(0, \\theta) = e^{0} = 1',
       safetyProtocol: 'A6_GENERAL & Комплексное зануление',
       explanation: 'В окрестности нуля функция e^(1/x) совершает бесконечное число колебаний и уходит в бесконечность или ноль в зависимости от направления. RICIS III заменяет аргумент 1/x на сглаженный регуляризованный аналог x / (x² + θ²). В точке x=0 аргумент становится строго равен 0, стабилизируя значение экспоненты на уровне e^0 = 1.',
+      explanationEn: 'In the neighborhood of zero, the function e^(1/x) oscillates infinitely and goes to infinity or zero depending on direction. RICIS III replaces the argument 1/x with the smooth regularized equivalent x / (x² + θ²). At x=0, the argument becomes strictly 0, stabilizing the exponential value at e^0 = 1.',
       derivationSteps: [
         'Идентификация аргумента как сингулярного ядра 1/x',
         'Применение RICIS-регуляризатора к аргументу: x / (x^2 + theta^2)',
         'Оценка аргумента в точке x=0: 0 / theta^2 = 0',
         'Вычисление функции экспоненты: exp(0) = 1, полная стабилизация сингулярности'
+      ],
+      derivationStepsEn: [
+        'Identify the argument as singular core 1/x',
+        'Apply RICIS regularizer to argument: x / (x^2 + theta^2)',
+        'Evaluate the argument at x=0: 0 / theta^2 = 0',
+        'Evaluate exponential function: exp(0) = 1, full stabilization of the singularity'
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? 'Неопределено (Пикар)' : Math.exp(1 / x);
@@ -476,6 +633,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'L17',
       level: 'L17',
       name: 'Полюс второго порядка (1/x²)',
+      nameEn: 'Second-Order Pole (1/x²)',
       input: 'x => 1 / x^2',
       point: 0.0,
       pointLabel: 'x = 0',
@@ -483,11 +641,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(0, \\theta) = \\frac{1}{\\theta^2} \\quad (\\text{Ограничено})',
       safetyProtocol: 'A1_INDEXING',
       explanation: 'Квадратичный полюс в классической теории уходит в бесконечность чрезвычайно быстро. Регуляризованное поле RICIS III добавляет квантовую емкость пространства θ², из-за чего значение на полюсе стабилизируется на физическом пределе 1/θ², предотвращая сингулярный коллапс поля.',
+      explanationEn: 'The quadratic pole in classical theory approaches infinity extremely fast. The regularized field of RICIS III adds a quantum space capacity θ², stabilizing the pole value at the physical limit of 1/θ², preventing singular field collapse.',
       derivationSteps: [
         'Запись сингулярного уравнения: f(x) = 1 / x^2',
         'Применение аксиомы A1: преобразование в бесконечную величину второго порядка',
         'Внедрение регуляризации в знаменатель: x^2 -> x^2 + theta^2',
         'Вычисление в точке x=0: f_reg(0) = 1 / theta^2, пик строго ограничен величиной зазора'
+      ],
+      derivationStepsEn: [
+        'Write the singular equation: f(x) = 1 / x^2',
+        'Apply axiom A1: transform to second-order infinity',
+        'Inject regularization into the denominator: x^2 -> x^2 + theta^2',
+        'Evaluate at x=0: f_reg(0) = 1 / theta^2, peak strictly bounded by gap magnitude'
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '∞' : 1 / (x * x);
@@ -503,6 +668,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'L24',
       level: 'L24',
       name: 'Вложенная сингулярность',
+      nameEn: 'Nested Singularity',
       input: 'x => x / x^2',
       point: 0.0,
       pointLabel: 'x = 0',
@@ -510,11 +676,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(0, \\theta) = \\frac{x}{x^2 + \\theta^2} = 0',
       safetyProtocol: 'SP2 (REDUCTION) или сглаживание',
       explanation: 'Вложенная дробь x/x² при x=0 даёт неопределенность. Применение правила сокращения SP2 упрощает выражение до 1/x, что сводится к базовому полюсу ∞_1. Интерактивная регуляризация через волновой зазор даёт плавный переход через ноль с локальными пиками ±1/(2θ) по бокам.',
+      explanationEn: 'The nested fraction x/x² at x=0 yields indeterminacy. Applying cancellation rule SP2 simplifies the expression to 1/x, reducing to the base pole ∞_1. Interactive regularization via a wave gap yields a smooth transition through zero with local peaks of ±1/(2θ) on either side.',
       derivationSteps: [
         'Анализ структуры дроби x / x^2',
         'Алгебраическое сокращение по протоколу SP2: x/x^2 = 1/x',
         'Преобразование к сглаженному виду: x / (x^2 + theta^2)',
         'Оценка в точке x=0: результат равен 0, симметричные экстремумы стабилизированы'
+      ],
+      derivationStepsEn: [
+        'Analyze fraction structure: x / x^2',
+        'Algebraic cancellation via SP2 protocol: x/x^2 = 1/x',
+        'Transform to smooth form: x / (x^2 + theta^2)',
+        'Evaluate at x=0: result is 0, symmetric extrema are stabilized'
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '0/0 (Неопределено)' : x / (x * x);
@@ -530,6 +703,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'A4',
       level: 'A4',
       name: 'Деление сингулярных нулей (0_F / 0_G)',
+      nameEn: 'Division of Singular Zeros (0_F / 0_G)',
       input: 'x => (8*x) / (2*x)',
       point: 0.0,
       pointLabel: 'x = 0',
@@ -537,11 +711,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(0) = \\frac{0_8}{0_2} = 4 \\quad (\\text{Точно})',
       safetyProtocol: 'A4_0DIV0 & SP3 (INDEX_LAW)',
       explanation: 'В точке x = 0 классический анализ возвращает неопределенность 0/0. Согласно аксиоме A4_0DIV0 и правилу SP3, отношение нулей разного веса определяется строго отношением их индексов (весов). Для числителя с весом F=8 и знаменателя с весом G=2, результат равен 8/2 = 4, полностью снимая неопределенность.',
+      explanationEn: 'At x = 0, classical analysis returns 0/0 indeterminacy. According to axiom A4_0DIV0 and rule SP3, the ratio of zeros of different weights is strictly defined by the ratio of their indices (weights). For a numerator of weight F=8 and denominator of weight G=2, the result is 8/2 = 4, completely removing the indeterminacy.',
       derivationSteps: [
         'Идентификация весов нулей: числитель F(x) = 8x -> индекс 0_8 при x=0',
         'Идентификация весов знаменателя: знаменатель G(x) = 2x -> индекс 0_2 при x=0',
         'Применение аксиомы A4_0DIV0: 0_8 / 0_2 = 8 / 2',
         'Получение точного аналитического значения: 4, готового для дальнейших вычислений'
+      ],
+      derivationStepsEn: [
+        'Identify zero weights: numerator F(x) = 8x -> index 0_8 at x=0',
+        'Identify denominator weights: denominator G(x) = 2x -> index 0_2 at x=0',
+        'Apply axiom A4_0DIV0: 0_8 / 0_2 = 8 / 2',
+        'Obtain exact analytical value: 4, ready for further calculations'
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '0/0 (Неопределено)' : (8*x) / (2*x);
@@ -557,6 +738,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'A5',
       level: 'A5',
       name: 'Деление бесконечностей (∞_F / ∞_G)',
+      nameEn: 'Division of Infinities (∞_F / ∞_G)',
       input: 'x => (6 / (x - 2)) / (2 / (x - 2))',
       point: 2.0,
       pointLabel: 'x = 2',
@@ -564,11 +746,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(2) = \\frac{\\infty_6}{\\infty_2} = 3 \\quad (\\text{Точно})',
       safetyProtocol: 'A5_INFDIVINF & L1_IDENTITY',
       explanation: 'В точке x = 2 классическая функция дает неопределенность вида бесконечность делить на бесконечность. RICIS III представляет сингулярности как индексированные монолиты порядка 0. Аксиома A5_INFDIVINF определяет отношение таких бесконечностей через отношение их весов: ∞_6 / ∞_2 = 6 / 2 = 3.',
+      explanationEn: 'At the point x = 2, the classical function yields infinity divided by infinity indeterminacy. RICIS III represents singularities as indexed order-0 monoliths. Axiom A5_INFDIVINF defines the ratio of such infinities through the ratio of their weights: ∞_6 / ∞_2 = 6 / 2 = 3.',
       derivationSteps: [
         'Определение индексов сингулярностей: числитель -> ∞_6, знаменатель -> ∞_2 при x=2',
         'Применение аксиомы A5: отношение бесконечностей эквивалентно отношению их весов F/G',
         'Сокращение бесконечных множителей по правилу SP2',
         'Получение конечного точного числа: 3, свободного от сингулярности'
+      ],
+      derivationStepsEn: [
+        'Determine singularity indices: numerator -> ∞_6, denominator -> ∞_2 at x=2',
+        'Apply axiom A5: ratio of infinities is equivalent to their weight ratio F/G',
+        'Cancel infinite factors according to rule SP2',
+        'Obtain final exact value: 3, free of singularity'
       ],
       compute: (x, t) => {
         const dx = x - 2;
@@ -585,6 +774,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'A6',
       level: 'A6',
       name: 'Произведение нуля и бесконечности (0_F × ∞_G)',
+      nameEn: 'Product of Zero and Infinity (0_F × ∞_G)',
       input: 'x => (5*x) * (3 / x)',
       point: 0.0,
       pointLabel: 'x = 0',
@@ -592,11 +782,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(0) = 0_5 \\times \\infty_3 = 15 \\quad (\\text{Точно})',
       safetyProtocol: 'A6_GENERAL (Унифицированная свертка)',
       explanation: 'Классическое произведение 0 * ∞ является одной из самых известных неопределенностей. В RICIS III свертка бесконечно малого порядка 0 и бесконечно большого порядка 0 с индексами F=5 и G=3 разрешается как произведение их весов. Результат равен 5 * 3 = 15.',
+      explanationEn: 'The classical product of 0 * ∞ is one of the most famous indeterminacies. In RICIS III, the convolution of an order-0 infinitesimal and an order-0 infinity with indices F=5 and G=3 resolves as the product of their weights. The result is 5 * 3 = 15.',
       derivationSteps: [
         'Индексация сомножителей: нуль имеет вес F=5, бесконечность имеет вес G=3',
         'Применение универсальной аксиомы A6_GENERAL: 0_F * ∞_G = F * G',
         'Умножение весов: 5 * 3 = 15',
         'Получение точного конечного выражения без предельных переходов'
+      ],
+      derivationStepsEn: [
+        'Index factors: zero has weight F=5, infinity has weight G=3',
+        'Apply universal axiom A6_GENERAL: 0_F * ∞_G = F * G',
+        'Multiply weights: 5 * 3 = 15',
+        'Obtain exact finite expression without limit transitions'
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '0 * ∞ (Неопределено)' : (5*x) * (3 / x);
@@ -612,6 +809,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       id: 'A7',
       level: 'A7',
       name: 'Разность бесконечностей (∞_F - ∞_G)',
+      nameEn: 'Difference of Infinities (∞_F - ∞_G)',
       input: 'x => (5 / x) - (3 / x)',
       point: 0.0,
       pointLabel: 'x = 0',
@@ -619,11 +817,18 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ricisFormula: 'f_{RICIS}(0, \\theta) = \\infty_2 \\quad (\\text{Регуляризовано в } \\frac{2x}{x^2 + \\theta^2})',
       safetyProtocol: 'A7_INFSUBINF',
       explanation: 'Разность бесконечностей в точке x = 0 дает классическую неопределенность. В RICIS III вычитание бесконечностей одного типа дает новую индексированную бесконечность ∞_{F-G}. Для весов F=5 и G=3 разность равна ∞_2. В регуляризованном поле это выражение переходит в гладкую функцию 2x/(x²+θ²), равную 0 на полюсе и ограниченную ±1/θ в окрестности.',
+      explanationEn: 'The difference of infinities at the point x = 0 yields a classical indeterminacy. In RICIS III, subtracting infinities of the same type yields a new indexed infinity ∞_{F-G}. For weights F=5 and G=3, the difference is ∞_2. In the regularized field, this expression transforms into a smooth function 2x/(x²+θ²), equal to 0 at the pole and bounded by ±1/θ in the neighborhood.',
       derivationSteps: [
         'Определение бесконечностей: ∞_5 и ∞_3 при приближении к x=0',
         'Применение аксиомы A7_INFSUBINF: ∞_F - ∞_G = ∞_{F-G}',
         'Вычисление результирующего индекса: 5 - 3 = 2 -> результат ∞_2',
         'Перевод в регулярное поле: 2 / x -> 2x / (x^2 + theta^2), значение в нуле равно 0'
+      ],
+      derivationStepsEn: [
+        'Determine infinities: ∞_5 and ∞_3 as x approaches 0',
+        'Apply axiom A7_INFSUBINF: ∞_F - ∞_G = ∞_{F-G}',
+        'Compute resulting index: 5 - 3 = 2 -> result ∞_2',
+        'Translate to regular field: 2 / x -> 2x / (x^2 + theta^2), value at zero is 0'
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '∞ - ∞ (Неопределено)' : (5 / x) - (3 / x);
@@ -662,10 +867,10 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
           </div>
           <div>
             <h2 className="text-base font-semibold text-white uppercase tracking-wider">
-              Вычислительный Стенд RICIS III
+              {t('Вычислительный Стенд RICIS III', 'RICIS III Computing Workbench')}
             </h2>
             <p className="text-xs text-slate-500 uppercase tracking-widest mt-0.5">
-              Теоретическая библиотека и интерактивная регуляризация сингулярностей
+              {t('Теоретическая библиотека и интерактивная регуляризация сингулярностей', 'Theoretical library and interactive regularization of singularities')}
             </p>
           </div>
         </div>
@@ -680,7 +885,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Прикладные задачи
+            {t('Прикладные задачи', 'Applied Problems')}
           </button>
           <button
             onClick={() => {
@@ -695,7 +900,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Символьный Стресс-Тест (Deep Stress Test)
+            {t('Символьный Стресс-Тест (Deep Stress Test)', 'Symbolic Deep Stress Test')}
           </button>
         </div>
       </div>
@@ -705,11 +910,13 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Cases List Sidebar */}
           <div className="lg:col-span-4 space-y-2">
-            <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider block mb-2">Выберите прикладную проблему</span>
+            <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider block mb-2">{t('Выберите прикладную проблему', 'Select Applied Problem')}</span>
             <div className="space-y-2">
               {cases.map((cs) => {
                 const CaseIcon = cs.icon;
                 const isSelected = cs.id === selectedCase;
+                const displayCategory = language === 'en' && cs.categoryEn ? cs.categoryEn : cs.category;
+                const displayTitle = language === 'en' && cs.titleEn ? cs.titleEn : cs.title;
                 return (
                   <button
                     key={cs.id}
@@ -727,8 +934,8 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                       <CaseIcon className="w-4 h-4" />
                     </div>
                     <div className="truncate">
-                      <span className="text-[10px] font-mono text-slate-500 block uppercase tracking-wider">{cs.category}</span>
-                      <span className="text-xs font-semibold block truncate mt-0.5">{cs.title}</span>
+                      <span className="text-[10px] font-mono text-slate-500 block uppercase tracking-wider">{displayCategory}</span>
+                      <span className="text-xs font-semibold block truncate mt-0.5">{displayTitle}</span>
                     </div>
                   </button>
                 );
@@ -745,8 +952,12 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
               {/* Header of Detail */}
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <div>
-                  <span className="text-[10px] font-mono text-cyan-400 block uppercase tracking-widest">{currentCase.category}</span>
-                  <h3 className="text-base font-bold text-white mt-1">{currentCase.title}</h3>
+                  <span className="text-[10px] font-mono text-cyan-400 block uppercase tracking-widest">
+                    {language === 'en' && currentCase.categoryEn ? currentCase.categoryEn : currentCase.category}
+                  </span>
+                  <h3 className="text-base font-bold text-white mt-1">
+                    {language === 'en' && currentCase.titleEn ? currentCase.titleEn : currentCase.title}
+                  </h3>
                 </div>
                 <div className={`p-2.5 rounded-lg bg-[#09090B] border border-white/10 ${currentCase.colorClass}`}>
                   <IconComponent className="w-5 h-5" />
@@ -759,10 +970,10 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                 <div className="bg-red-950/10 border border-red-500/20 rounded-lg p-4 space-y-3">
                   <div className="flex items-center space-x-2 text-red-400 font-mono text-[10px] uppercase font-semibold">
                     <ShieldAlert className="w-3.5 h-3.5" />
-                    <span>Классический коллапс</span>
+                    <span>{t('Классический коллапс', 'Classical Collapse')}</span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed min-h-[60px]">
-                    {currentCase.classicalFail}
+                    {language === 'en' && currentCase.classicalFailEn ? currentCase.classicalFailEn : currentCase.classicalFail}
                   </p>
                   <div className="bg-[#09090B] p-2.5 rounded font-mono text-[11px] text-white text-center border border-white/5 whitespace-pre-wrap">
                     {currentCase.classicalFormula}
@@ -773,10 +984,10 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                 <div className="bg-cyan-950/10 border border-cyan-500/20 rounded-lg p-4 space-y-3">
                   <div className="flex items-center space-x-2 text-cyan-400 font-mono text-[10px] uppercase font-semibold">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Регуляризация RICIS III</span>
+                    <span>{t('Регуляризация RICIS III', 'RICIS III Regularization')}</span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed min-h-[60px]">
-                    {currentCase.ricisSolution}
+                    {language === 'en' && currentCase.ricisSolutionEn ? currentCase.ricisSolutionEn : currentCase.ricisSolution}
                   </p>
                   <div className="bg-[#09090B] p-2.5 rounded font-mono text-[11px] text-cyan-300 text-center border border-cyan-950/60 whitespace-pre-wrap">
                     {currentCase.ricisFormula}
@@ -786,17 +997,17 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
 
               {/* In-depth explanation */}
               <div className="bg-white/5 border border-white/5 rounded-lg p-4 space-y-2">
-                <span className="text-[10px] font-mono text-slate-400 uppercase block tracking-wider">Физический и Математический механизм</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase block tracking-wider">{t('Физический и Математический механизм', 'Physical and Mathematical Mechanism')}</span>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  {currentCase.explanation}
+                  {language === 'en' && currentCase.explanationEn ? currentCase.explanationEn : currentCase.explanation}
                 </p>
               </div>
 
               {/* Execution Steps */}
               <div className="space-y-3">
-                <span className="text-[10px] font-mono text-slate-400 uppercase block tracking-wider">Алгоритм доказательства и регуляризации</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase block tracking-wider">{t('Алгоритм доказательства и регуляризации', 'Proof and Regularization Algorithm')}</span>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                  {currentCase.steps.map((step, idx) => (
+                  {(language === 'en' && currentCase.stepsEn ? currentCase.stepsEn : currentCase.steps).map((step, idx) => (
                     <div key={idx} className="flex items-start space-x-2 bg-[#09090B] p-2.5 rounded border border-white/5">
                       <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/30 border border-cyan-800/40 w-5 h-5 rounded flex items-center justify-center shrink-0">
                         0{idx + 1}
@@ -811,14 +1022,14 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
             {/* Simulate Call-to-action */}
             <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-[10px] font-mono text-slate-500 uppercase">
-                Параметры запуска: {Object.entries(currentCase.presetParams).map(([k, v]) => `${k}=${v}`).join(', ')}
+                {t('Параметры запуска:', 'Launch Parameters:')} {Object.entries(currentCase.presetParams).map(([k, v]) => `${k}=${v}`).join(', ')}
               </div>
               <button
                 onClick={() => onLoadPreset(currentCase.mode, currentCase.presetParams)}
                 className="px-5 py-2.5 bg-cyan-500 text-[#09090B] rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center space-x-2 hover:bg-cyan-400 transition-all duration-200 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_25px_rgba(34,211,238,0.35)] self-end sm:self-auto cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-[#09090B]" />
-                <span>Запустить симуляцию</span>
+                <span>{t('Запустить симуляцию', 'Launch Simulation')}</span>
               </button>
             </div>
           </div>
@@ -830,14 +1041,15 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
           {/* Tests List Sidebar */}
           <div className="lg:col-span-4 space-y-2">
             <div className="flex justify-between items-center mb-2 px-1">
-              <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider block">Список стресс-тестов RICIS III</span>
+              <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider block">{t('Список стресс-тестов RICIS III', 'RICIS III Stress Tests List')}</span>
               <span className="text-[9px] font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-800/30 px-1.5 py-0.5 rounded">
-                Символьное ядро v7.3
+                {t('Символьное ядро v7.3', 'Symbolic Core v7.3')}
               </span>
             </div>
             <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
               {stressTests.map((st) => {
                 const isSelected = st.id === selectedTest;
+                const displayTestName = language === 'en' && st.nameEn ? st.nameEn : st.name;
                 return (
                   <button
                     key={st.id}
@@ -853,7 +1065,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                         {st.level}
                       </span>
                       <div className="truncate">
-                        <span className="text-xs font-medium block truncate text-slate-200 group-hover:text-white">{st.name}</span>
+                        <span className="text-xs font-medium block truncate text-slate-200 group-hover:text-white">{displayTestName}</span>
                         <span className="text-[9px] font-mono text-slate-500 block mt-0.5">{st.input}</span>
                       </div>
                     </div>
@@ -882,7 +1094,9 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                         {currentTest.safetyProtocol}
                       </span>
                     </div>
-                    <h3 className="text-base font-bold text-white mt-1">{currentTest.name}</h3>
+                    <h3 className="text-base font-bold text-white mt-1">
+                      {language === 'en' && currentTest.nameEn ? currentTest.nameEn : currentTest.name}
+                    </h3>
                   </div>
                 </div>
               </div>
@@ -891,40 +1105,40 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Classical Representation */}
                 <div className="bg-red-950/10 border border-red-500/15 rounded-lg p-4 space-y-2">
-                  <span className="text-[10px] font-mono text-red-400 uppercase tracking-wider block">Классическое выражение</span>
+                  <span className="text-[10px] font-mono text-red-400 uppercase tracking-wider block">{t('Классическое выражение', 'Classical Expression')}</span>
                   <div className="font-mono text-[11px] text-slate-300 bg-[#09090B] p-2 rounded text-center border border-white/5">
                     {currentTest.input}
                   </div>
                   <div className="text-[10px] text-slate-500 font-mono mt-1">
-                    Сингулярная точка: <span className="text-red-400">{currentTest.pointLabel}</span>
+                    {t('Сингулярная точка:', 'Singular Point:')} <span className="text-red-400">{currentTest.pointLabel}</span>
                   </div>
                 </div>
 
                 {/* RICIS Regularized Analytical Representation */}
                 <div className="bg-cyan-950/10 border border-cyan-500/15 rounded-lg p-4 space-y-2">
-                  <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider block">Регуляризованная аналитика RICIS</span>
+                  <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider block">{t('Регуляризованная аналитика RICIS', 'RICIS Regularized Analytics')}</span>
                   <div className="font-mono text-[11px] text-cyan-300 bg-[#09090B] p-2 rounded text-center border border-cyan-950/50">
                     {currentTest.ricisFormula}
                   </div>
                   <div className="text-[10px] text-slate-500 font-mono mt-1">
-                    Квантовый регуляризатор: <span className="text-cyan-400">θ (theta)</span>
+                    {t('Квантовый регуляризатор:', 'Quantum Regularizer:')} <span className="text-cyan-400">θ (theta)</span>
                   </div>
                 </div>
               </div>
 
               {/* Explanation text */}
               <div className="bg-white/5 border border-white/5 rounded-lg p-4 space-y-2">
-                <span className="text-[10px] font-mono text-slate-400 uppercase block tracking-wider">Физико-математическая суть и доказательство</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase block tracking-wider">{t('Физико-математическая суть и доказательство', 'Physical-Mathematical Essence & Proof')}</span>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  {currentTest.explanation}
+                  {language === 'en' && currentTest.explanationEn ? currentTest.explanationEn : currentTest.explanation}
                 </p>
               </div>
 
               {/* Dynamic Workbench Simulator */}
               <div className="bg-black/40 border border-white/15 p-5 rounded-xl space-y-5">
                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-[10px] font-mono text-cyan-400 uppercase font-semibold">Интерактивный вычислительный стенд</span>
-                  <span className="text-[9px] font-mono text-slate-500">РЕАЛЬНОЕ ВРЕМЯ</span>
+                  <span className="text-[10px] font-mono text-cyan-400 uppercase font-semibold">{t('Интерактивный вычислительный стенд', 'Interactive Computing Workbench')}</span>
+                  <span className="text-[9px] font-mono text-slate-500">{t('РЕАЛЬНОЕ ВРЕМЯ', 'REAL-TIME')}</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -933,7 +1147,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                     {/* Slider X */}
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-400 font-medium">Переменная x:</span>
+                        <span className="text-slate-400 font-medium">{t('Переменная x:', 'Variable x:')}</span>
                         <span className="text-white font-mono bg-[#09090B] px-1.5 py-0.5 rounded border border-white/5 font-semibold">
                           {interactiveX.toFixed(3)}
                         </span>
@@ -949,7 +1163,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                       />
                       <div className="flex justify-between text-[9px] text-slate-600 font-mono">
                         <span>{currentTest.sliderMin}</span>
-                        <span className="text-cyan-500/50">Полюс ({currentTest.pointLabel})</span>
+                        <span className="text-cyan-500/50">{t('Полюс', 'Pole')} ({currentTest.pointLabel})</span>
                         <span>{currentTest.sliderMax}</span>
                       </div>
                     </div>
@@ -957,7 +1171,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                     {/* Slider Theta */}
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-400 font-medium">Регуляризатор θ:</span>
+                        <span className="text-slate-400 font-medium">{t('Регуляризатор θ:', 'Regularizer θ:')}</span>
                         <span className="text-cyan-400 font-mono bg-cyan-950/20 px-1.5 py-0.5 rounded border border-cyan-950/60 font-semibold">
                           {interactiveTheta.toFixed(3)}
                         </span>
@@ -972,9 +1186,9 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                         className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                       />
                       <div className="flex justify-between text-[9px] text-slate-600 font-mono">
-                        <span>0.00 (Сингулярность)</span>
+                        <span>{t('0.00 (Сингулярность)', '0.00 (Singularity)')}</span>
                         <span>0.75</span>
-                        <span>1.50 (Сглажено)</span>
+                        <span>{t('1.50 (Сглажено)', '1.50 (Smoothed)')}</span>
                       </div>
                     </div>
                   </div>
@@ -984,15 +1198,15 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                     <div className="space-y-3">
                       {/* Classical calculated result */}
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-mono text-slate-500 uppercase">Классическое вычисление f(x):</span>
-                        <span className={`text-xs font-mono font-bold ${calcClassical === '∞' || String(calcClassical).includes('Неопределено') ? 'text-red-400' : 'text-slate-300'}`}>
+                        <span className="text-[10px] font-mono text-slate-500 uppercase">{t('Классическое вычисление f(x):', 'Classical calculation f(x):')}</span>
+                        <span className={`text-xs font-mono font-bold ${calcClassical === '∞' || String(calcClassical).includes('Неопределено') || String(calcClassical).includes('Indeterminate') ? 'text-red-400' : 'text-slate-300'}`}>
                           {typeof calcClassical === 'number' ? calcClassical.toFixed(5) : calcClassical}
                         </span>
                       </div>
 
                       {/* RICIS calculated result */}
                       <div className="flex justify-between items-center border-t border-white/5 pt-2">
-                        <span className="text-[10px] font-mono text-slate-500 uppercase">RICIS III Регуляризованное f_reg(x):</span>
+                        <span className="text-[10px] font-mono text-slate-500 uppercase">{t('RICIS III Регуляризованное f_reg(x):', 'RICIS III Regularized f_reg(x):')}</span>
                         <span className="text-xs font-mono font-bold text-cyan-400">
                           {calcRegularized.toFixed(5)}
                         </span>
@@ -1001,7 +1215,7 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
 
                     {/* Safety Status indicators */}
                     <div className="mt-4 pt-2 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-[9px] font-mono text-slate-600 uppercase">Статус защиты ядра:</span>
+                      <span className="text-[9px] font-mono text-slate-600 uppercase">{t('Статус защиты ядра:', 'Core Protection Status:')}</span>
                       {interactiveTheta > 0 ? (
                         <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 px-2 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse">
                           SECURE / REGULARIZED
@@ -1018,9 +1232,9 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
 
               {/* Phase and algorithm execution logs */}
               <div className="space-y-2">
-                <span className="text-[10px] font-mono text-slate-400 uppercase block tracking-wider">Пошаговое символьное разложение (RICIS v7.3)</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase block tracking-wider">{t('Пошаговое символьное разложение (RICIS v7.3)', 'Step-by-step Symbolic Expansion (RICIS v7.3)')}</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {currentTest.derivationSteps.map((step, idx) => (
+                  {(language === 'en' && currentTest.derivationStepsEn ? currentTest.derivationStepsEn : currentTest.derivationSteps).map((step, idx) => (
                     <div key={idx} className="bg-[#09090B] p-2.5 rounded border border-white/5 flex items-start space-x-2.5">
                       <span className="text-[9px] font-mono bg-cyan-950/30 border border-cyan-800/40 text-cyan-400 w-5 h-5 rounded flex items-center justify-center shrink-0">
                         P{idx + 1}
@@ -1035,8 +1249,8 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
 
             {/* Simulated actions to load preset to parent */}
             <div className="pt-4 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-slate-500">
-              <span>Стресс-тест {currentTest.id} полностью интегрирован</span>
-              <span>Класс: {currentTest.safetyProtocol}</span>
+              <span>{t(`Стресс-тест ${currentTest.id} полностью интегрирован`, `Stress-test ${currentTest.id} fully integrated`)}</span>
+              <span>{t('Класс:', 'Class:')} {currentTest.safetyProtocol}</span>
             </div>
 
           </div>
