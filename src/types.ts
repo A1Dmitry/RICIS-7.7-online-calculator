@@ -16,7 +16,30 @@ export enum SingularityMode {
   POINCARE = 'POINCARE',
   THEORY = 'THEORY',
   CASES_AND_SOLUTIONS = 'CASES_AND_SOLUTIONS',
-  RICIS_AGENT = 'RICIS_AGENT'
+  RICIS_AGENT = 'RICIS_AGENT',
+  CHLADNI = 'CHLADNI'
+}
+
+export interface ChladniState {
+  plateType: 'circle' | 'square';
+  attachmentPoint: 'center' | 'free' | 'corner' | 'custom';
+  customX: number; // 0 to 1
+  customY: number; // 0 to 1
+  thickness: number; // 0.1 to 10
+  size: number; // 50 to 500
+  sandType: 'fine' | 'coarse' | 'colored';
+  frequency: number; // Hz, e.g. 10 to 10000
+  dutyCycle: number; // 0 to 1
+  signalType: 'sine' | 'triangle' | 'square' | 'pwm';
+  n1: number;
+  m1: number;
+  n2: number;
+  m2: number;
+  phi: number; // Phase shift for superposition
+  ratioBA: number; // Ratio B/A
+  damping: number; // gamma coefficient
+  regularization: number; // RICIS theta parameter
+  time: number;
 }
 
 export interface GravitationalState {

@@ -4,11 +4,34 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Cpu, Sparkles, Terminal, Bot, User, RefreshCw, MessageSquare, BookOpen, AlertCircle, FileText, Mail, MapPin, Award, ExternalLink } from 'lucide-react';
+import { Send, Cpu, Sparkles, Terminal, Bot, User, RefreshCw, MessageSquare, BookOpen, AlertCircle, FileText, Mail, MapPin, Award, ExternalLink, Check, Archive, CheckSquare, Square } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface ReviewWish {
+  id: string;
+  text: string;
+  author: string;
+  timestamp: number;
+  isCompleted?: boolean;
+}
+
+interface GroupedWishItem {
+  id: string;
+  text: string;
+  author: string;
+  timestamp: number;
+  isHighlighted?: boolean;
+}
+
+interface WishGroup {
+  categoryName: string;
+  count: number;
+  isImportant?: boolean;
+  items: GroupedWishItem[];
 }
 
 const QUICK_QUESTIONS = [
@@ -21,7 +44,24 @@ const QUICK_QUESTIONS = [
 ];
 
 export default function RicisAgent() {
-  const [sidebarTab, setSidebarTab] = useState<'knowledge' | 'author'>('knowledge');
+  const [sidebarTab, setSidebarTab] = useState<'knowledge' | 'reviews' | 'author'>('knowledge');
+  const [reviews, setReviews] = useState<ReviewWish[]>([]);
+  const [isReviewMode, setIsReviewMode] = useState<boolean>(false);
+  const [directReviewInput, setDirectReviewInput] = useState<string>('');
+  
+  // User name state for reviews & wishes
+  const [userName, setUserName] = useState<string>('');
+  const [showNameModal, setShowNameModal] = useState<boolean>(false);
+  const [nameInput, setNameInput] = useState<string>('');
+  const [pendingReviewText, setPendingReviewText] = useState<string>('');
+  const [pendingReviewSource, setPendingReviewSource] = useState<'chat' | 'direct'>('chat');
+
+  // AI Grouping states
+  const [wishGroups, setWishGroups] = useState<WishGroup[]>([]);
+  const [isGroupingLoading, setIsGroupingLoading] = useState<boolean>(false);
+  const [showGrouped, setShowGrouped] = useState<boolean>(true);
+  const [showAll, setShowAll] = useState<boolean>(false);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -59,6 +99,234 @@ export default function RicisAgent() {
     }
     return () => clearInterval(interval);
   }, [isLoading]);
+
+  useEffect(() => {
+    try {
+      const savedName = localStorage.getItem('ricis_username');
+      if (savedName) {
+        setUserName(savedName);
+        setNameInput(savedName);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('ricis_reviews_wishes');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const mapped = parsed.map((r: any) => {
+          const isSvgWish = r.id === 'rev-2' || (r.text && r.text.includes('SVG'));
+          return {
+            ...r,
+            author: r.author || 'Исследователь',
+            isCompleted: r.isCompleted !== undefined ? r.isCompleted : (isSvgWish ? true : false)
+          };
+        });
+        setReviews(mapped);
+      } else {
+        const initialReviews: ReviewWish[] = [
+          {
+            id: 'rev-1',
+            text: 'Замечательный симулятор! Визуализация волновых функций на пластине Хладни очень наглядная, особенно пакеты Риччи-Кэлера.',
+            author: 'Алексей С.',
+            timestamp: Date.now() - 3600000 * 24 * 3,
+            isCompleted: false
+          },
+          {
+            id: 'rev-2',
+            text: 'Добавьте, пожалуйста, возможность выгрузки графиков в векторном формате (SVG) для научных публикаций.',
+            author: 'Мария Петрова',
+            timestamp: Date.now() - 3600000 * 5,
+            isCompleted: true
+          }
+        ];
+        setReviews(initialReviews);
+        localStorage.setItem('ricis_reviews_wishes', JSON.stringify(initialReviews));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const groupWishesFallback = (allWishes: ReviewWish[]): WishGroup[] => {
+    const categories = [
+      { name: '📐 Математика и Модели', keywords: ['формул', 'уравнен', 'мат', 'bessel', 'бессел', 'число', 'теория', 'риччи', 'ricis', 'латекс', 'latex'] },
+      { name: '🎨 Интерфейс и Дизайн', keywords: ['интерфейс', 'дизайн', 'кнопк', 'цвет', 'эстетика', 'красив', 'тем', 'окно', 'панель', 'хладни', 'пластин', 'визуализац', 'график'] },
+      { name: '⚙️ Функционал и Фичи', keywords: ['добав', 'звук', 'частот', 'сохран', 'воспроизвед', 'запомн', 'список', 'клик', 'файл', 'экспорт', 'sheets', 'гугл'] },
+      { name: '💬 ИИ и Культура', keywords: ['ассистент', 'чат', 'ии', 'культур', 'вежлив', 'модер', 'ответ', 'сове'] }
+    ];
+
+    const unclassifiedGroup: WishGroup = {
+      categoryName: '💡 Общие предложения',
+      count: 0,
+      items: []
+    };
+
+    const groupsMap = new Map<string, WishGroup>();
+    categories.forEach(c => {
+      groupsMap.set(c.name, { categoryName: c.name, count: 0, items: [] });
+    });
+
+    allWishes.forEach(wish => {
+      let classified = false;
+      const lowerText = wish.text.toLowerCase();
+
+      const hasSimilars = allWishes.filter(w => w.id !== wish.id && (
+        w.text.toLowerCase().includes(wish.text.toLowerCase()) || 
+        wish.text.toLowerCase().includes(w.text.toLowerCase()) ||
+        w.text.toLowerCase().split(' ').filter(word => word.length > 4 && wish.text.toLowerCase().includes(word)).length >= 2
+      )).length > 0;
+
+      const item: GroupedWishItem = {
+        id: wish.id,
+        text: wish.text,
+        author: wish.author || 'Исследователь',
+        timestamp: wish.timestamp,
+        isHighlighted: hasSimilars || wish.text.length > 100
+      };
+
+      for (const cat of categories) {
+        if (cat.keywords.some(kw => lowerText.includes(kw))) {
+          const g = groupsMap.get(cat.name)!;
+          g.items.push(item);
+          g.count++;
+          if (hasSimilars) {
+            g.isImportant = true;
+          }
+          classified = true;
+          break;
+        }
+      }
+
+      if (!classified) {
+        unclassifiedGroup.items.push(item);
+        unclassifiedGroup.count++;
+        if (hasSimilars) {
+          unclassifiedGroup.isImportant = true;
+        }
+      }
+    });
+
+    const result: WishGroup[] = [];
+    groupsMap.forEach(g => {
+      if (g.count > 0) {
+        g.items.sort((a, b) => {
+          if (a.isHighlighted && !b.isHighlighted) return -1;
+          if (!a.isHighlighted && b.isHighlighted) return 1;
+          return b.timestamp - a.timestamp;
+        });
+        result.push(g);
+      }
+    });
+
+    if (unclassifiedGroup.count > 0) {
+      unclassifiedGroup.items.sort((a, b) => {
+        if (a.isHighlighted && !b.isHighlighted) return -1;
+        if (!a.isHighlighted && b.isHighlighted) return 1;
+        return b.timestamp - a.timestamp;
+      });
+      result.push(unclassifiedGroup);
+    }
+
+    result.sort((a, b) => b.count - a.count);
+    return result;
+  };
+
+  const triggerGroupingWithAI = async (wishesToGroup: ReviewWish[]) => {
+    if (wishesToGroup.length === 0) {
+      setWishGroups([]);
+      return;
+    }
+    setIsGroupingLoading(true);
+    try {
+      const res = await fetch('/api/group-wishes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wishes: wishesToGroup })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.groups)) {
+          const formatted = data.groups.map((g: any) => ({
+            ...g,
+            items: (g.items || []).map((itm: any) => ({
+              ...itm,
+              isHighlighted: itm.isHighlighted || g.isImportant
+            }))
+          }));
+          setWishGroups(formatted);
+          setIsGroupingLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('AI grouping call failed, using client-side fallback:', e);
+    }
+    const fallback = groupWishesFallback(wishesToGroup);
+    setWishGroups(fallback);
+    setIsGroupingLoading(false);
+  };
+
+  useEffect(() => {
+    if (reviews.length > 0) {
+      triggerGroupingWithAI(reviews);
+    } else {
+      setWishGroups([]);
+    }
+  }, [reviews]);
+
+  const saveReview = (text: string, customAuthor?: string) => {
+    if (!text.trim()) return;
+    const finalAuthor = (customAuthor || userName || '').trim();
+    if (!finalAuthor) {
+      setPendingReviewText(text);
+      setShowNameModal(true);
+      return;
+    }
+
+    const newReview: ReviewWish = {
+      id: 'rev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      text: text.trim(),
+      author: finalAuthor,
+      timestamp: Date.now()
+    };
+    setReviews((prev) => {
+      const updated = [newReview, ...prev];
+      try {
+        localStorage.setItem('ricis_reviews_wishes', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
+
+  const deleteReview = (id: string) => {
+    setReviews((prev) => {
+      const updated = prev.filter(r => r.id !== id);
+      try {
+        localStorage.setItem('ricis_reviews_wishes', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
+
+  const toggleCompleteReview = (id: string) => {
+    setReviews((prev) => {
+      const updated = prev.map(r => r.id === id ? { ...r, isCompleted: !r.isCompleted } : r);
+      try {
+        localStorage.setItem('ricis_reviews_wishes', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
 
   const downloadLatex = () => {
     const latexContent = `% =========================================================================
@@ -378,6 +646,18 @@ Phase 6 & Верификация L1 & Проверка на непротивор
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || isLoading) return;
 
+    if (isReviewMode && !userName.trim()) {
+      setPendingReviewText(textToSend);
+      setPendingReviewSource('chat');
+      setShowNameModal(true);
+      return;
+    }
+
+    if (isReviewMode) {
+      saveReview(textToSend);
+      setIsReviewMode(false);
+    }
+
     const userMessage: Message = { role: 'user', content: textToSend };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
@@ -502,7 +782,7 @@ Phase 6 & Верификация L1 & Проверка на непротивор
         {/* Quick Help & Questions Sidebar (4 cols) */}
         <div className="lg:col-span-4 space-y-4">
           {/* Tab Selection */}
-          <div className="flex border-b border-white/10 p-1 bg-black/20 rounded-lg">
+          <div className="flex border-b border-white/10 p-1 bg-black/20 rounded-lg gap-1">
             <button
               onClick={() => setSidebarTab('knowledge')}
               className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wider text-center rounded transition cursor-pointer ${
@@ -512,6 +792,16 @@ Phase 6 & Верификация L1 & Проверка на непротивор
               }`}
             >
               База знаний
+            </button>
+            <button
+              onClick={() => setSidebarTab('reviews')}
+              className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wider text-center rounded transition cursor-pointer ${
+                sidebarTab === 'reviews'
+                  ? 'bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 font-bold shadow-[0_0_10px_rgba(34,211,238,0.1)]'
+                  : 'border border-transparent text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              Отзывы
             </button>
             <button
               onClick={() => setSidebarTab('author')}
@@ -525,7 +815,7 @@ Phase 6 & Верификация L1 & Проверка на непротивор
             </button>
           </div>
 
-          {sidebarTab === 'knowledge' ? (
+          {sidebarTab === 'knowledge' && (
             <>
               <div className="p-4 bg-cyan-950/10 border border-cyan-500/10 rounded-xl space-y-3">
                 <div className="flex items-center gap-2 text-cyan-400">
@@ -567,7 +857,259 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                 </div>
               </div>
             </>
-          ) : (
+          )}
+
+          {sidebarTab === 'reviews' && (
+            <div className="p-4 bg-cyan-950/10 border border-cyan-500/10 rounded-xl space-y-3">
+              <div className="flex items-center gap-2 text-cyan-400">
+                <MessageSquare className="w-4 h-4 text-cyan-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider font-mono">Отзывы и пожелания</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Здесь хранятся отзывы и пожелания пользователей о системе RICIS III.
+              </p>
+
+              {/* Direct Input Form inside the Tab */}
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (directReviewInput.trim()) {
+                    saveReview(directReviewInput);
+                    setDirectReviewInput('');
+                  }
+                }}
+                className="space-y-2 bg-black/30 p-2 rounded border border-white/5"
+              >
+                <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 uppercase tracking-wider">
+                  <span>Оставить отзыв напрямую:</span>
+                  {userName && (
+                    <span className="text-cyan-400">
+                      Автор: <span className="font-bold text-white">{userName}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setNameInput(userName);
+                          setPendingReviewText('');
+                          setShowNameModal(true);
+                        }}
+                        className="ml-1.5 text-[8px] underline text-slate-500 hover:text-cyan-300 cursor-pointer"
+                      >
+                        [изменить]
+                      </button>
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="Напишите пожелание..."
+                    value={directReviewInput}
+                    onChange={(e) => setDirectReviewInput(e.target.value)}
+                    className="flex-1 bg-black/40 border border-white/10 rounded px-2.5 py-1 text-[11px] font-mono text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!directReviewInput.trim()}
+                    className="bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 font-mono text-[10px] px-2.5 py-1 rounded disabled:opacity-40 transition cursor-pointer shrink-0"
+                  >
+                    Записать
+                  </button>
+                </div>
+              </form>
+
+              {/* Grouped/List view toggler */}
+              <div className="flex gap-1 border border-white/5 p-0.5 bg-black/40 rounded font-mono text-[9px]">
+                <button
+                  type="button"
+                  onClick={() => setShowGrouped(false)}
+                  className={`flex-1 py-1 rounded text-center transition cursor-pointer ${!showGrouped ? 'bg-cyan-950/80 text-cyan-400 font-bold border border-cyan-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  Лента (все подряд)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowGrouped(true)}
+                  className={`flex-1 py-1 rounded text-center transition cursor-pointer relative ${showGrouped ? 'bg-cyan-950/80 text-cyan-400 font-bold border border-cyan-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  Группировка ИИ
+                  {isGroupingLoading && (
+                    <span className="absolute right-2 top-2 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping" />
+                  )}
+                </button>
+              </div>
+
+              {/* Show all / archive toggler */}
+              <div className="flex items-center justify-between border-t border-white/5 pt-2 font-mono text-[9px]">
+                <span className="text-slate-500">Архив выполненных:</span>
+                <button
+                  type="button"
+                  onClick={() => setShowAll(!showAll)}
+                  className={`px-2 py-0.5 rounded border transition cursor-pointer flex items-center gap-1 ${
+                    showAll 
+                      ? 'bg-purple-950/50 border-purple-500/30 text-purple-300 font-bold' 
+                      : 'bg-black/20 border-white/5 text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {showAll ? 'Показан (Показать все)' : 'Скрыт (Только активные)'}
+                </button>
+              </div>
+
+              {showGrouped ? (
+                <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1 custom-scrollbar">
+                  {isGroupingLoading && wishGroups.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 space-y-2 font-mono text-[10px] text-cyan-400">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Нейросетевая группировка по смыслу...</span>
+                    </div>
+                  ) : wishGroups.filter(group => {
+                    const visibleCount = group.items.filter(item => {
+                      const orig = reviews.find(r => r.id === item.id);
+                      return showAll || !orig?.isCompleted;
+                    }).length;
+                    return visibleCount > 0;
+                  }).length === 0 ? (
+                    <div className="text-center py-6 text-slate-500 text-[10px] font-mono">
+                      Нет активных предложений. Измените фильтр или оставьте новый отзыв!
+                    </div>
+                  ) : (
+                    wishGroups.filter(group => {
+                      const visibleCount = group.items.filter(item => {
+                        const orig = reviews.find(r => r.id === item.id);
+                        return showAll || !orig?.isCompleted;
+                      }).length;
+                      return visibleCount > 0;
+                    }).map((group, gIdx) => {
+                      const isImp = group.isImportant;
+                      const borderClass = isImp 
+                        ? 'border-cyan-500/50 bg-cyan-950/20 shadow-[0_0_15px_rgba(34,211,238,0.1)]' 
+                        : 'border-white/5 bg-black/20';
+                      
+                      return (
+                        <div key={gIdx} className={`p-2.5 rounded-lg border ${borderClass} space-y-2`}>
+                          <div className="flex items-center justify-between border-b border-white/5 pb-1">
+                            <span className="font-mono text-[10px] font-bold text-slate-200 flex items-center gap-1">
+                              {group.categoryName}
+                              {isImp && (
+                                <span className="text-[8px] bg-cyan-500 text-black font-bold px-1 rounded uppercase tracking-wider">
+                                  ВАЖНО
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-[9px] font-mono bg-cyan-950 text-cyan-400 px-1.5 rounded border border-cyan-500/20 font-bold">
+                              Вес: {group.items.filter(item => {
+                                const orig = reviews.find(r => r.id === item.id);
+                                return showAll || !orig?.isCompleted;
+                              }).length}
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {group.items
+                              .filter(item => {
+                                const orig = reviews.find(r => r.id === item.id);
+                                return showAll || !orig?.isCompleted;
+                              })
+                              .map((item) => {
+                                const orig = reviews.find(r => r.id === item.id);
+                                const isCompleted = orig?.isCompleted;
+                                const isHigh = item.isHighlighted;
+                                
+                                return (
+                                  <div key={item.id} className="p-2 rounded text-[9px] font-mono leading-relaxed relative group/item" style={{ backgroundColor: isCompleted ? 'rgba(0, 0, 0, 0.4)' : (isHigh ? 'rgba(8, 51, 68, 0.4)' : 'rgba(0, 0, 0, 0.2)'), border: isCompleted ? '1px solid rgba(255, 255, 255, 0.05)' : (isHigh ? '1px solid rgba(6, 182, 212, 0.4)' : '1px solid rgba(255, 255, 255, 0.05)') }}>
+                                    <div className="flex justify-between items-center text-[7.5px] text-slate-500 mb-1 border-b border-white/5 pb-0.5">
+                                      <span className="text-cyan-400 font-semibold flex items-center gap-1">
+                                        👤 {item.author}
+                                        {isCompleted && (
+                                          <span className="text-[7px] bg-emerald-950 text-emerald-400 font-bold px-1 rounded uppercase tracking-wider">
+                                            Выполнено
+                                          </span>
+                                        )}
+                                      </span>
+                                      <span>{new Date(item.timestamp).toLocaleDateString('ru-RU')}</span>
+                                    </div>
+                                    <p className={`break-words pr-8 text-slate-200 ${isCompleted ? 'line-through text-slate-500 italic' : ''}`}>{item.text}</p>
+                                    
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleCompleteReview(item.id)}
+                                      className={`absolute top-1 right-5 transition cursor-pointer text-slate-500 ${isCompleted ? 'text-emerald-400 opacity-100' : 'hover:text-emerald-400 opacity-0 group-hover/item:opacity-100'}`}
+                                      title={isCompleted ? "Вернуть в активные" : "Отметить как выполненное"}
+                                    >
+                                      {isCompleted ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteReview(item.id)}
+                                      className="absolute top-1 right-1 text-slate-600 hover:text-rose-400 opacity-0 group-hover/item:opacity-100 transition cursor-pointer text-[10px] font-sans"
+                                      title="Удалить пожелание"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : (
+                /* List of reviews in reverse chronological order */
+                <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1 custom-scrollbar">
+                  {reviews.filter(r => showAll || !r.isCompleted).length === 0 ? (
+                    <div className="text-center py-6 text-slate-500 text-[10px] font-mono">
+                      Лента пуста или все пожелания выполнены/архивированы. Оставьте отзыв!
+                    </div>
+                  ) : (
+                    reviews
+                      .filter(r => showAll || !r.isCompleted)
+                      .map((rev) => (
+                        <div 
+                          key={rev.id} 
+                          className={`p-2.5 bg-black/20 border border-white/5 rounded font-mono text-[10px] space-y-1.5 relative group ${rev.isCompleted ? 'opacity-65 bg-black/40' : ''}`}
+                        >
+                          <div className="flex items-center justify-between text-slate-500 text-[8px] border-b border-white/5 pb-1">
+                            <span className="text-cyan-400 font-bold flex items-center gap-1">
+                              👤 {rev.author}
+                              {rev.isCompleted && (
+                                <span className="text-[7px] bg-emerald-950 text-emerald-400 font-bold px-1 rounded uppercase tracking-wider">
+                                  Выполнено
+                                </span>
+                              )}
+                            </span>
+                            <span>{new Date(rev.timestamp).toLocaleString('ru-RU')}</span>
+                          </div>
+                          <p className={`text-slate-300 leading-relaxed break-words pr-12 ${rev.isCompleted ? 'line-through text-slate-500 italic' : ''}`}>
+                            {rev.text}
+                          </p>
+                          
+                          <button
+                            type="button"
+                            onClick={() => toggleCompleteReview(rev.id)}
+                            className={`absolute top-2 right-6 transition cursor-pointer text-slate-500 ${rev.isCompleted ? 'text-emerald-400 opacity-100' : 'hover:text-emerald-400 opacity-0 group-hover:opacity-100'}`}
+                            title={rev.isCompleted ? "Вернуть в активные" : "Отметить как выполненное"}
+                          >
+                            {rev.isCompleted ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => deleteReview(rev.id)}
+                            className="absolute top-2 right-2 text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition cursor-pointer text-xs font-bold font-sans"
+                            title="Удалить отзыв"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {sidebarTab === 'author' && (
             <div className="p-4 bg-cyan-950/10 border border-cyan-500/10 rounded-xl space-y-4">
               <div className="flex items-center gap-2 text-cyan-400">
                 <Award className="w-4 h-4 text-cyan-400" />
@@ -676,6 +1218,22 @@ Phase 6 & Верификация L1 & Проверка на непротивор
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Feedback Info & Mode Toggle */}
+          <div className="mt-3 px-3 py-2 bg-cyan-950/20 border border-cyan-500/10 rounded-xl text-[10px] font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span className="text-slate-400">
+              ✍️ <span className="text-cyan-400 font-bold">В поле чата можно оставить отзыв и пожелания.</span> Модерируемый ИИ по культурному общению.
+            </span>
+            <label className="flex items-center gap-1.5 cursor-pointer text-cyan-300 hover:text-cyan-100 select-none">
+              <input
+                type="checkbox"
+                checked={isReviewMode}
+                onChange={(e) => setIsReviewMode(e.target.checked)}
+                className="rounded border-white/20 bg-black/40 text-cyan-500 focus:ring-cyan-500/50 w-3.5 h-3.5"
+              />
+              <span>Отправить как отзыв</span>
+            </label>
+          </div>
+
           {/* Input Panel */}
           <form
             onSubmit={(e) => {
@@ -704,6 +1262,91 @@ Phase 6 & Верификация L1 & Проверка на непротивор
         </div>
 
       </div>
+
+      {showNameModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#0b0c10] border border-cyan-500/50 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-[0_0_50px_rgba(34,211,238,0.25)]">
+            <div className="flex items-center gap-2.5 text-cyan-400 border-b border-white/10 pb-2">
+              <User className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider font-mono">Ваше имя в реестре RICIS III</h3>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed font-mono">
+              Для сохранения вашего отзыва или пожелания, пожалуйста, представьтесь. Ваше имя будет отображаться рядом с публикацией.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-mono text-slate-500 uppercase tracking-wider block">Имя автора:</label>
+              <input
+                type="text"
+                placeholder="Например, Профессор Смирнов"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                className="w-full bg-black/60 border border-white/20 rounded-lg px-3 py-1.5 text-xs font-mono text-white placeholder-slate-700 focus:outline-none focus:border-cyan-500"
+                maxLength={40}
+              />
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNameModal(false);
+                  setPendingReviewText('');
+                }}
+                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded font-mono text-[10px] text-slate-400 transition cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                disabled={!nameInput.trim()}
+                onClick={() => {
+                  const trimmed = nameInput.trim();
+                  if (trimmed) {
+                    try {
+                      localStorage.setItem('ricis_username', trimmed);
+                    } catch (e) {
+                      console.error(e);
+                    }
+                    setUserName(trimmed);
+                    setShowNameModal(false);
+                    if (pendingReviewText) {
+                      if (pendingReviewSource === 'chat') {
+                        const pText = pendingReviewText;
+                        setPendingReviewText('');
+                        
+                        const newReview: ReviewWish = {
+                          id: 'rev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+                          text: pText.trim(),
+                          author: trimmed,
+                          timestamp: Date.now()
+                        };
+                        setReviews((prev) => {
+                          const updated = [newReview, ...prev];
+                          try {
+                            localStorage.setItem('ricis_reviews_wishes', JSON.stringify(updated));
+                          } catch (e) {
+                            console.error(e);
+                          }
+                          return updated;
+                        });
+                        setIsReviewMode(false);
+                        
+                        // Proceed with chat send
+                        handleSend(pText);
+                      } else {
+                        saveReview(pendingReviewText, trimmed);
+                        setPendingReviewText('');
+                      }
+                    }
+                  }
+                }}
+                className="px-4 py-1.5 bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/50 hover:border-cyan-400 text-cyan-300 font-mono text-[10px] rounded transition cursor-pointer disabled:opacity-40"
+              >
+                Сохранить и записать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -99,6 +99,9 @@ Use these principles to explain how various singularities are resolved in the si
 - Poincare Conjecture: Ricci flow neckpinch avoidance without surgery.
 
 Maintain a polite, brilliant, and confident academic persona. Avoid explaining that you are an AI; speak directly as the RICIS Expert Advisor.
+
+Strictly adhere to cultural moderation for polite, respectful, and highly cultured communication ("модерируемый ИИ по культурному общению").
+If the user leaves feedback, reviews, or wishes ("отзыв", "пожелания"), respond with sincere academic gratitude, exquisite politeness, and encourage further theoretical dialog and creative contributions.
 `;
 
 app.get('/robots.txt', (req, res) => {
@@ -165,6 +168,61 @@ app.post('/api/chat', async (req, res) => {
   } catch (error: any) {
     console.error('Gemini API Error:', error);
     res.status(500).json({ error: error.message || 'Failed to call Gemini API' });
+  }
+});
+
+app.post('/api/group-wishes', async (req, res) => {
+  try {
+    const { wishes } = req.body;
+    if (!wishes || !Array.isArray(wishes)) {
+      return res.status(400).json({ error: 'Wishes list is required' });
+    }
+
+    if (wishes.length === 0) {
+      return res.json({ groups: [] });
+    }
+
+    const prompt = `У тебя есть список отзывов и пожеланий пользователей о системе RICIS III (интегрированная симуляция волновых функций Хладни, теории сингулярностей и сингулярного ИИ-ассистента).
+Твоя задача — сгруппировать их по смыслу и темам. Чем больше похожих или одинаковых пожеланий, тем больший вес (count) имеет группа или конкретное пожелание. Отсортируй группы по убыванию count (веса), чтобы наиболее популярные были вверху.
+Особо важные или критичные пожелания (например, баги, ключевые формулы, новые методы регуляризации, научные предложения, культурная этика) помечай "isImportant": true на уровне группы или "isHighlighted": true на уровне конкретного отзыва.
+
+Формат входных данных:
+${JSON.stringify(wishes, null, 2)}
+
+Верни ответ СТРОГО в формате JSON по следующей схеме:
+{
+  "groups": [
+    {
+      "categoryName": "Название категории (например, 'Интерфейс и юзабилити' или 'Математические модели')",
+      "count": 3, // суммарный вес группы или количество элементов/пожеланий
+      "isImportant": true, // выделить всю группу целиком (например, важные доработки)
+      "items": [
+        {
+          "id": "оригинальный id",
+          "text": "оригинальный текст",
+          "author": "оригинальный автор",
+          "timestamp": 1234567,
+          "isHighlighted": true // подсветить это конкретное пожелание ярким цветом
+        }
+      ]
+    }
+  ]
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.1,
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    res.json(parsed);
+  } catch (error: any) {
+    console.error('Group Wishes Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to group wishes' });
   }
 });
 

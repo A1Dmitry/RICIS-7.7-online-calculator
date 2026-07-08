@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { SingularityMode } from '../types';
 import { 
   Orbit, Sparkles, Cpu, Droplet, LineChart, Flame, 
-  HelpCircle, ShieldAlert, CheckCircle2, Play, Info, ArrowRight, BookOpen, Terminal, Scale, ShieldCheck, Globe
+  HelpCircle, ShieldAlert, CheckCircle2, Play, Info, ArrowRight, BookOpen, Terminal, Scale, ShieldCheck, Globe, Waves
 } from 'lucide-react';
 
 interface CaseStudy {
@@ -245,6 +245,35 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       presetParams: {},
       colorClass: 'text-emerald-400 border-emerald-500/30',
       bgGlow: 'from-emerald-500/10'
+    },
+    {
+      id: 'chladni_resonance',
+      title: 'Акустические волны и резонансы Хладни',
+      category: 'Волновая Механика & Резонансы',
+      icon: Waves,
+      mode: SingularityMode.CHLADNI,
+      classicalFail: 'При совпадении частоты вынуждающего воздействия с собственной модой ω → ω_0 и нулевом затухании γ → 0 амплитуда волны устремляется в бесконечность. Также фазовые разрывы возникают в полярных координатах при r → 0.',
+      classicalFormula: '\\lim_{\\omega \\to \\omega_0} \\frac{1}{\\sqrt{(\\omega^2 - \\omega_0^2)^2 + (\\gamma \\omega)^2}} = \\infty',
+      ricisSolution: 'Применение регуляризационного θ-сдвига в знаменателе уравнения резонансного отклика и полярном счислении, что предотвращает появление разрывов амплитуды и фазы волнового поля.',
+      ricisFormula: 'U(\\omega) = \\frac{\\Psi(x,y)}{\\sqrt{(\\omega^2 - \\omega_0^2)^2 + (\\gamma \\omega)^2 + \\theta^2}}',
+      explanation: 'Методология RICIS III регуляризует классическое уравнение вынужденных колебаний упругих пластин. Замена нулевого регуляризационного параметра θ на гладкое значение θ > 0 устраняет бесконечность амплитуды при резонансе и исключает разрывы фазовых углов в упругой среде пластины Хладни.',
+      steps: [
+        'Перевод волнового поля круглой упругой мембраны в полярные координаты с RICIS θ-коррекцией',
+        'Интегрирование гармоник по первому роду Бесселя для вычисления собственных частот ω_i',
+        'Добавление затухания среды γ и регуляризирующей метрики θ² в делителе амплитуд',
+        'Отрисовка тонких изолиний нулевого потенциала (чернила манускрипта) с использованием золотого сечения B/A',
+        'Анализ накопления песка в узловых линиях при различной скважности и форме сигнала'
+      ],
+      presetParams: {
+        activePackage: 3,
+        frequency: 800,
+        regularization: 0.12,
+        damping: 0.02,
+        plateType: 'circle',
+        sandType: 'colored'
+      },
+      colorClass: 'text-amber-400 border-amber-500/30',
+      bgGlow: 'from-amber-500/10'
     }
   ];
 

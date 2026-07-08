@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SingularityMode } from './types';
 import GravitationalSingularity from './components/GravitationalSingularity';
 import ComplexSingularity from './components/ComplexSingularity';
@@ -18,10 +18,28 @@ import BSDSingularity from './components/BSDSingularity';
 import PoincareSingularity from './components/PoincareSingularity';
 import CasesAndSolutions from './components/CasesAndSolutions';
 import RicisAgent from './components/RicisAgent';
-import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare } from 'lucide-react';
+import ChladniSingularity from './components/ChladniSingularity';
+import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown } from 'lucide-react';
+
+const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.ComponentType<any>, colorClass?: string }> = {
+  [SingularityMode.GRAVITATIONAL]: { label: 'Гравитационные сингулярности', icon: Orbit, colorClass: 'text-cyan-400' },
+  [SingularityMode.COMPLEX_ANALYSIS]: { label: 'Комплексный анализ (Полюса)', icon: Sparkles, colorClass: 'text-cyan-400' },
+  [SingularityMode.KINEMATIC]: { label: 'Кинематика манипуляторов', icon: Cpu, colorClass: 'text-cyan-400' },
+  [SingularityMode.NAVIER_STOKES]: { label: 'Уравнения Навье-Стокса', icon: Droplet, colorClass: 'text-cyan-400' },
+  [SingularityMode.RIEMANN]: { label: 'Дзета Римана (Полюс s=1)', icon: LineChart, colorClass: 'text-cyan-400' },
+  [SingularityMode.YANG_MILLS]: { label: 'Существование Янга-Миллса', icon: Flame, colorClass: 'text-purple-400' },
+  [SingularityMode.P_VS_NP]: { label: 'P vs NP (Сложность)', icon: Target, colorClass: 'text-cyan-400' },
+  [SingularityMode.HODGE]: { label: 'Гипотеза Ходжа', icon: Globe, colorClass: 'text-cyan-400' },
+  [SingularityMode.BSD]: { label: 'Гипотеза BSD', icon: LineChart, colorClass: 'text-cyan-400' },
+  [SingularityMode.POINCARE]: { label: 'Сфера Пуанкаре', icon: Globe, colorClass: 'text-cyan-400' },
+  [SingularityMode.THEORY]: { label: 'Математическое обоснование', icon: BookOpen, colorClass: 'text-cyan-400' },
+  [SingularityMode.CASES_AND_SOLUTIONS]: { label: 'Решенные проблемы (RICIS)', icon: ShieldCheck, colorClass: 'text-cyan-400' },
+  [SingularityMode.CHLADNI]: { label: 'Фигуры Хладни', icon: Waves, colorClass: 'text-amber-400' },
+  [SingularityMode.RICIS_AGENT]: { label: 'ИИ Ассистент RICIS', icon: MessageSquare, colorClass: 'text-cyan-400' }
+};
 
 export default function App() {
-  const [activeMode, setActiveMode] = useState<SingularityMode>(SingularityMode.GRAVITATIONAL);
+  const [activeMode, setActiveMode] = useState<SingularityMode>(SingularityMode.CASES_AND_SOLUTIONS);
 
   // Shared preset states to feed into simulator modules
   const [gravitationalPreset, setGravitationalPreset] = useState<any>(undefined);
@@ -34,6 +52,54 @@ export default function App() {
   const [hodgePreset, setHodgePreset] = useState<any>(undefined);
   const [bsdPreset, setBsdPreset] = useState<any>(undefined);
   const [poincarePreset, setPoincarePreset] = useState<any>(undefined);
+  const [chladniPreset, setChladniPreset] = useState<any>(undefined);
+
+  // Dynamic navigation optimization: track section visit counts
+  const [visits, setVisits] = useState<Record<SingularityMode, number>>(() => {
+    try {
+      const stored = localStorage.getItem('ricis_tab_visits');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    const initial: Record<string, number> = {};
+    Object.values(SingularityMode).forEach(mode => {
+      initial[mode] = 0;
+    });
+    return initial as Record<SingularityMode, number>;
+  });
+
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setVisits(prev => {
+      const updated = {
+        ...prev,
+        [activeMode]: (prev[activeMode] || 0) + 1
+      };
+      try {
+        localStorage.setItem('ricis_tab_visits', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  }, [activeMode]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const handleLoadPreset = (mode: SingularityMode, params: any) => {
     if (mode === SingularityMode.GRAVITATIONAL) {
@@ -56,9 +122,51 @@ export default function App() {
       setBsdPreset(params);
     } else if (mode === SingularityMode.POINCARE) {
       setPoincarePreset(params);
+    } else if (mode === SingularityMode.CHLADNI) {
+      setChladniPreset(params);
     }
     setActiveMode(mode);
   };
+
+  const visitCounts = Object.values(visits) as number[];
+  const totalVisits = visitCounts.reduce((sum, count) => sum + count, 0);
+  const hasVisits = visitCounts.some(v => v > 0);
+
+  // Default fallback sections representing solved problems, assistant, and theory
+  const defaultModes = [
+    SingularityMode.CASES_AND_SOLUTIONS,
+    SingularityMode.RICIS_AGENT,
+    SingularityMode.THEORY
+  ];
+
+  let visibleModes: SingularityMode[] = [];
+
+  if (!hasVisits) {
+    visibleModes = [...defaultModes];
+    if (!visibleModes.includes(activeMode)) {
+      visibleModes.push(activeMode);
+    }
+  } else {
+    // Sort all modes by visit count descending
+    const sortedModes = (Object.values(SingularityMode) as SingularityMode[])
+      .sort((a, b) => (visits[b] || 0) - (visits[a] || 0));
+
+    // Limit to 4 most visited modes initially
+    const limit = 4;
+    visibleModes = sortedModes.slice(0, limit);
+
+    // If activeMode is not in visible list, we MUST include it (to keep current active tab visible)
+    if (!visibleModes.includes(activeMode)) {
+      visibleModes.push(activeMode);
+    } else {
+      // If it is already in top 4, we can expand to top 5 most visited
+      visibleModes = sortedModes.slice(0, 5);
+    }
+  }
+
+  // Hidden modes are all modes that are not in visibleModes
+  const hiddenModes = (Object.values(SingularityMode) as SingularityMode[])
+    .filter(mode => !visibleModes.includes(mode));
 
   return (
     <div id="app-root" className="min-h-screen bg-[#09090B] text-slate-300 font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
@@ -114,165 +222,100 @@ export default function App() {
         </header>
 
         {/* Navigation Tabs */}
-        <div className="flex flex-wrap gap-2 mb-8 border-b border-white/5 pb-4">
-          <button
-            onClick={() => setActiveMode(SingularityMode.GRAVITATIONAL)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.GRAVITATIONAL
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Orbit className={`w-4 h-4 ${activeMode === SingularityMode.GRAVITATIONAL ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Гравитационные сингулярности</span>
-          </button>
+        <div className="flex flex-wrap gap-2 mb-8 border-b border-white/5 pb-4 items-center">
+          {visibleModes.map((mode) => {
+            const meta = MODE_METADATA[mode];
+            const IconComp = meta.icon;
+            const isActive = activeMode === mode;
+            const weightPercent = totalVisits > 0 ? Math.round(((visits[mode] || 0) / totalVisits) * 100) : 0;
 
-          <button
-            onClick={() => setActiveMode(SingularityMode.COMPLEX_ANALYSIS)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.COMPLEX_ANALYSIS
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Sparkles className={`w-4 h-4 ${activeMode === SingularityMode.COMPLEX_ANALYSIS ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Комплексный анализ (Полюса)</span>
-          </button>
+            let activeStyles = 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]';
+            let iconColor = isActive ? 'text-cyan-400' : 'text-gray-400';
+            
+            if (mode === SingularityMode.YANG_MILLS) {
+              activeStyles = 'bg-purple-950/20 border-purple-500/60 text-purple-200 shadow-[0_0_15px_rgba(168,85,247,0.15)]';
+              iconColor = isActive ? 'text-purple-400' : 'text-gray-400';
+            } else if (mode === SingularityMode.CHLADNI) {
+              activeStyles = 'bg-amber-950/20 border-amber-500/60 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.15)]';
+              iconColor = isActive ? 'text-amber-400 animate-pulse' : 'text-gray-400';
+            }
 
-          <button
-            onClick={() => setActiveMode(SingularityMode.KINEMATIC)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.KINEMATIC
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Cpu className={`w-4 h-4 ${activeMode === SingularityMode.KINEMATIC ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Кинематика манипуляторов</span>
-          </button>
+            return (
+              <button
+                key={mode}
+                onClick={() => setActiveMode(mode)}
+                className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 cursor-pointer ${
+                  isActive ? activeStyles : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <IconComp className={`w-4 h-4 ${iconColor}`} />
+                <span className="flex items-center gap-1.5">
+                  <span>{meta.label}</span>
+                  {mode === SingularityMode.RICIS_AGENT && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  )}
+                  {weightPercent > 0 && (
+                    <span className="text-[9px] font-mono opacity-60 bg-black/40 px-1 rounded text-cyan-300">
+                      {weightPercent}%
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
 
-          <button
-            onClick={() => setActiveMode(SingularityMode.NAVIER_STOKES)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.NAVIER_STOKES
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Droplet className={`w-4 h-4 ${activeMode === SingularityMode.NAVIER_STOKES ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Уравнения Навье-Стокса</span>
-          </button>
+          {/* Dropdown Menu for Hidden Tabs */}
+          {hiddenModes.length > 0 && (
+            <div ref={dropdownRef} className="relative">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className={`flex items-center space-x-1.5 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 cursor-pointer ${
+                  dropdownOpen
+                    ? 'bg-cyan-950/40 border-cyan-500/50 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
+                    : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+                title="Показать скрытые разделы"
+              >
+                <MoreHorizontal className="w-4 h-4 text-slate-400" />
+                <span>Еще ({hiddenModes.length})</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${dropdownOpen ? 'rotate-180 text-cyan-400' : 'text-slate-500'}`} />
+              </button>
 
-          <button
-            onClick={() => setActiveMode(SingularityMode.RIEMANN)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.RIEMANN
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <LineChart className={`w-4 h-4 ${activeMode === SingularityMode.RIEMANN ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Дзета Римана (Полюс s=1)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(SingularityMode.YANG_MILLS)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.YANG_MILLS
-                ? 'bg-purple-950/20 border-purple-500/60 text-purple-200 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Flame className={`w-4 h-4 ${activeMode === SingularityMode.YANG_MILLS ? 'text-purple-400' : 'text-gray-400'}`} />
-            <span>Существование Янга-Миллса</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(SingularityMode.P_VS_NP)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.P_VS_NP
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Target className={`w-4 h-4 ${activeMode === SingularityMode.P_VS_NP ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>P vs NP (Сложность)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(SingularityMode.HODGE)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.HODGE
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Globe className={`w-4 h-4 ${activeMode === SingularityMode.HODGE ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Гипотеза Ходжа</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(SingularityMode.BSD)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.BSD
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <LineChart className={`w-4 h-4 ${activeMode === SingularityMode.BSD ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Гипотеза BSD</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(SingularityMode.POINCARE)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.POINCARE
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Globe className={`w-4 h-4 ${activeMode === SingularityMode.POINCARE ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Сфера Пуанкаре</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(SingularityMode.THEORY)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.THEORY
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <BookOpen className={`w-4 h-4 ${activeMode === SingularityMode.THEORY ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Математическое обоснование</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(SingularityMode.CASES_AND_SOLUTIONS)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.CASES_AND_SOLUTIONS
-                ? 'bg-cyan-950/20 border-cyan-500/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <ShieldCheck className={`w-4 h-4 ${activeMode === SingularityMode.CASES_AND_SOLUTIONS ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span>Решенные проблемы (RICIS)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode(SingularityMode.RICIS_AGENT)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-medium tracking-wide uppercase border transition duration-200 ${
-              activeMode === SingularityMode.RICIS_AGENT
-                ? 'bg-cyan-950/20 border-cyan-400/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.2)]'
-                : 'bg-black/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <MessageSquare className={`w-4 h-4 ${activeMode === SingularityMode.RICIS_AGENT ? 'text-cyan-400' : 'text-gray-400'}`} />
-            <span className="flex items-center gap-1.5">
-              <span>ИИ Ассистент RICIS</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            </span>
-          </button>
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-72 bg-[#09090b]/95 border border-white/10 rounded-lg shadow-[0_4px_25px_rgba(0,0,0,0.6)] z-50 overflow-hidden backdrop-blur-md">
+                  <div className="p-1.5 max-h-[350px] overflow-y-auto custom-scrollbar space-y-0.5">
+                    <div className="px-2.5 py-1 text-[9px] font-mono text-slate-500 uppercase tracking-wider border-b border-white/5 mb-1 flex justify-between">
+                      <span>Раздел</span>
+                      <span>Вес</span>
+                    </div>
+                    {hiddenModes.map((mode) => {
+                      const meta = MODE_METADATA[mode];
+                      const IconComp = meta.icon;
+                      const modeWeight = totalVisits > 0 ? Math.round(((visits[mode] || 0) / totalVisits) * 100) : 0;
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => {
+                            setActiveMode(mode);
+                            setDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded text-xs text-left text-slate-400 hover:text-white hover:bg-white/5 transition font-medium cursor-pointer"
+                        >
+                          <div className="flex items-center space-x-2 truncate">
+                            <IconComp className={`w-3.5 h-3.5 shrink-0 ${meta.colorClass || 'text-slate-400'}`} />
+                            <span className="truncate">{meta.label}</span>
+                          </div>
+                          <span className="text-[9px] font-mono text-cyan-400/80 bg-cyan-950/40 px-1.5 py-0.5 rounded ml-2 shrink-0">
+                            {modeWeight}%
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Dynamic Mode Screen Rendering */}
@@ -290,6 +333,7 @@ export default function App() {
           {activeMode === SingularityMode.THEORY && <RicisTheory />}
           {activeMode === SingularityMode.CASES_AND_SOLUTIONS && <CasesAndSolutions onLoadPreset={handleLoadPreset} />}
           {activeMode === SingularityMode.RICIS_AGENT && <RicisAgent />}
+          {activeMode === SingularityMode.CHLADNI && <ChladniSingularity preset={chladniPreset} />}
         </main>
 
         {/* Humble and Clean Scientific Footer */}
