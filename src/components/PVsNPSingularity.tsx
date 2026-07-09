@@ -10,9 +10,10 @@ import ExportToSheetsButton from './ExportToSheetsButton';
 
 interface PVsNPSingularityProps {
   preset?: PVsNPState;
+  onChangeState?: (state: PVsNPState) => void;
 }
 
-export default function PVsNPSingularity({ preset }: PVsNPSingularityProps = {}) {
+export default function PVsNPSingularity({ preset, onChangeState }: PVsNPSingularityProps = {}) {
   const [state, setState] = useState<PVsNPState>({
     dimension: 40,           // Problem size N
     ruggedness: 0.6,         // Landscape sharp minima
@@ -29,6 +30,10 @@ export default function PVsNPSingularity({ preset }: PVsNPSingularityProps = {})
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const landscapeCanvasRef = useRef<HTMLCanvasElement>(null);
   const scalingCanvasRef = useRef<HTMLCanvasElement>(null);

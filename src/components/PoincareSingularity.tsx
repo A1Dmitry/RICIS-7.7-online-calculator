@@ -10,9 +10,10 @@ import ExportToSheetsButton from './ExportToSheetsButton';
 
 interface PoincareSingularityProps {
   preset?: PoincareState;
+  onChangeState?: (state: PoincareState) => void;
 }
 
-export default function PoincareSingularity({ preset }: PoincareSingularityProps = {}) {
+export default function PoincareSingularity({ preset, onChangeState }: PoincareSingularityProps = {}) {
   const [state, setState] = useState<PoincareState>({
     neckRadius: 0.3,         // Bottleneck neck size
     flowTime: 0.2,           // Ricci flow evolution t
@@ -28,6 +29,10 @@ export default function PoincareSingularity({ preset }: PoincareSingularityProps
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const manifoldCanvasRef = useRef<HTMLCanvasElement>(null);
   const curvatureCanvasRef = useRef<HTMLCanvasElement>(null);

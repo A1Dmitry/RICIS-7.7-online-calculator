@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ChladniState } from '../types';
+import { useLanguage } from '../lib/i18n';
 import { 
   Play, Pause, RotateCcw, Sliders, Waves, HelpCircle, 
   Settings, Info, Shield, Radio, Volume2, Sparkles, Award,
@@ -19,7 +20,9 @@ interface Particle {
 
 interface VoynichPreset {
   name: string;
+  nameEn: string;
   desc: string;
+  descEn: string;
   freq: number;
   n1: number;
   m1: number;
@@ -32,6 +35,7 @@ interface VoynichPreset {
 interface SavedChladniFigure {
   id: string;
   name: string;
+  nameEn?: string;
   activePackage: 1 | 2 | 3 | 4;
   state: ChladniState;
   timestamp: number;
@@ -40,7 +44,9 @@ interface SavedChladniFigure {
 const voynichPresets: VoynichPreset[] = [
   {
     name: 'Растительный Стебель',
+    nameEn: 'Botanical Stem',
     desc: 'Folio 9v - Переплетенные растительные узоры',
+    descEn: 'Folio 9v - Interwoven botanical patterns',
     freq: 380,
     n1: 3,
     m1: 2,
@@ -51,7 +57,9 @@ const voynichPresets: VoynichPreset[] = [
   },
   {
     name: 'Звездный Вортекс',
+    nameEn: 'Celestial Vortex',
     desc: 'Folio 68r - Кружащаяся схема звездного неба',
+    descEn: 'Folio 68r - Whirling chart of the starry sky',
     freq: 840,
     n1: 4,
     m1: 1,
@@ -62,7 +70,9 @@ const voynichPresets: VoynichPreset[] = [
   },
   {
     name: 'Космический Диск',
+    nameEn: 'Cosmic Disk',
     desc: 'Folio 86v - Девятисекционный зодиакальный круг',
+    descEn: 'Folio 86v - Nine-section zodiac circle',
     freq: 1120,
     n1: 5,
     m1: 2,
@@ -73,7 +83,9 @@ const voynichPresets: VoynichPreset[] = [
   },
   {
     name: 'Вязь Корней',
+    nameEn: 'Weave of Roots',
     desc: 'Folio 33v - Спиралевидные ризомы и корни растений',
+    descEn: 'Folio 33v - Spiral rhizomes and plant roots',
     freq: 580,
     n1: 2,
     m1: 3,
@@ -86,9 +98,11 @@ const voynichPresets: VoynichPreset[] = [
 
 interface ChladniSingularityProps {
   preset?: any;
+  onChangeState?: (state: any) => void;
 }
 
-export default function ChladniSingularity({ preset }: ChladniSingularityProps = {}) {
+export default function ChladniSingularity({ preset, onChangeState }: ChladniSingularityProps = {}) {
+  const { language, t } = useLanguage();
   const [state, setState] = useState<ChladniState>({
     plateType: 'circle',
     attachmentPoint: 'center',
@@ -139,6 +153,10 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
       }));
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.({ ...state, activePackage });
+  }, [state, activePackage, onChangeState]);
 
   // Accurate Bessel roots
   const getBesselRoot = (n: number, m: number): number => {
@@ -433,7 +451,8 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
     }
     // pId === 4
     const alpha = (s.regularization * 3.5).toFixed(2);
-    return `S(x, y, t) = [ cos(${s.n1}·π·x')·cos(${s.m1}·π·y') + cos(${s.m1}·π·x')·cos(${s.n1}·π·y') ] · sin(${(s.frequency * 0.01).toFixed(2)}·t)\nгде x' = x·cos(${alpha}·r) - y·sin(${alpha}·r), y' = x·sin(${alpha}·r) + y·cos(${alpha}·r)`;
+    const whereWord = language === 'ru' ? 'где' : 'where';
+    return `S(x, y, t) = [ cos(${s.n1}·π·x')·cos(${s.m1}·π·y') + cos(${s.m1}·π·x')·cos(${s.n1}·π·y') ] · sin(${(s.frequency * 0.01).toFixed(2)}·t)\n${whereWord} x' = x·cos(${alpha}·r) - y·sin(${alpha}·r), y' = x·sin(${alpha}·r) + y·cos(${alpha}·r)`;
   };
 
   const generateFormulaLaTeX = (pId: number, s: ChladniState): string => {
@@ -455,7 +474,8 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
     }
     // pId === 4
     const alpha = (s.regularization * 3.5).toFixed(2);
-    return `S(x, y, t) = \\left[ \\cos(${s.n1} \\pi x') \\cos(${s.m1} \\pi y') + \\cos(${s.m1} \\pi x') \\cos(${s.n1} \\pi y') \\right] \\cdot \\sin(${(s.frequency * 0.01).toFixed(2)} t)\\\\ \\text{где } x' = x\\cos(${alpha} r) - y\\sin(${alpha} r), \\ y' = x\\sin(${alpha} r) + y\\cos(${alpha} r)`;
+    const whereWord = language === 'ru' ? 'где' : 'where';
+    return `S(x, y, t) = \\left[ \\cos(${s.n1} \\pi x') \\cos(${s.m1} \\pi y') + \\cos(${s.m1} \\pi x') \\cos(${s.n1} \\pi y') \\right] \\cdot \\sin(${(s.frequency * 0.01).toFixed(2)} t)\\\\ \\text{${whereWord} } x' = x\\cos(${alpha} r) - y\\sin(${alpha} r), \\ y' = x\\sin(${alpha} r) + y\\cos(${alpha} r)`;
   };
 
   const getFormulaText = (): string => generateFormulaText(activePackage, state);
@@ -467,6 +487,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
       {
         id: 'default-voynich',
         name: '«Спираль Войнича»',
+        nameEn: '"Voynich Spiral"',
         activePackage: 2,
         timestamp: Date.now() - 3000,
         state: {
@@ -494,6 +515,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
       {
         id: 'default-star',
         name: '«Фрактальная Звезда»',
+        nameEn: '"Fractal Star"',
         activePackage: 3,
         timestamp: Date.now() - 2000,
         state: {
@@ -521,6 +543,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
       {
         id: 'default-vortex',
         name: '«Космический Вихрь»',
+        nameEn: '"Cosmic Vortex"',
         activePackage: 4,
         timestamp: Date.now() - 1000,
         state: {
@@ -586,7 +609,9 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
 
   const handleSaveFigure = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const nameToUse = newFigureName.trim() || `Фигура ${state.frequency}Гц [${state.n1},${state.m1}]`;
+    const defaultLabel = language === 'ru' ? 'Фигура' : 'Figure';
+    const hzLabel = language === 'ru' ? 'Гц' : 'Hz';
+    const nameToUse = newFigureName.trim() || `${defaultLabel} ${state.frequency}${hzLabel} [${state.n1},${state.m1}]`;
     const newFig: SavedChladniFigure = {
       id: 'fig-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
       name: nameToUse,
@@ -1206,9 +1231,9 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
               Chladni Resonance Field Simulator [RICIS III Core]
             </span>
             <div className="flex items-center gap-3">
-              <span>ACTIVE MODEL: PACKAGE {activePackage}</span>
+              <span>{t('АКТИВНАЯ МОДЕЛЬ', 'ACTIVE MODEL')}: PACKAGE {activePackage}</span>
               <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isPlaying ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50' : 'bg-red-950/50 text-red-400 border border-red-800/50'}`}>
-                {isPlaying ? 'RUNNING' : 'PAUSED'}
+                {isPlaying ? t('ЗАПУЩЕНО', 'RUNNING') : t('ПАУЗА', 'PAUSED')}
               </span>
             </div>
           </div>
@@ -1217,7 +1242,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
             {/* Vertical Frequency Controller (Left Side) */}
             <div className="flex flex-row sm:flex-col items-center justify-between bg-black/40 border border-white/5 rounded-lg p-2 w-full sm:w-20 select-none shrink-0 gap-2 sm:gap-0">
               <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold">
-                Freq (Hz)
+                {t('Част (Гц)', 'Freq (Hz)')}
               </div>
 
               {/* Vertical slider wrapper */}
@@ -1253,12 +1278,12 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
 
               {/* Frequency display box */}
               <div className="text-center font-mono text-[11px] text-cyan-400 font-bold sm:my-2 bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-800/30 min-w-[55px] sm:w-full truncate">
-                {state.frequency} Hz
+                {state.frequency} {t('Гц', 'Hz')}
               </div>
 
               {/* Delicate Fine Tuning Section */}
               <div className="flex sm:flex-col gap-1 items-center sm:w-full sm:space-y-1.5 sm:mt-1 sm:pt-2 sm:border-t sm:border-white/5 text-center">
-                <span className="hidden sm:block text-[8px] font-mono text-slate-500 uppercase tracking-wider">Подстройка</span>
+                <span className="hidden sm:block text-[8px] font-mono text-slate-500 uppercase tracking-wider">{t('Подстройка', 'Fine Tune')}</span>
                 
                 <div className="flex gap-1 justify-center">
                   <button 
@@ -1307,9 +1332,9 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
               
               {/* Visual labels overlay */}
               <div className="absolute bottom-3 left-3 bg-black/80 border border-white/5 p-2 rounded text-[10px] font-mono text-slate-400 space-y-0.5 pointer-events-none select-none">
-                <div>• Частота: {state.frequency} Hz</div>
-                <div>• Регуляризатор (θ): {state.regularization.toFixed(3)}</div>
-                <div>• Коэф. затухания (γ): {state.damping}</div>
+                <div>• {t('Частота', 'Frequency')}: {state.frequency} Hz</div>
+                <div>• {t('Регуляризатор (θ)', 'Regularizer (θ)')}: {state.regularization.toFixed(3)}</div>
+                <div>• {t('Коэф. затухания (γ)', 'Damping coeff. (γ)')}: {state.damping}</div>
               </div>
             </div>
 
@@ -1317,8 +1342,8 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
             <div className="flex flex-col sm:flex-row items-stretch justify-center bg-black/40 border border-white/5 rounded-lg p-3 w-full sm:w-auto select-none shrink-0 gap-4 sm:gap-4 min-w-0">
               {/* Thickness (h) */}
               <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title="Толщина пластины (h)">
-                  h (мм)
+                <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={t('Толщина пластины (h)', 'Plate thickness (h)')}>
+                  {t('h (мм)', 'h (mm)')}
                 </div>
                 {/* Widescreen Vertical Slider */}
                 <div className="hidden sm:flex flex-1 flex-col items-center justify-center relative w-full my-1 min-h-[160px]">
@@ -1356,7 +1381,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
 
               {/* Phase / Twist */}
               <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={activePackage === 4 ? "Угол скручивания (α)" : "Сдвиг фазы (φ)"}>
+                <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={activePackage === 4 ? t('Угол скручивания (α)', 'Twist angle (α)') : t('Сдвиг фазы (φ)', 'Phase shift (φ)')}>
                   {activePackage === 4 ? 'α (Twist)' : 'φ (Phase)'}
                 </div>
                 {/* Widescreen Vertical Slider */}
@@ -1395,7 +1420,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
 
               {/* RICIS Regularization (θ) */}
               <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title="Регуляризатор RICIS (θ)">
+                <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={t('Регуляризатор RICIS (θ)', 'RICIS Regularizer (θ)')}>
                   θ (RICIS)
                 </div>
                 {/* Widescreen Vertical Slider */}
@@ -1435,7 +1460,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
               {/* B/A (if package 2 or 3 is active) */}
               {(activePackage === 2 || activePackage === 3) && (
                 <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                  <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title="Асимметрия мод B/A">
+                  <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={t('Асимметрия мод B/A', 'Mod asymmetry B/A')}>
                     B/A
                   </div>
                   {/* Widescreen Vertical Slider */}
@@ -1476,7 +1501,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
               {/* Gamma (if package 3 is active) */}
               {activePackage === 3 && (
                 <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                  <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title="Коэффициент затухания (γ)">
+                  <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={t('Коэффициент затухания (γ)', 'Damping coefficient (γ)')}>
                     γ (Damp)
                   </div>
                   {/* Widescreen Vertical Slider */}
@@ -1527,7 +1552,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
                 }`}
               >
                 {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                <span>{isPlaying ? 'Пауза' : 'Запуск'}</span>
+                <span>{isPlaying ? t('Пауза', 'Pause') : t('Запуск', 'Start')}</span>
               </button>
               
               <button
@@ -1535,7 +1560,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 hover:border-cyan-400 rounded text-xs font-mono uppercase tracking-wider transition"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Рассыпать песок</span>
+                <span>{t('Рассыпать песок', 'Scatter sand')}</span>
               </button>
 
               <button
@@ -1546,19 +1571,19 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
                     ? 'bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 hover:border-emerald-400' 
                     : 'bg-white/5 border border-white/10 text-slate-400 hover:text-slate-200'
                 }`}
-                title={webglSupported ? "Включить/выключить сверхбыструю отрисовку волнового поля шейдерами WebGL" : "Шейдерная отрисовка не поддерживается в вашем браузере"}
+                title={webglSupported ? t('Включить/выключить сверхбыструю отрисовку волнового поля шейдерами WebGL', 'Enable/disable ultra-fast shader rendering of the wave field via WebGL') : t('Шейдерная отрисовка не поддерживается в вашем браузере', 'Shader rendering is not supported in your browser')}
               >
                 <Cpu className="w-3.5 h-3.5" />
-                <span>{useShader ? 'Шейдеры' : 'ЦПУ'}</span>
+                <span>{useShader ? t('Шейдеры', 'Shaders') : t('ЦПУ', 'CPU')}</span>
               </button>
 
               <button
                 onClick={downloadSVG}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/40 border border-purple-500/30 text-purple-300 hover:border-purple-400 rounded text-xs font-mono uppercase tracking-wider transition"
-                title="Скачать векторный график SVG для научных публикаций"
+                title={t('Скачать векторный график SVG для научных публикаций', 'Download vector SVG plot for scientific publications')}
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Скачать SVG</span>
+                <span>{t('Скачать SVG', 'Download SVG')}</span>
               </button>
             </div>
 
@@ -1567,7 +1592,7 @@ export default function ChladniSingularity({ preset }: ChladniSingularityProps =
               className="text-xs font-mono text-slate-500 hover:text-cyan-400 flex items-center gap-1"
             >
               <Info className="w-3.5 h-3.5" />
-              <span>{showMath ? 'Скрыть теорию' : 'Показать формулы'}</span>
+              <span>{showMath ? t('Скрыть теорию', 'Hide theory') : t('Показать формулы', 'Show formulas')}</span>
             </button>
           </div>
         </div>

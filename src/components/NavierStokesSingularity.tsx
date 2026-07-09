@@ -10,9 +10,10 @@ import ExportToSheetsButton from './ExportToSheetsButton';
 
 interface NavierStokesSingularityProps {
   preset?: NavierStokesState;
+  onChangeState?: (state: NavierStokesState) => void;
 }
 
-export default function NavierStokesSingularity({ preset }: NavierStokesSingularityProps = {}) {
+export default function NavierStokesSingularity({ preset, onChangeState }: NavierStokesSingularityProps = {}) {
   const [state, setState] = useState<NavierStokesState>({
     reynolds: 80,         // vortex intensity
     radialVelocity: 1.5,  // contracting radial draft
@@ -26,6 +27,10 @@ export default function NavierStokesSingularity({ preset }: NavierStokesSingular
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const [activeTab, setActiveTab] = useState<'simulation' | 'profile'>('simulation');
   const canvasRef = useRef<HTMLCanvasElement | null>(null);

@@ -10,9 +10,10 @@ import ExportToSheetsButton from './ExportToSheetsButton';
 
 interface YangMillsSingularityProps {
   preset?: YangMillsState;
+  onChangeState?: (state: YangMillsState) => void;
 }
 
-export default function YangMillsSingularity({ preset }: YangMillsSingularityProps = {}) {
+export default function YangMillsSingularity({ preset, onChangeState }: YangMillsSingularityProps = {}) {
   const [state, setState] = useState<YangMillsState>({
     coupling: 1.2,          // g
     distance: 0.5,          // r
@@ -25,6 +26,10 @@ export default function YangMillsSingularity({ preset }: YangMillsSingularityPro
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const couplingCanvasRef = useRef<HTMLCanvasElement>(null);

@@ -20,7 +20,7 @@ import PoincareSingularity from './components/PoincareSingularity';
 import CasesAndSolutions from './components/CasesAndSolutions';
 import RicisAgent from './components/RicisAgent';
 import ChladniSingularity from './components/ChladniSingularity';
-import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown, Share2, Check } from 'lucide-react';
 
 const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.ComponentType<any>, colorClass?: string }> = {
   [SingularityMode.GRAVITATIONAL]: { label: 'Гравитационные сингулярности', icon: Orbit, colorClass: 'text-cyan-400' },
@@ -42,6 +42,8 @@ const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.Compon
 export default function App() {
   const { language, setLanguage, t } = useLanguage();
   const [activeMode, setActiveMode] = useState<SingularityMode>(SingularityMode.CASES_AND_SOLUTIONS);
+  const [activeState, setActiveState] = useState<any>(null);
+  const [copied, setCopied] = useState<boolean>(false);
 
   // Shared preset states to feed into simulator modules
   const [gravitationalPreset, setGravitationalPreset] = useState<any>(undefined);
@@ -58,19 +60,26 @@ export default function App() {
 
   // Dynamic navigation optimization: track section visit counts
   const [visits, setVisits] = useState<Record<SingularityMode, number>>(() => {
+    const initial: Record<SingularityMode, number> = {} as any;
+    Object.values(SingularityMode).forEach(mode => {
+      initial[mode] = 0;
+    });
     try {
       const stored = localStorage.getItem('ricis_tab_visits');
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          Object.values(SingularityMode).forEach(mode => {
+            if (typeof parsed[mode] === 'number') {
+              initial[mode] = parsed[mode];
+            }
+          });
+        }
       }
     } catch (e) {
       console.error(e);
     }
-    const initial: Record<string, number> = {};
-    Object.values(SingularityMode).forEach(mode => {
-      initial[mode] = 0;
-    });
-    return initial as Record<SingularityMode, number>;
+    return initial;
   });
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -101,6 +110,46 @@ export default function App() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
+  }, []);
+
+  // Shareable link logic: copy to clipboard
+  const handleCopyShareLink = () => {
+    try {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const stateStr = activeState ? encodeURIComponent(JSON.stringify(activeState)) : '';
+      const url = `${baseUrl}?mode=${activeMode}${stateStr ? `&state=${stateStr}` : ''}`;
+      
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
+  // URL State Resolution on Mount
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const modeParam = params.get('mode');
+      const stateParam = params.get('state');
+
+      if (modeParam && Object.values(SingularityMode).includes(modeParam as SingularityMode)) {
+        const mode = modeParam as SingularityMode;
+        
+        if (stateParam) {
+          const parsedState = JSON.parse(decodeURIComponent(stateParam));
+          if (parsedState && typeof parsedState === 'object') {
+            handleLoadPreset(mode, parsedState);
+            return;
+          }
+        }
+        setActiveMode(mode);
+      }
+    } catch (e) {
+      console.error("Error parsing shared state from URL:", e);
+    }
   }, []);
 
   const handleLoadPreset = (mode: SingularityMode, params: any) => {
@@ -246,6 +295,26 @@ export default function App() {
                 </button>
               </div>
             </div>
+            <div className="w-px h-6 bg-white/10 hidden sm:block" />
+            <div className="flex flex-col items-start md:items-end">
+              <span className="text-slate-500 text-[9px] tracking-wider">{t('SHARE / ССЫЛКА', 'SHARE')}</span>
+              <button
+                onClick={handleCopyShareLink}
+                className="mt-1 px-2.5 py-0.5 rounded text-[9px] font-bold tracking-wider transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 flex items-center gap-1 cursor-pointer select-none"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    <span>{t('COPIED!', 'СКОПИРОВАНО!')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-3 h-3 text-cyan-400" />
+                    <span>{t('COPY LINK', 'СКОПИРОВАТЬ')}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </header>
 
@@ -348,20 +417,20 @@ export default function App() {
 
         {/* Dynamic Mode Screen Rendering */}
         <main className="mb-12">
-          {activeMode === SingularityMode.GRAVITATIONAL && <GravitationalSingularity preset={gravitationalPreset} />}
-          {activeMode === SingularityMode.COMPLEX_ANALYSIS && <ComplexSingularity preset={complexPreset} />}
-          {activeMode === SingularityMode.KINEMATIC && <KinematicSingularity preset={kinematicPreset} />}
-          {activeMode === SingularityMode.NAVIER_STOKES && <NavierStokesSingularity preset={navierStokesPreset} />}
-          {activeMode === SingularityMode.RIEMANN && <RiemannSingularity preset={riemannPreset} />}
-          {activeMode === SingularityMode.YANG_MILLS && <YangMillsSingularity preset={yangMillsPreset} />}
-          {activeMode === SingularityMode.P_VS_NP && <PVsNPSingularity preset={pVsNPPreset} />}
-          {activeMode === SingularityMode.HODGE && <HodgeSingularity preset={hodgePreset} />}
-          {activeMode === SingularityMode.BSD && <BSDSingularity preset={bsdPreset} />}
-          {activeMode === SingularityMode.POINCARE && <PoincareSingularity preset={poincarePreset} />}
+          {activeMode === SingularityMode.GRAVITATIONAL && <GravitationalSingularity preset={gravitationalPreset} onChangeState={setActiveState} />}
+          {activeMode === SingularityMode.COMPLEX_ANALYSIS && <ComplexSingularity preset={complexPreset} onChangeState={setActiveState} />}
+          {activeMode === SingularityMode.KINEMATIC && <KinematicSingularity preset={kinematicPreset} onChangeState={setActiveState} />}
+          {activeMode === SingularityMode.NAVIER_STOKES && <NavierStokesSingularity preset={navierStokesPreset} onChangeState={setActiveState} />}
+          {activeMode === SingularityMode.RIEMANN && <RiemannSingularity preset={riemannPreset} onChangeState={setActiveState} />}
+          {activeMode === SingularityMode.YANG_MILLS && <YangMillsSingularity preset={yangMillsPreset} onChangeState={setActiveState} />}
+          {activeMode === SingularityMode.P_VS_NP && <PVsNPSingularity preset={pVsNPPreset} onChangeState={setActiveState} />}
+          {activeMode === SingularityMode.HODGE && <HodgeSingularity preset={hodgePreset} onChangeState={setActiveState} />}
+          {activeMode === SingularityMode.BSD && <BSDSingularity preset={bsdPreset} onChangeState={setActiveState} />}
+          {activeMode === SingularityMode.POINCARE && <PoincareSingularity preset={poincarePreset} onChangeState={setActiveState} />}
           {activeMode === SingularityMode.THEORY && <RicisTheory />}
           {activeMode === SingularityMode.CASES_AND_SOLUTIONS && <CasesAndSolutions onLoadPreset={handleLoadPreset} />}
           {activeMode === SingularityMode.RICIS_AGENT && <RicisAgent />}
-          {activeMode === SingularityMode.CHLADNI && <ChladniSingularity preset={chladniPreset} />}
+          {activeMode === SingularityMode.CHLADNI && <ChladniSingularity preset={chladniPreset} onChangeState={setActiveState} />}
         </main>
 
         {/* Humble and Clean Scientific Footer */}

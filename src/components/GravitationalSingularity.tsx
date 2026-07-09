@@ -11,9 +11,10 @@ import { useLanguage } from '../lib/i18n';
 
 interface GravitationalSingularityProps {
   preset?: GravitationalState;
+  onChangeState?: (state: GravitationalState) => void;
 }
 
-export default function GravitationalSingularity({ preset }: GravitationalSingularityProps = {}) {
+export default function GravitationalSingularity({ preset, onChangeState }: GravitationalSingularityProps = {}) {
   const { t, language } = useLanguage();
   const [state, setState] = useState<GravitationalState>({
     mass: 5,           // M_sun
@@ -28,6 +29,10 @@ export default function GravitationalSingularity({ preset }: GravitationalSingul
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 

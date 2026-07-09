@@ -10,9 +10,10 @@ import ExportToSheetsButton from './ExportToSheetsButton';
 
 interface KinematicSingularityProps {
   preset?: KinematicState;
+  onChangeState?: (state: KinematicState) => void;
 }
 
-export default function KinematicSingularity({ preset }: KinematicSingularityProps = {}) {
+export default function KinematicSingularity({ preset, onChangeState }: KinematicSingularityProps = {}) {
   const [state, setState] = useState<KinematicState>({
     angle1: 45,        // theta_1 degrees
     angle2: 10,        // theta_2 degrees (very close to 0 -> singularity)
@@ -28,6 +29,10 @@ export default function KinematicSingularity({ preset }: KinematicSingularityPro
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 

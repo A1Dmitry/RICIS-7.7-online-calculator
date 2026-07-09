@@ -10,9 +10,10 @@ import ExportToSheetsButton from './ExportToSheetsButton';
 
 interface RiemannSingularityProps {
   preset?: RiemannState;
+  onChangeState?: (state: RiemannState) => void;
 }
 
-export default function RiemannSingularity({ preset }: RiemannSingularityProps = {}) {
+export default function RiemannSingularity({ preset, onChangeState }: RiemannSingularityProps = {}) {
   const [state, setState] = useState<RiemannState>({
     sigma: 1.0,         // Real part of s
     t: 0.0,             // Imaginary part of s
@@ -25,6 +26,10 @@ export default function RiemannSingularity({ preset }: RiemannSingularityProps =
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const plotCanvasRef = useRef<HTMLCanvasElement>(null);

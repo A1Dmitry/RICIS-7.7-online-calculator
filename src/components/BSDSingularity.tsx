@@ -10,9 +10,10 @@ import ExportToSheetsButton from './ExportToSheetsButton';
 
 interface BSDSingularityProps {
   preset?: BSDState;
+  onChangeState?: (state: BSDState) => void;
 }
 
-export default function BSDSingularity({ preset }: BSDSingularityProps = {}) {
+export default function BSDSingularity({ preset, onChangeState }: BSDSingularityProps = {}) {
   const [state, setState] = useState<BSDState>({
     coefA: -2.0,            // Parameter a in y^2 = x^3 + ax + b
     coefB: 3.0,             // Parameter b
@@ -28,6 +29,10 @@ export default function BSDSingularity({ preset }: BSDSingularityProps = {}) {
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const curveCanvasRef = useRef<HTMLCanvasElement>(null);
   const lFunctionCanvasRef = useRef<HTMLCanvasElement>(null);

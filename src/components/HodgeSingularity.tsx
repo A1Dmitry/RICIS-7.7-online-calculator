@@ -10,9 +10,10 @@ import ExportToSheetsButton from './ExportToSheetsButton';
 
 interface HodgeSingularityProps {
   preset?: HodgeState;
+  onChangeState?: (state: HodgeState) => void;
 }
 
-export default function HodgeSingularity({ preset }: HodgeSingularityProps = {}) {
+export default function HodgeSingularity({ preset, onChangeState }: HodgeSingularityProps = {}) {
   const [state, setState] = useState<HodgeState>({
     genus: 2,               // Topological genus g (number of holes)
     cycleDimension: 1,      // Algebraic cycle codimension p
@@ -28,6 +29,10 @@ export default function HodgeSingularity({ preset }: HodgeSingularityProps = {})
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const manifoldCanvasRef = useRef<HTMLCanvasElement>(null);
   const cohomologyCanvasRef = useRef<HTMLCanvasElement>(null);

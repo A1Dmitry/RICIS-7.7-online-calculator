@@ -10,9 +10,10 @@ import ExportToSheetsButton from './ExportToSheetsButton';
 
 interface ComplexSingularityProps {
   preset?: ComplexState;
+  onChangeState?: (state: ComplexState) => void;
 }
 
-export default function ComplexSingularity({ preset }: ComplexSingularityProps = {}) {
+export default function ComplexSingularity({ preset, onChangeState }: ComplexSingularityProps = {}) {
   const [state, setState] = useState<ComplexState>({
     funcType: 'pole_1',
     singularityX: 0.0,
@@ -28,6 +29,10 @@ export default function ComplexSingularity({ preset }: ComplexSingularityProps =
       setState(preset);
     }
   }, [preset]);
+
+  useEffect(() => {
+    onChangeState?.(state);
+  }, [state, onChangeState]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
