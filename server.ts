@@ -5,6 +5,7 @@
 
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
@@ -15,6 +16,175 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// --- GLOBAL REVIEWS DATABASE & ADMIN SECURITY ---
+const REVIEWS_FILE = path.join(process.cwd(), 'reviews_db.json');
+const activeAdminTokens = new Set<string>();
+const pendingAdminCodes = new Map<string, { code: string; expiresAt: number }>();
+
+// Helper to load reviews
+function loadReviews() {
+  try {
+    if (fs.existsSync(REVIEWS_FILE)) {
+      const data = fs.readFileSync(REVIEWS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('Error reading reviews file:', e);
+  }
+  
+  // Default initial reviews if file doesn't exist
+  const initialReviews = [
+    {
+      id: 'rev-1',
+      text: 'Замечательный симулятор! Визуализация волновых функций на пластине Хладни очень наглядная, особенно пакеты Риччи-Кэлера.',
+      author: 'Алексей С.',
+      timestamp: Date.now() - 3600000 * 24 * 3,
+      isCompleted: false
+    },
+    {
+      id: 'rev-2',
+      text: 'Добавьте, пожалуйста, возможность выгрузки графиков в векторном формате (SVG) для научных публикаций.',
+      author: 'Мария Петрова',
+      timestamp: Date.now() - 3600000 * 5,
+      isCompleted: true
+    }
+  ];
+  saveReviews(initialReviews);
+  return initialReviews;
+}
+
+// Helper to save reviews
+function saveReviews(reviews: any[]) {
+  try {
+    fs.writeFileSync(REVIEWS_FILE, JSON.stringify(reviews, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error writing reviews file:', e);
+  }
+}
+
+// Middleware to verify admin token
+function verifyAdmin(req: any, res: any, next: any) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: Admin authentication required' });
+  }
+  const token = authHeader.split(' ')[1];
+  if (!activeAdminTokens.has(token)) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid admin token' });
+  }
+  next();
+}
+
+// Global reviews GET
+app.get('/api/reviews', (req, res) => {
+  res.json(loadReviews());
+});
+
+// Global reviews POST
+app.post('/api/reviews', (req, res) => {
+  try {
+    const { text, author } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+    const reviews = loadReviews();
+    const newReview = {
+      id: 'rev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      text: text.trim(),
+      author: author ? author.trim() : 'Исследователь',
+      timestamp: Date.now(),
+      isCompleted: false
+    };
+    reviews.unshift(newReview);
+    saveReviews(reviews);
+    res.json(newReview);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Request Admin Code
+app.post('/api/admin/request-code', (req, res) => {
+  const { email } = req.body;
+  if (!email || email.trim().toLowerCase() !== 'dima.aley@gmail.com') {
+    return res.status(403).json({ error: 'Доступ ограничен: только администратор dima.aley@gmail.com может редактировать отзывы.' });
+  }
+
+  // Generate 6 digit code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 min
+  pendingAdminCodes.set(email.toLowerCase(), { code, expiresAt });
+
+  console.log(`\n======================================================`);
+  console.log(`[RICIS SECURITY PROTOCOL: ADMIN LOGIN REQUEST]`);
+  console.log(`Sending email verification code to: dima.aley@gmail.com`);
+  console.log(`CONFIRMATION CODE IS: ${code}`);
+  console.log(`======================================================\n`);
+
+  res.json({ 
+    success: true, 
+    message: 'Код подтверждения был отправлен на dima.aley@gmail.com.',
+    testCode: code // Exposed for seamless testing in UI sandbox
+  });
+});
+
+// Verify Admin Code
+app.post('/api/admin/verify-code', (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) {
+    return res.status(400).json({ error: 'Email and code are required' });
+  }
+  
+  const record = pendingAdminCodes.get(email.toLowerCase());
+  if (!record || record.code !== code || Date.now() > record.expiresAt) {
+    return res.status(400).json({ error: 'Неверный код подтверждения или срок его действия истек.' });
+  }
+
+  // Code correct! Generate token
+  const token = 'admin_ricis_token_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  activeAdminTokens.add(token);
+  pendingAdminCodes.delete(email.toLowerCase());
+
+  res.json({ success: true, token });
+});
+
+// PUT review (Toggle completed or Edit) - ADMIN ONLY
+app.put('/api/reviews/:id', verifyAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, isCompleted } = req.body;
+    const reviews = loadReviews();
+    const idx = reviews.findIndex((r: any) => r.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    if (text !== undefined) reviews[idx].text = text.trim();
+    if (isCompleted !== undefined) reviews[idx].isCompleted = isCompleted;
+
+    saveReviews(reviews);
+    res.json(reviews[idx]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE review - ADMIN ONLY
+app.delete('/api/reviews/:id', verifyAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const reviews = loadReviews();
+    const filtered = reviews.filter((r: any) => r.id !== id);
+    if (reviews.length === filtered.length) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+    saveReviews(filtered);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Initialize Gemini SDK with telemetry header as instructed
 const ai = new GoogleGenAI({

@@ -17,7 +17,20 @@ export enum SingularityMode {
   THEORY = 'THEORY',
   CASES_AND_SOLUTIONS = 'CASES_AND_SOLUTIONS',
   RICIS_AGENT = 'RICIS_AGENT',
-  CHLADNI = 'CHLADNI'
+  CHLADNI = 'CHLADNI',
+  MANDELBROT = 'MANDELBROT'
+}
+
+export interface MandelbrotState {
+  centerX: number;
+  centerY: number;
+  zoom: number;
+  maxIterations: number;
+  colorScheme: 'classic' | 'psychedelic' | 'rainbow' | 'monochrome' | 'fire' | 'cosmic';
+  smoothColoring: boolean;
+  juliaMode: boolean;
+  juliaX: number;
+  juliaY: number;
 }
 
 export interface ChladniState {

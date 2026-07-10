@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Cpu, Sparkles, Terminal, Bot, User, RefreshCw, MessageSquare, BookOpen, AlertCircle, FileText, Mail, MapPin, Award, ExternalLink, Check, Archive, CheckSquare, Square } from 'lucide-react';
+import { Send, Cpu, Sparkles, Terminal, Bot, User, RefreshCw, MessageSquare, BookOpen, AlertCircle, FileText, Mail, MapPin, Award, ExternalLink, Check, Archive, CheckSquare, Square, Lock, Unlock, Key } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
 
 interface Message {
@@ -39,6 +39,22 @@ export default function RicisAgent() {
   const { t, language } = useLanguage();
   const [sidebarTab, setSidebarTab] = useState<'knowledge' | 'reviews' | 'author'>('knowledge');
   const [reviews, setReviews] = useState<ReviewWish[]>([]);
+  const [adminToken, setAdminToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('ricis_admin_token');
+    } catch (e) {
+      return null;
+    }
+  });
+  const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  const [adminEmail, setAdminEmail] = useState<string>('');
+  const [adminCode, setAdminCode] = useState<string>('');
+  const [adminVerificationStep, setAdminVerificationStep] = useState<'email' | 'code'>('email');
+  const [adminError, setAdminError] = useState<string>('');
+  const [adminLoading, setAdminLoading] = useState<boolean>(false);
+  const [simulatedCode, setSimulatedCode] = useState<string>('');
+  const [pendingAdminAction, setPendingAdminAction] = useState<{ type: 'delete' | 'toggle', id: string } | null>(null);
+
   const [isReviewMode, setIsReviewMode] = useState<boolean>(false);
   const [directReviewInput, setDirectReviewInput] = useState<string>('');
   
@@ -132,43 +148,60 @@ export default function RicisAgent() {
     }
   }, []);
 
-  useEffect(() => {
+  // Fetch reviews from the API
+  const fetchReviews = async () => {
     try {
-      const stored = localStorage.getItem('ricis_reviews_wishes');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const mapped = parsed.map((r: any) => {
-          const isSvgWish = r.id === 'rev-2' || (r.text && r.text.includes('SVG'));
-          return {
-            ...r,
-            author: r.author || 'Исследователь',
-            isCompleted: r.isCompleted !== undefined ? r.isCompleted : (isSvgWish ? true : false)
-          };
-        });
-        setReviews(mapped);
+      const res = await fetch('/api/reviews');
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(data);
       } else {
-        const initialReviews: ReviewWish[] = [
-          {
-            id: 'rev-1',
-            text: 'Замечательный симулятор! Визуализация волновых функций на пластине Хладни очень наглядная, особенно пакеты Риччи-Кэлера.',
-            author: 'Алексей С.',
-            timestamp: Date.now() - 3600000 * 24 * 3,
-            isCompleted: false
-          },
-          {
-            id: 'rev-2',
-            text: 'Добавьте, пожалуйста, возможность выгрузки графиков в векторном формате (SVG) для научных публикаций.',
-            author: 'Мария Петрова',
-            timestamp: Date.now() - 3600000 * 5,
-            isCompleted: true
-          }
-        ];
-        setReviews(initialReviews);
-        localStorage.setItem('ricis_reviews_wishes', JSON.stringify(initialReviews));
+        throw new Error('Non-ok response from server');
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to fetch reviews from API, using fallback:', e);
+      // Fallback load from localStorage
+      try {
+        const stored = localStorage.getItem('ricis_reviews_wishes');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const mapped = parsed.map((r: any) => {
+            const isSvgWish = r.id === 'rev-2' || (r.text && r.text.includes('SVG'));
+            return {
+              ...r,
+              author: r.author || 'Исследователь',
+              isCompleted: r.isCompleted !== undefined ? r.isCompleted : (isSvgWish ? true : false)
+            };
+          });
+          setReviews(mapped);
+        } else {
+          const initialReviews: ReviewWish[] = [
+            {
+              id: 'rev-1',
+              text: 'Замечательный симулятор! Визуализация волновых функций на пластине Хладни очень наглядная, особенно пакеты Риччи-Кэлера.',
+              author: 'Алексей С.',
+              timestamp: Date.now() - 3600000 * 24 * 3,
+              isCompleted: false
+            },
+            {
+              id: 'rev-2',
+              text: 'Добавьте, пожалуйста, возможность выгрузки графиков в векторном формате (SVG) для научных публикаций.',
+              author: 'Мария Петрова',
+              timestamp: Date.now() - 3600000 * 5,
+              isCompleted: true
+            }
+          ];
+          setReviews(initialReviews);
+          localStorage.setItem('ricis_reviews_wishes', JSON.stringify(initialReviews));
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }
+  };
+
+  useEffect(() => {
+    fetchReviews();
   }, []);
 
   const groupWishesFallback = (allWishes: ReviewWish[]): WishGroup[] => {
@@ -298,7 +331,7 @@ export default function RicisAgent() {
     }
   }, [reviews]);
 
-  const saveReview = (text: string, customAuthor?: string) => {
+  const saveReview = async (text: string, customAuthor?: string) => {
     if (!text.trim()) return;
     const finalAuthor = (customAuthor || userName || '').trim();
     if (!finalAuthor) {
@@ -307,45 +340,106 @@ export default function RicisAgent() {
       return;
     }
 
-    const newReview: ReviewWish = {
-      id: 'rev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-      text: text.trim(),
-      author: finalAuthor,
-      timestamp: Date.now()
-    };
-    setReviews((prev) => {
-      const updated = [newReview, ...prev];
-      try {
-        localStorage.setItem('ricis_reviews_wishes', JSON.stringify(updated));
-      } catch (e) {
-        console.error(e);
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.trim(), author: finalAuthor })
+      });
+      if (res.ok) {
+        const newReview = await res.json();
+        setReviews((prev) => [newReview, ...prev]);
+      } else {
+        throw new Error('Server returned error status');
       }
-      return updated;
-    });
+    } catch (e) {
+      console.error('Failed to save review to API, saving locally:', e);
+      const newReview: ReviewWish = {
+        id: 'rev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+        text: text.trim(),
+        author: finalAuthor,
+        timestamp: Date.now()
+      };
+      setReviews((prev) => {
+        const updated = [newReview, ...prev];
+        try {
+          localStorage.setItem('ricis_reviews_wishes', JSON.stringify(updated));
+        } catch (err) {
+          console.error(err);
+        }
+        return updated;
+      });
+    }
   };
 
-  const deleteReview = (id: string) => {
-    setReviews((prev) => {
-      const updated = prev.filter(r => r.id !== id);
-      try {
-        localStorage.setItem('ricis_reviews_wishes', JSON.stringify(updated));
-      } catch (e) {
-        console.error(e);
+  const deleteReview = async (id: string, bypassAdminCheck: boolean = false) => {
+    if (!adminToken && !bypassAdminCheck) {
+      setPendingAdminAction({ type: 'delete', id });
+      setAdminEmail('');
+      setAdminCode('');
+      setAdminVerificationStep('email');
+      setAdminError('');
+      setSimulatedCode('');
+      setShowAdminModal(true);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/reviews/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${adminToken || localStorage.getItem('ricis_admin_token')}`
+        }
+      });
+      if (res.ok) {
+        setReviews((prev) => prev.filter(r => r.id !== id));
+      } else {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Server error during delete');
       }
-      return updated;
-    });
+    } catch (e: any) {
+      console.error('Failed to delete review:', e);
+      setAdminError(e.message || t('Ошибка удаления отзыва. Требуется авторизация администратора.', 'Error deleting review. Administrator authorization required.'));
+      setShowAdminModal(true);
+    }
   };
 
-  const toggleCompleteReview = (id: string) => {
-    setReviews((prev) => {
-      const updated = prev.map(r => r.id === id ? { ...r, isCompleted: !r.isCompleted } : r);
-      try {
-        localStorage.setItem('ricis_reviews_wishes', JSON.stringify(updated));
-      } catch (e) {
-        console.error(e);
+  const toggleCompleteReview = async (id: string, bypassAdminCheck: boolean = false) => {
+    if (!adminToken && !bypassAdminCheck) {
+      setPendingAdminAction({ type: 'toggle', id });
+      setAdminEmail('');
+      setAdminCode('');
+      setAdminVerificationStep('email');
+      setAdminError('');
+      setSimulatedCode('');
+      setShowAdminModal(true);
+      return;
+    }
+
+    const reviewToToggle = reviews.find(r => r.id === id);
+    if (!reviewToToggle) return;
+
+    try {
+      const res = await fetch(`/api/reviews/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken || localStorage.getItem('ricis_admin_token')}`
+        },
+        body: JSON.stringify({ isCompleted: !reviewToToggle.isCompleted })
+      });
+      if (res.ok) {
+        const updatedReview = await res.json();
+        setReviews((prev) => prev.map(r => r.id === id ? updatedReview : r));
+      } else {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Server error during update');
       }
-      return updated;
-    });
+    } catch (e: any) {
+      console.error('Failed to toggle review complete:', e);
+      setAdminError(e.message || t('Ошибка обновления статуса отзыва. Требуется авторизация администратора.', 'Error updating review status. Administrator authorization required.'));
+      setShowAdminModal(true);
+    }
   };
 
   const downloadLatex = () => {
@@ -803,9 +897,41 @@ Phase 6 & Верификация L1 & Проверка на непротивор
 
           {sidebarTab === 'reviews' && (
             <div className="p-4 bg-cyan-950/10 border border-cyan-500/10 rounded-xl space-y-3">
-              <div className="flex items-center gap-2 text-cyan-400">
+              <div className="flex items-center gap-2 text-cyan-400 w-full">
                 <MessageSquare className="w-4 h-4 text-cyan-400" />
                 <span className="text-[11px] font-bold uppercase tracking-wider font-mono">{t('Отзывы и пожелания', 'Reviews and Feedback')}</span>
+                {adminToken ? (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem('ricis_admin_token');
+                      setAdminToken(null);
+                    }}
+                    className="ml-auto flex items-center gap-1 text-[8px] bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-400 px-1.5 py-0.5 rounded cursor-pointer transition font-mono uppercase tracking-wider"
+                    title={t("Выйти из режима администратора", "Logout from admin mode")}
+                  >
+                    <Unlock className="w-2.5 h-2.5" />
+                    <span>ADMIN</span>
+                  </button>
+                ) : (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setAdminEmail('');
+                      setAdminCode('');
+                      setAdminVerificationStep('email');
+                      setAdminError('');
+                      setSimulatedCode('');
+                      setPendingAdminAction(null);
+                      setShowAdminModal(true);
+                    }}
+                    className="ml-auto flex items-center gap-1 text-[8px] bg-black/60 hover:bg-cyan-950/40 border border-white/5 hover:border-cyan-500/20 text-slate-500 hover:text-cyan-400 px-1.5 py-0.5 rounded cursor-pointer transition font-mono uppercase tracking-wider"
+                    title={t("Войти как администратор", "Login as admin")}
+                  >
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>USER</span>
+                  </button>
+                )}
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
                 {t('Здесь хранятся отзывы и пожелания пользователей о системе RICIS III.', 'Here, user reviews and feedback about the RICIS III system are stored.')}
@@ -1283,6 +1409,161 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                 {t('Сохранить и записать', 'Save and Submit')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showAdminModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div className="bg-[#0b0c10] border border-cyan-500/50 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-[0_0_50px_rgba(34,211,238,0.25)] font-mono text-xs">
+            <div className="flex items-center gap-2.5 text-cyan-400 border-b border-white/10 pb-2">
+              <Lock className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider">{t('Верификация администратора', 'Admin Verification')}</h3>
+            </div>
+            
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              {t('Для редактирования или удаления отзывов требуется подтвердить права доступа. Код будет отправлен на адрес разработчика.', 'Modifying or deleting feedback requires administrative authorization. A code will be transmitted to the developer email.')}
+            </p>
+
+            {adminError && (
+              <div className="p-2 bg-rose-950/40 border border-rose-500/30 text-rose-300 rounded text-[10px] leading-snug">
+                ⚠️ {adminError}
+              </div>
+            )}
+
+            {adminVerificationStep === 'email' ? (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] text-slate-500 uppercase tracking-wider block">{t('Адрес электронной почты администратора:', 'Admin Email Address:')}</label>
+                  <input
+                    type="email"
+                    placeholder="dima.aley@gmail.com"
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    className="w-full bg-black/60 border border-white/20 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-700 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdminModal(false);
+                      setPendingAdminAction(null);
+                    }}
+                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-[10px] text-slate-400 transition cursor-pointer"
+                  >
+                    {t('Отмена', 'Cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={adminLoading || adminEmail.trim().toLowerCase() !== 'dima.aley@gmail.com'}
+                    onClick={async () => {
+                      setAdminLoading(true);
+                      setAdminError('');
+                      try {
+                        const res = await fetch('/api/admin/request-code', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email: adminEmail.trim() })
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          setAdminVerificationStep('code');
+                          if (data.testCode) {
+                            setSimulatedCode(data.testCode);
+                          }
+                        } else {
+                          const data = await res.json();
+                          setAdminError(data.error || 'Ошибка запроса кода');
+                        }
+                      } catch (err: any) {
+                        setAdminError(err.message || 'Ошибка сети');
+                      } finally {
+                        setAdminLoading(false);
+                      }
+                    }}
+                    className="px-4 py-1.5 bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/50 hover:border-cyan-400 text-cyan-300 rounded transition cursor-pointer disabled:opacity-40 font-bold"
+                  >
+                    {adminLoading ? t('Отправка...', 'Sending...') : t('Получить код', 'Send Code')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] text-slate-500 uppercase tracking-wider block">
+                    {t('Введите 6-значный код:', 'Enter 6-digit verification code:')}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="000000"
+                    value={adminCode}
+                    onChange={(e) => setAdminCode(e.target.value.replace(/\D/g, '').substring(0, 6))}
+                    className="w-full bg-black/60 border border-white/20 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-700 tracking-widest text-center focus:outline-none focus:border-cyan-500 font-bold"
+                  />
+                </div>
+
+                {simulatedCode && (
+                  <div className="p-2 bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 rounded text-[10px] leading-normal font-sans">
+                    💡 <strong>{t('Для тестирования:', 'For Sandbox Testing:')}</strong> {t('Поскольку это демо-окружение, код подтверждения также напечатан ниже:', 'Since this is a demo sandbox, the verification code is printed below:')}{' '}
+                    <span className="bg-black/60 px-1.5 py-0.5 rounded text-white font-mono font-bold select-all">{simulatedCode}</span>
+                  </div>
+                )}
+
+                <div className="flex gap-2 justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setAdminVerificationStep('email')}
+                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-[10px] text-slate-400 transition cursor-pointer"
+                  >
+                    {t('Назад', 'Back')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={adminLoading || adminCode.length < 6}
+                    onClick={async () => {
+                      setAdminLoading(true);
+                      setAdminError('');
+                      try {
+                        const res = await fetch('/api/admin/verify-code', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email: adminEmail.trim(), code: adminCode })
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          localStorage.setItem('ricis_admin_token', data.token);
+                          setAdminToken(data.token);
+                          setShowAdminModal(false);
+                          
+                          // Execute pending action
+                          if (pendingAdminAction) {
+                            const { type, id } = pendingAdminAction;
+                            setPendingAdminAction(null);
+                            if (type === 'delete') {
+                              setTimeout(() => deleteReview(id, true), 100);
+                            } else if (type === 'toggle') {
+                              setTimeout(() => toggleCompleteReview(id, true), 100);
+                            }
+                          }
+                        } else {
+                          const data = await res.json();
+                          setAdminError(data.error || 'Неверный код');
+                        }
+                      } catch (err: any) {
+                        setAdminError(err.message || 'Ошибка сети');
+                      } finally {
+                        setAdminLoading(false);
+                      }
+                    }}
+                    className="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded transition cursor-pointer disabled:opacity-40 font-bold"
+                  >
+                    {adminLoading ? t('Проверка...', 'Verifying...') : t('Войти', 'Verify & Login')}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

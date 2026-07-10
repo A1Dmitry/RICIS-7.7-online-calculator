@@ -9,7 +9,8 @@ import { useLanguage } from '../lib/i18n';
 import { 
   Play, Pause, RotateCcw, Sliders, Waves, HelpCircle, 
   Settings, Info, Shield, Radio, Volume2, Sparkles, Award,
-  Copy, Check, Bookmark, Trash2, Plus, Download, Cpu
+  Copy, Check, Bookmark, Trash2, Plus, Download, Cpu,
+  Maximize2, Minimize2, Move, ZoomIn, ZoomOut, RefreshCw
 } from 'lucide-react';
 
 interface Particle {
@@ -99,9 +100,10 @@ const voynichPresets: VoynichPreset[] = [
 interface ChladniSingularityProps {
   preset?: any;
   onChangeState?: (state: any) => void;
+  isActive?: boolean;
 }
 
-export default function ChladniSingularity({ preset, onChangeState }: ChladniSingularityProps = {}) {
+export default function ChladniSingularity({ preset, onChangeState, isActive = true }: ChladniSingularityProps = {}) {
   const { language, t } = useLanguage();
   const [state, setState] = useState<ChladniState>({
     plateType: 'circle',
@@ -135,15 +137,85 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
   const [copiedFigureId, setCopiedFigureId] = useState<string | null>(null);
   const [useShader, setUseShader] = useState<boolean>(true);
   const [webglSupported, setWebglSupported] = useState<boolean>(false);
+  const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
+
+  // Zoom & Pan coordinates for flat plate observation
+  const [zoom, setZoom] = useState<number>(1.0);
+  const [offsetX, setOffsetX] = useState<number>(0.0);
+  const [offsetY, setOffsetY] = useState<number>(0.0);
+  const [showZoomHint, setShowZoomHint] = useState<boolean>(false);
+  const zoomHintTimeoutRef = useRef<any>(null);
+
+  const isDragging = useRef<boolean>(false);
+  const dragStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const offsetStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    offsetStart.current = { x: offsetX, y: offsetY };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDragging.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+
+    const width = canvas.clientWidth || 1;
+    // Normalized plate coords total span is 2.0 (-1 to 1)
+    const scale = 2.0 / (width * zoom);
+
+    const newOffsetX = offsetStart.current.x - dx * scale;
+    const newOffsetY = offsetStart.current.y + dy * scale; // Invert Y for coordinate system
+
+    if (!isNaN(newOffsetX) && isFinite(newOffsetX) && !isNaN(newOffsetY) && isFinite(newOffsetY)) {
+      setOffsetX(newOffsetX);
+      setOffsetY(newOffsetY);
+    }
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDragging.current = false;
+  };
+
+  const zoomIn = () => {
+    setZoom(prev => Math.min(1000.0, prev * 1.3));
+  };
+
+  const zoomOut = () => {
+    setZoom(prev => Math.max(1.0, prev / 1.3));
+  };
+
+  const resetView = () => {
+    setZoom(1.0);
+    setOffsetX(0.0);
+    setOffsetY(0.0);
+  };
+
+  // Escape key listener for exiting full screen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullScreen]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const webglRef = useRef<any>(null);
+  const appliedPresetRef = useRef<any>(null);
 
   // Apply preset safely
   useEffect(() => {
-    if (preset) {
+    if (preset && preset !== appliedPresetRef.current) {
+      appliedPresetRef.current = preset;
       if (preset.activePackage !== undefined) {
         setActivePackage(preset.activePackage);
       }
@@ -219,6 +291,8 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
         uniform float u_besselRoot3;
         uniform float u_n3;
         uniform float u_m3;
+        uniform float u_zoom;
+        uniform vec2 u_offset;
 
         const float PI = 3.14159265359;
 
@@ -257,7 +331,7 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
         }
 
         void main() {
-          vec2 p = v_texCoord * 2.0 - 1.0;
+          vec2 p = (v_texCoord * 2.0 - 1.0) / u_zoom + u_offset;
           float r = length(p);
           
           float theta = atan(p.y, p.x + (p.x >= 0.0 ? 1.0 : -1.0) * u_regularization * 0.0001);
@@ -418,7 +492,7 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
         'u_activePackage', 'u_plateType', 'u_n1', 'u_m1', 'u_n2', 'u_m2',
         'u_freq', 'u_phi', 'u_ratioBA', 'u_damping', 'u_regularization',
         'u_thickness', 'u_time', 'u_besselRoot1', 'u_besselRoot2', 'u_besselRoot3',
-        'u_n3', 'u_m3'
+        'u_n3', 'u_m3', 'u_zoom', 'u_offset'
       ];
 
       uniformNames.forEach(name => {
@@ -632,6 +706,9 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
   const handleLoadFigure = (fig: SavedChladniFigure) => {
     setActivePackage(fig.activePackage);
     setState({ ...fig.state });
+    setZoom(1.0);
+    setOffsetX(0.0);
+    setOffsetY(0.0);
     setTimeout(() => {
       initParticles();
     }, 50);
@@ -1010,6 +1087,7 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
 
   // Main animation / simulation loop
   useEffect(() => {
+    if (!isActive) return;
     let lastTime = 0;
     let tCount = 0;
 
@@ -1041,32 +1119,37 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
         ctx.stroke();
       }
 
-      // Draw Plate Boundary
-      ctx.beginPath();
-      ctx.strokeStyle = 'rgba(34, 211, 238, 0.15)';
-      ctx.lineWidth = 2;
+      // Draw Plate Boundary with Zoom/Pan
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
       const R = canvas.width * 0.45;
 
+      const bCx = cx - offsetX * zoom * R;
+      const bCy = cy - offsetY * zoom * R;
+      const bR = R * zoom;
+
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.15)';
+      ctx.lineWidth = 2;
+
       if (state.plateType === 'circle') {
-        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.arc(bCx, bCy, bR, 0, Math.PI * 2);
       } else {
-        ctx.rect(cx - R, cy - R, R * 2, R * 2);
+        ctx.rect(bCx - bR, bCy - bR, bR * 2, bR * 2);
       }
       ctx.stroke();
 
       // Draw manuscript background glow
-      const grad = ctx.createRadialGradient(cx, cy, R * 0.1, cx, cy, R);
+      const grad = ctx.createRadialGradient(bCx, bCy, bR * 0.1, bCx, bCy, bR);
       grad.addColorStop(0, 'rgba(8, 47, 73, 0.2)');
       grad.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
       ctx.fillStyle = grad;
       if (state.plateType === 'circle') {
         ctx.beginPath();
-        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.arc(bCx, bCy, bR, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+        ctx.fillRect(bCx - bR, bCy - bR, bR * 2, bR * 2);
       }
 
       // Render the offscreen WebGL shader background if possible
@@ -1104,6 +1187,8 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
           gl.uniform1f(uniforms['u_besselRoot3'], r3);
           gl.uniform1f(uniforms['u_n3'], n3);
           gl.uniform1f(uniforms['u_m3'], m3);
+          gl.uniform1f(uniforms['u_zoom'], zoom);
+          gl.uniform2f(uniforms['u_offset'], offsetX, offsetY);
 
           // Draw quad
           gl.clearColor(0, 0, 0, 0);
@@ -1111,7 +1196,7 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
           gl.drawArrays(gl.TRIANGLES, 0, 6);
 
           // Draw WebGL canvas content onto our 2D canvas at the plate area!
-          ctx.drawImage(webglCanvas, cx - R, cy - R, R * 2, R * 2);
+          ctx.drawImage(webglCanvas, bCx - bR, bCy - bR, bR * 2, bR * 2);
           webglRendered = true;
         } catch (e) {
           console.error('WebGL draw error, falling back to 2D canvas:', e);
@@ -1126,8 +1211,9 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
         const stepSize = 4;
         for (let sx = -R; sx <= R; sx += stepSize) {
           for (let sy = -R; sy <= R; sy += stepSize) {
-            const normX = sx / R;
-            const normY = sy / R;
+            // Map screen coords to plate coords using zoom and offsets
+            const normX = (sx / R) / zoom + offsetX;
+            const normY = (sy / R) / zoom + offsetY;
             if (state.plateType === 'circle' && normX*normX + normY*normY > 1.0) continue;
 
             const fVal = evaluateField(normX, normY, tCount);
@@ -1182,9 +1268,15 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
           }
         }
 
-        // Draw particle
-        const pxCanvas = cx + p.x * R;
-        const pyCanvas = cy + p.y * R;
+        // Draw particle with zoom and offset
+        const sxParticle = (p.x - offsetX) * zoom;
+        const syParticle = (p.y - offsetY) * zoom;
+
+        // Skip drawing if outside screen area for optimization
+        if (Math.abs(sxParticle) > 1.2 || Math.abs(syParticle) > 1.2) return;
+
+        const pxCanvas = cx + sxParticle * R;
+        const pyCanvas = cy + syParticle * R;
         ctx.fillStyle = p.color;
         ctx.fillRect(pxCanvas, pyCanvas, state.sandType === 'fine' ? 1.2 : 2.0, state.sandType === 'fine' ? 1.2 : 2.0);
       });
@@ -1198,7 +1290,7 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [isPlaying, state, activePackage, useShader]);
+  }, [isActive, isPlaying, state, activePackage, useShader, zoom, offsetX, offsetY]);
 
   const applyVoynichPreset = (preset: VoynichPreset) => {
     setState(prev => ({
@@ -1212,10 +1304,80 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
       ratioBA: preset.ratioBA,
       plateType: 'circle'
     }));
+    setZoom(1.0);
+    setOffsetX(0.0);
+    setOffsetY(0.0);
     setTimeout(() => {
       initParticles();
     }, 50);
   };
+
+  // Wheel zoom at mouse cursor position with Shift requirement and dynamic zoom scaling
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.shiftKey) {
+        // Normal scrolling, show helper toast/hint
+        setShowZoomHint(true);
+        if (zoomHintTimeoutRef.current) {
+          clearTimeout(zoomHintTimeoutRef.current);
+        }
+        zoomHintTimeoutRef.current = setTimeout(() => {
+          setShowZoomHint(false);
+        }, 2500);
+        return; // Allow page to scroll normally if Shift is not held
+      }
+
+      // If Shift is held, prevent standard page scroll/zoom and zoom into coordinate
+      e.preventDefault();
+      setShowZoomHint(false);
+
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const width = canvas.clientWidth || 1;
+      const height = canvas.clientHeight || 1;
+      
+      // Position under cursor in plate normalized coordinates [-1, 1] before zoom
+      const stX = (mouseX / width) * 2.0 - 1.0;
+      const stY = 1.0 - (mouseY / height) * 2.0; // Invert Y
+      
+      const worldX = stX / zoom + offsetX;
+      const worldY = stY / zoom + offsetY;
+
+      // Dynamic zoom factor depending on zoom depth (closer = smaller step, farther = larger step)
+      const logZ = Math.log10(zoom);
+      const t = logZ / 3.0; // scale up to zoom level 1000
+      const clampedT = Math.max(0, Math.min(1, t));
+      const zoomStepPercent = 0.05 + clampedT * 0.15; // 5% step size at deep, 20% at shallow
+
+      // When deltaY < 0, scroll up (zoom in)
+      const factor = e.deltaY < 0 ? (1.0 - zoomStepPercent) : (1.0 / (1.0 - zoomStepPercent));
+      const nextZoom = Math.max(1.0, Math.min(1000.0, zoom * factor));
+
+      // Calculate new offsets so worldX/worldY remains under mouse cursor
+      const nextOffsetX = worldX - stX / nextZoom;
+      const nextOffsetY = worldY - stY / nextZoom;
+
+      if (
+        !isNaN(nextOffsetX) && isFinite(nextOffsetX) &&
+        !isNaN(nextOffsetY) && isFinite(nextOffsetY) &&
+        !isNaN(nextZoom) && isFinite(nextZoom)
+      ) {
+        setZoom(nextZoom);
+        setOffsetX(nextOffsetX);
+        setOffsetY(nextOffsetY);
+      }
+    };
+
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', onWheel);
+    };
+  }, [offsetX, offsetY, zoom, isActive]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -1322,19 +1484,242 @@ export default function ChladniSingularity({ preset, onChangeState }: ChladniSin
             </div>
 
             {/* Canvas and its overlays */}
-            <div className="relative flex-1 flex items-center justify-center">
+            <div className={isFullScreen 
+              ? "fixed inset-0 z-50 bg-[#04040a] p-4 flex flex-col justify-center items-center w-screen h-screen animate-in fade-in duration-300" 
+              : "relative flex-1 flex items-center justify-center"}
+            >
               <canvas 
                 ref={canvasRef} 
                 width={450} 
                 height={450}
-                className="rounded-lg border border-white/10 shadow-[0_0_50px_rgba(34,211,238,0.03)] bg-[#050507] w-full max-w-[450px] aspect-square"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUpOrLeave}
+                onMouseLeave={handleMouseUpOrLeave}
+                className={isFullScreen
+                  ? "rounded-lg border border-white/10 shadow-[0_0_50px_rgba(34,211,238,0.03)] bg-[#050507] h-[80vh] aspect-square cursor-grab active:cursor-grabbing block"
+                  : "rounded-lg border border-white/10 shadow-[0_0_50px_rgba(34,211,238,0.03)] bg-[#050507] w-full max-w-[450px] aspect-square cursor-grab active:cursor-grabbing block"}
               />
+
+              {/* Shift+Wheel Zoom Hint overlay */}
+              {showZoomHint && (
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-[1.5px] flex items-center justify-center pointer-events-none z-40 transition-all animate-in fade-in duration-200">
+                  <div className="bg-slate-900/95 border border-cyan-500/40 px-5 py-3 rounded-xl text-center shadow-2xl max-w-xs pointer-events-auto">
+                    <Move className="w-5 h-5 text-cyan-400 mx-auto mb-2 animate-bounce" />
+                    <p className="text-xs font-semibold text-white">
+                      {t('Зажмите Shift + Колесико мыши', 'Hold Shift + Scroll wheel')}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-normal">
+                      {t('для масштабирования плоской пластины, чтобы страница не прокручивалась.', 'to zoom the flat plate, preventing the page from scrolling.')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Micro-Navigation HUD Map Overlay */}
+              <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 text-slate-300 pointer-events-none select-none max-w-[200px] z-30">
+                <div className="text-[10px] font-bold text-cyan-400 tracking-wider font-mono">MAP POSITION HUD</div>
+                <div className="space-y-1 mt-1.5 font-mono text-[9px] leading-relaxed text-slate-400">
+                  <div className="truncate">X_offset: <span className="text-white font-semibold">{offsetX.toFixed(6)}</span></div>
+                  <div className="truncate">Y_offset: <span className="text-white font-semibold">{offsetY.toFixed(6)}</span></div>
+                  <div>Zoom_scale: <span className="text-white font-semibold">{zoom.toFixed(1)}x</span></div>
+                </div>
+              </div>
               
               {/* Visual labels overlay */}
-              <div className="absolute bottom-3 left-3 bg-black/80 border border-white/5 p-2 rounded text-[10px] font-mono text-slate-400 space-y-0.5 pointer-events-none select-none">
+              <div className="absolute bottom-3 left-3 bg-black/80 border border-white/5 p-2 rounded text-[10px] font-mono text-slate-400 space-y-0.5 pointer-events-none select-none z-30">
                 <div>• {t('Частота', 'Frequency')}: {state.frequency} Hz</div>
                 <div>• {t('Регуляризатор (θ)', 'Regularizer (θ)')}: {state.regularization.toFixed(3)}</div>
-                <div>• {t('Коэф. затухания (γ)', 'Damping coeff. (γ)')}: {state.damping}</div>
+                {activePackage === 3 && <div>• {t('Коэф. затухания (γ)', 'Damping coeff. (γ)')}: {state.damping}</div>}
+              </div>
+
+              {/* Floating Navigation Controls */}
+              <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-md p-1.5 rounded-lg border border-white/10 z-30">
+                <button
+                  onClick={zoomIn}
+                  className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                  title={t('Приблизить', 'Zoom In')}
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={zoomOut}
+                  className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                  title={t('Отдалить', 'Zoom Out')}
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={resetView}
+                  className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                  title={t('Сбросить', 'Reset View')}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setIsFullScreen(!isFullScreen)}
+                  className="p-1.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 transition cursor-pointer"
+                  title={isFullScreen ? t('Свернуть', 'Exit Fullscreen') : t('Развернуть на весь экран', 'Fullscreen')}
+                >
+                  {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {/* Super Compact Floating HUD Overlay (Always Visible on Stage) */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur-md border border-cyan-500/10 rounded-xl p-1.5 flex flex-wrap md:flex-nowrap items-center gap-2 w-[96%] shadow-2xl z-40 text-[9px] text-slate-300">
+                {/* 1. Model & Play/Pause Trigger */}
+                <div className="flex flex-row md:flex-col gap-1 border-r border-white/5 pr-2 shrink-0">
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('МОДЕЛЬ', 'MODEL')}:</span>
+                    <select
+                      value={activePackage}
+                      onChange={(e) => setActivePackage(parseInt(e.target.value) as any)}
+                      className="bg-black/60 border border-white/15 rounded px-1 py-0.5 text-[8.5px] font-semibold text-cyan-300 accent-black cursor-pointer"
+                    >
+                      <option value={1}>P1 Bessel</option>
+                      <option value={2}>P2 Square</option>
+                      <option value={3}>P3 Reson.</option>
+                      <option value={4}>P4 Quant.</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('СТАТУС', 'STATUS')}:</span>
+                    <button
+                      onClick={() => setIsPlaying(!isPlaying)}
+                      className={`px-1 py-0.5 rounded text-[7.5px] font-bold border transition cursor-pointer ${
+                        isPlaying 
+                          ? 'bg-amber-950/40 border-amber-500/30 text-amber-300 hover:border-amber-400' 
+                          : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300 hover:border-emerald-400'
+                      }`}
+                    >
+                      {isPlaying ? t('ПАУЗА', 'PAUSE') : t('СТАРТ', 'START')}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Core Sliders (Frequency & Regularization) */}
+                <div className="flex-1 flex flex-row items-center gap-2 min-w-0">
+                  {/* Frequency */}
+                  <div className="flex-1 flex flex-col gap-0.5 min-w-[65px]">
+                    <div className="flex justify-between items-center text-[8px] leading-none">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ЧАСТ.', 'FREQ')}:</span>
+                      <span className="font-mono text-cyan-300 font-bold">{state.frequency} Hz</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="20000"
+                      step="1"
+                      value={state.frequency}
+                      onChange={(e) => handleFrequencyChange(parseInt(e.target.value))}
+                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                    />
+                  </div>
+
+                  {/* Regularizer θ */}
+                  <div className="flex-1 flex flex-col gap-0.5 min-w-[55px]">
+                    <div className="flex justify-between items-center text-[8px] leading-none">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('РЕГ. θ', 'REG. θ')}:</span>
+                      <span className="font-mono text-cyan-300 font-bold">{state.regularization.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.000"
+                      max="0.500"
+                      step="0.005"
+                      value={state.regularization}
+                      onChange={(e) => setState(prev => ({ ...prev, regularization: parseFloat(e.target.value) }))}
+                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                    />
+                  </div>
+
+                  {/* Thickness h */}
+                  <div className="flex-1 flex flex-col gap-0.5 min-w-[50px]">
+                    <div className="flex justify-between items-center text-[8px] leading-none">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ТОЛЩ. h', 'THICK h')}:</span>
+                      <span className="font-mono text-cyan-300 font-bold">{state.thickness.toFixed(1)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="8.0"
+                      step="0.1"
+                      value={state.thickness}
+                      onChange={(e) => setState(prev => ({ ...prev, thickness: parseFloat(e.target.value) }))}
+                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                    />
+                  </div>
+
+                  {/* Phi / Twist Phase */}
+                  <div className="flex-1 flex flex-col gap-0.5 min-w-[55px]">
+                    <div className="flex justify-between items-center text-[8px] leading-none">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">
+                        {activePackage === 4 ? t('α (СКР.)', 'α (TWIST)') : t('φ (ФАЗА)', 'φ (PHASE)')}:
+                      </span>
+                      <span className="font-mono text-cyan-300 font-bold">{(state.phi / Math.PI).toFixed(1)}π</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max={Math.PI * 2}
+                      step="0.05"
+                      value={state.phi}
+                      onChange={(e) => setState(prev => ({ ...prev, phi: parseFloat(e.target.value) }))}
+                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                    />
+                  </div>
+
+                  {/* Ratio B/A (if package 2 or 3 is active) */}
+                  {(activePackage === 2 || activePackage === 3) && (
+                    <div className="flex-1 flex flex-col gap-0.5 min-w-[45px]">
+                      <div className="flex justify-between items-center text-[8px] leading-none">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">B/A:</span>
+                        <span className="font-mono text-cyan-300 font-bold">{state.ratioBA.toFixed(1)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="2.0"
+                        step="0.05"
+                        value={state.ratioBA}
+                        onChange={(e) => setState(prev => ({ ...prev, ratioBA: parseFloat(e.target.value) }))}
+                        className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                      />
+                    </div>
+                  )}
+
+                  {/* Gamma / damping (if package 3 is active) */}
+                  {activePackage === 3 && (
+                    <div className="flex-1 flex flex-col gap-0.5 min-w-[45px]">
+                      <div className="flex justify-between items-center text-[8px] leading-none">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('γ (ЗАТ.)', 'γ (DAMP)')}:</span>
+                        <span className="font-mono text-cyan-300 font-bold">{state.damping.toFixed(3)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.005"
+                        max="0.05"
+                        step="0.001"
+                        value={state.damping}
+                        onChange={(e) => setState(prev => ({ ...prev, damping: parseFloat(e.target.value) }))}
+                        className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Action Close Button (Only if fullscreen) */}
+                {isFullScreen && (
+                  <div className="flex items-center gap-1.5 border-l border-white/5 pl-2 shrink-0">
+                    <button
+                      onClick={() => setIsFullScreen(false)}
+                      className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition cursor-pointer flex items-center justify-center h-7 w-7"
+                      title={t('Свернуть', 'Exit Fullscreen')}
+                    >
+                      <Minimize2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
