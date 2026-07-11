@@ -94,6 +94,9 @@ export default function GoogleSheetsPanel({ onLoadPreset }: GoogleSheetsPanelPro
   };
 
   const handleLogout = async () => {
+    const confirmed = window.confirm('Вы уверены, что хотите выйти из учетной записи Google?');
+    if (!confirmed) return;
+    
     try {
       await logout();
       setUser(null);

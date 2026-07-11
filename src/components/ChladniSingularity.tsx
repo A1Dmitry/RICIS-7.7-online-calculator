@@ -1400,93 +1400,11 @@ export default function ChladniSingularity({ preset, onChangeState, isActive = t
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 w-full justify-center items-stretch relative">
-            {/* Vertical Frequency Controller (Left Side) */}
-            <div className="flex flex-row sm:flex-col items-center justify-between bg-black/40 border border-white/5 rounded-lg p-2 w-full sm:w-20 select-none shrink-0 gap-2 sm:gap-0">
-              <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold">
-                {t('Част (Гц)', 'Freq (Hz)')}
-              </div>
-
-              {/* Vertical slider wrapper */}
-              <div className="hidden sm:flex flex-1 flex-col items-center justify-center relative w-full my-2 min-h-[180px]">
-                <input
-                  type="range"
-                  min="10"
-                  max="20000"
-                  step="1"
-                  value={state.frequency}
-                  onChange={(e) => handleFrequencyChange(parseInt(e.target.value))}
-                  style={{
-                    WebkitAppearance: 'slider-vertical',
-                    height: '180px',
-                    width: '8px'
-                  }}
-                  className="accent-cyan-400 cursor-ns-resize h-full"
-                />
-              </div>
-
-              {/* Mobile horizontal slider as fallback */}
-              <div className="flex sm:hidden flex-1 px-1">
-                <input
-                  type="range"
-                  min="10"
-                  max="20000"
-                  step="1"
-                  value={state.frequency}
-                  onChange={(e) => handleFrequencyChange(parseInt(e.target.value))}
-                  className="accent-cyan-400 cursor-ew-resize w-full"
-                />
-              </div>
-
-              {/* Frequency display box */}
-              <div className="text-center font-mono text-[11px] text-cyan-400 font-bold sm:my-2 bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-800/30 min-w-[55px] sm:w-full truncate">
-                {state.frequency} {t('Гц', 'Hz')}
-              </div>
-
-              {/* Delicate Fine Tuning Section */}
-              <div className="flex sm:flex-col gap-1 items-center sm:w-full sm:space-y-1.5 sm:mt-1 sm:pt-2 sm:border-t sm:border-white/5 text-center">
-                <span className="hidden sm:block text-[8px] font-mono text-slate-500 uppercase tracking-wider">{t('Подстройка', 'Fine Tune')}</span>
-                
-                <div className="flex gap-1 justify-center">
-                  <button 
-                    onClick={() => handleFrequencyChange(state.frequency - 1)}
-                    className="w-7 sm:w-8 py-0.5 sm:py-1 bg-white/5 hover:bg-white/10 active:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 rounded text-[9px] font-mono transition border border-white/5 cursor-pointer"
-                    title="-1 Hz"
-                  >
-                    -1
-                  </button>
-                  <button 
-                    onClick={() => handleFrequencyChange(state.frequency + 1)}
-                    className="w-7 sm:w-8 py-0.5 sm:py-1 bg-white/5 hover:bg-white/10 active:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 rounded text-[9px] font-mono transition border border-white/5 cursor-pointer"
-                    title="+1 Hz"
-                  >
-                    +1
-                  </button>
-                </div>
-
-                <div className="flex gap-1 justify-center">
-                  <button 
-                    onClick={() => handleFrequencyChange(state.frequency - 10)}
-                    className="w-7 sm:w-8 py-0.5 sm:py-1 bg-white/5 hover:bg-white/10 active:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 rounded text-[9px] font-mono transition border border-white/5 cursor-pointer"
-                    title="-10 Hz"
-                  >
-                    -10
-                  </button>
-                  <button 
-                    onClick={() => handleFrequencyChange(state.frequency + 10)}
-                    className="w-7 sm:w-8 py-0.5 sm:py-1 bg-white/5 hover:bg-white/10 active:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 rounded text-[9px] font-mono transition border border-white/5 cursor-pointer"
-                    title="+10 Hz"
-                  >
-                    +10
-                  </button>
-                </div>
-              </div>
-            </div>
-
+          <div className="flex flex-col md:flex-row gap-6 w-full justify-center items-stretch relative">
             {/* Canvas and its overlays */}
             <div className={isFullScreen 
               ? "fixed inset-0 z-50 bg-[#04040a] p-4 flex flex-col justify-center items-center w-screen h-screen animate-in fade-in duration-300" 
-              : "relative flex-1 flex items-center justify-center"}
+              : "relative flex-1 flex items-center justify-center min-h-[450px] bg-black/20 border border-white/5 rounded-xl p-4"}
             >
               <canvas 
                 ref={canvasRef} 
@@ -1516,414 +1434,371 @@ export default function ChladniSingularity({ preset, onChangeState, isActive = t
                 </div>
               )}
 
-              {/* Micro-Navigation HUD Map Overlay */}
-              <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 text-slate-300 pointer-events-none select-none max-w-[200px] z-30">
-                <div className="text-[10px] font-bold text-cyan-400 tracking-wider font-mono">MAP POSITION HUD</div>
-                <div className="space-y-1 mt-1.5 font-mono text-[9px] leading-relaxed text-slate-400">
-                  <div className="truncate">X_offset: <span className="text-white font-semibold">{offsetX.toFixed(6)}</span></div>
-                  <div className="truncate">Y_offset: <span className="text-white font-semibold">{offsetY.toFixed(6)}</span></div>
-                  <div>Zoom_scale: <span className="text-white font-semibold">{zoom.toFixed(1)}x</span></div>
+              {/* Micro-Navigation HUD Map Overlay (Only in FullScreen) */}
+              {isFullScreen && (
+                <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 text-slate-300 pointer-events-none select-none max-w-[200px] z-30">
+                  <div className="text-[10px] font-bold text-cyan-400 tracking-wider font-mono">MAP POSITION HUD</div>
+                  <div className="space-y-1 mt-1.5 font-mono text-[9px] leading-relaxed text-slate-400">
+                    <div className="truncate">X_offset: <span className="text-white font-semibold">{offsetX.toFixed(6)}</span></div>
+                    <div className="truncate">Y_offset: <span className="text-white font-semibold">{offsetY.toFixed(6)}</span></div>
+                    <div>Zoom_scale: <span className="text-white font-semibold">{zoom.toFixed(1)}x</span></div>
+                  </div>
                 </div>
-              </div>
+              )}
               
-              {/* Visual labels overlay */}
-              <div className="absolute bottom-3 left-3 bg-black/80 border border-white/5 p-2 rounded text-[10px] font-mono text-slate-400 space-y-0.5 pointer-events-none select-none z-30">
-                <div>• {t('Частота', 'Frequency')}: {state.frequency} Hz</div>
-                <div>• {t('Регуляризатор (θ)', 'Regularizer (θ)')}: {state.regularization.toFixed(3)}</div>
-                {activePackage === 3 && <div>• {t('Коэф. затухания (γ)', 'Damping coeff. (γ)')}: {state.damping}</div>}
-              </div>
+              {/* Visual labels overlay (Only in FullScreen) */}
+              {isFullScreen && (
+                <div className="absolute bottom-3 left-3 bg-black/80 border border-white/5 p-2 rounded text-[10px] font-mono text-slate-400 space-y-0.5 pointer-events-none select-none z-30">
+                  <div>• {t('Частота', 'Frequency')}: {state.frequency} Hz</div>
+                  <div>• {t('Регуляризатор (θ)', 'Regularizer (θ)')}: {state.regularization.toFixed(3)}</div>
+                  {activePackage === 3 && <div>• {t('Коэф. затухания (γ)', 'Damping coeff. (γ)')}: {state.damping}</div>}
+                </div>
+              )}
 
               {/* Floating Navigation Controls */}
               <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-md p-1.5 rounded-lg border border-white/10 z-30">
-                <button
-                  onClick={zoomIn}
-                  className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
-                  title={t('Приблизить', 'Zoom In')}
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={zoomOut}
-                  className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
-                  title={t('Отдалить', 'Zoom Out')}
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={resetView}
-                  className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
-                  title={t('Сбросить', 'Reset View')}
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+                {isFullScreen && (
+                  <>
+                    <button
+                      onClick={zoomIn}
+                      className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                      title={t('Приблизить', 'Zoom In')}
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={zoomOut}
+                      className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                      title={t('Отдалить', 'Zoom Out')}
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={resetView}
+                      className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                      title={t('Сбросить', 'Reset View')}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setIsFullScreen(!isFullScreen)}
-                  className="p-1.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 transition cursor-pointer"
+                  className="p-1.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 transition cursor-pointer flex items-center justify-center"
                   title={isFullScreen ? t('Свернуть', 'Exit Fullscreen') : t('Развернуть на весь экран', 'Fullscreen')}
                 >
                   {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </button>
               </div>
 
-              {/* Super Compact Floating HUD Overlay (Always Visible on Stage) */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur-md border border-cyan-500/10 rounded-xl p-1.5 flex flex-wrap md:flex-nowrap items-center gap-2 w-[96%] shadow-2xl z-40 text-[9px] text-slate-300">
-                {/* 1. Model & Play/Pause Trigger */}
-                <div className="flex flex-row md:flex-col gap-1 border-r border-white/5 pr-2 shrink-0">
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('МОДЕЛЬ', 'MODEL')}:</span>
-                    <select
-                      value={activePackage}
-                      onChange={(e) => setActivePackage(parseInt(e.target.value) as any)}
-                      className="bg-black/60 border border-white/15 rounded px-1 py-0.5 text-[8.5px] font-semibold text-cyan-300 accent-black cursor-pointer"
-                    >
-                      <option value={1}>P1 Bessel</option>
-                      <option value={2}>P2 Square</option>
-                      <option value={3}>P3 Reson.</option>
-                      <option value={4}>P4 Quant.</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('СТАТУС', 'STATUS')}:</span>
-                    <button
-                      onClick={() => setIsPlaying(!isPlaying)}
-                      className={`px-1 py-0.5 rounded text-[7.5px] font-bold border transition cursor-pointer ${
-                        isPlaying 
-                          ? 'bg-amber-950/40 border-amber-500/30 text-amber-300 hover:border-amber-400' 
-                          : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300 hover:border-emerald-400'
-                      }`}
-                    >
-                      {isPlaying ? t('ПАУЗА', 'PAUSE') : t('СТАРТ', 'START')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Core Sliders (Frequency & Regularization) */}
-                <div className="flex-1 flex flex-row items-center gap-2 min-w-0">
-                  {/* Frequency */}
-                  <div className="flex-1 flex flex-col gap-0.5 min-w-[65px]">
-                    <div className="flex justify-between items-center text-[8px] leading-none">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ЧАСТ.', 'FREQ')}:</span>
-                      <span className="font-mono text-cyan-300 font-bold">{state.frequency} Hz</span>
+              {/* Super Compact Floating HUD Overlay (Always Visible on Stage in Fullscreen) */}
+              {isFullScreen && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur-md border border-cyan-500/10 rounded-xl p-1.5 flex flex-wrap md:flex-nowrap items-center gap-2 w-[96%] shadow-2xl z-40 text-[9px] text-slate-300">
+                  {/* 1. Model & Play/Pause Trigger */}
+                  <div className="flex flex-row md:flex-col gap-1 border-r border-white/5 pr-2 shrink-0">
+                    <div className="flex items-center gap-1">
+                      <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('МОДЕЛЬ', 'MODEL')}:</span>
+                      <select
+                        value={activePackage}
+                        onChange={(e) => setActivePackage(parseInt(e.target.value) as any)}
+                        className="bg-black/60 border border-white/15 rounded px-1 py-0.5 text-[8.5px] font-semibold text-cyan-300 accent-black cursor-pointer"
+                      >
+                        <option value={1}>P1 Bessel</option>
+                        <option value={2}>P2 Square</option>
+                        <option value={3}>P3 Reson.</option>
+                        <option value={4}>P4 Quant.</option>
+                      </select>
                     </div>
-                    <input
-                      type="range"
-                      min="10"
-                      max="20000"
-                      step="1"
-                      value={state.frequency}
-                      onChange={(e) => handleFrequencyChange(parseInt(e.target.value))}
-                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                    />
-                  </div>
-
-                  {/* Regularizer θ */}
-                  <div className="flex-1 flex flex-col gap-0.5 min-w-[55px]">
-                    <div className="flex justify-between items-center text-[8px] leading-none">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('РЕГ. θ', 'REG. θ')}:</span>
-                      <span className="font-mono text-cyan-300 font-bold">{state.regularization.toFixed(2)}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('СТАТУС', 'STATUS')}:</span>
+                      <button
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className={`px-1 py-0.5 rounded text-[7.5px] font-bold border transition cursor-pointer ${
+                          isPlaying 
+                            ? 'bg-amber-950/40 border-amber-500/30 text-amber-300 hover:border-amber-400' 
+                            : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300 hover:border-emerald-400'
+                        }`}
+                      >
+                        {isPlaying ? t('ПАУЗА', 'PAUSE') : t('СТАРТ', 'START')}
+                      </button>
                     </div>
-                    <input
-                      type="range"
-                      min="0.000"
-                      max="0.500"
-                      step="0.005"
-                      value={state.regularization}
-                      onChange={(e) => setState(prev => ({ ...prev, regularization: parseFloat(e.target.value) }))}
-                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                    />
                   </div>
 
-                  {/* Thickness h */}
-                  <div className="flex-1 flex flex-col gap-0.5 min-w-[50px]">
-                    <div className="flex justify-between items-center text-[8px] leading-none">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ТОЛЩ. h', 'THICK h')}:</span>
-                      <span className="font-mono text-cyan-300 font-bold">{state.thickness.toFixed(1)}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="8.0"
-                      step="0.1"
-                      value={state.thickness}
-                      onChange={(e) => setState(prev => ({ ...prev, thickness: parseFloat(e.target.value) }))}
-                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                    />
-                  </div>
-
-                  {/* Phi / Twist Phase */}
-                  <div className="flex-1 flex flex-col gap-0.5 min-w-[55px]">
-                    <div className="flex justify-between items-center text-[8px] leading-none">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">
-                        {activePackage === 4 ? t('α (СКР.)', 'α (TWIST)') : t('φ (ФАЗА)', 'φ (PHASE)')}:
-                      </span>
-                      <span className="font-mono text-cyan-300 font-bold">{(state.phi / Math.PI).toFixed(1)}π</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max={Math.PI * 2}
-                      step="0.05"
-                      value={state.phi}
-                      onChange={(e) => setState(prev => ({ ...prev, phi: parseFloat(e.target.value) }))}
-                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                    />
-                  </div>
-
-                  {/* Ratio B/A (if package 2 or 3 is active) */}
-                  {(activePackage === 2 || activePackage === 3) && (
-                    <div className="flex-1 flex flex-col gap-0.5 min-w-[45px]">
+                  {/* 2. Core Sliders (Frequency & Regularization) */}
+                  <div className="flex-1 flex flex-row items-center gap-2 min-w-0 font-mono">
+                    {/* Frequency */}
+                    <div className="flex-1 flex flex-col gap-0.5 min-w-[65px]">
                       <div className="flex justify-between items-center text-[8px] leading-none">
-                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">B/A:</span>
-                        <span className="font-mono text-cyan-300 font-bold">{state.ratioBA.toFixed(1)}</span>
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ЧАСТ.', 'FREQ')}:</span>
+                        <span className="font-mono text-cyan-300 font-bold">{state.frequency} Hz</span>
                       </div>
                       <input
                         type="range"
-                        min="0.1"
-                        max="2.0"
+                        min="10"
+                        max="20000"
+                        step="1"
+                        value={state.frequency}
+                        onChange={(e) => handleFrequencyChange(parseInt(e.target.value))}
+                        className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                      />
+                    </div>
+
+                    {/* Regularizer θ */}
+                    <div className="flex-1 flex flex-col gap-0.5 min-w-[55px]">
+                      <div className="flex justify-between items-center text-[8px] leading-none">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('РЕГ. θ', 'REG. θ')}:</span>
+                        <span className="font-mono text-cyan-300 font-bold">{state.regularization.toFixed(2)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.000"
+                        max="0.500"
+                        step="0.005"
+                        value={state.regularization}
+                        onChange={(e) => setState(prev => ({ ...prev, regularization: parseFloat(e.target.value) }))}
+                        className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                      />
+                    </div>
+
+                    {/* Thickness h */}
+                    <div className="flex-1 flex flex-col gap-0.5 min-w-[50px]">
+                      <div className="flex justify-between items-center text-[8px] leading-none">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ТОЛЩ. h', 'THICK h')}:</span>
+                        <span className="font-mono text-cyan-300 font-bold">{state.thickness.toFixed(1)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="8.0"
+                        step="0.1"
+                        value={state.thickness}
+                        onChange={(e) => setState(prev => ({ ...prev, thickness: parseFloat(e.target.value) }))}
+                        className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                      />
+                    </div>
+
+                    {/* Phi / Twist Phase */}
+                    <div className="flex-1 flex flex-col gap-0.5 min-w-[55px]">
+                      <div className="flex justify-between items-center text-[8px] leading-none">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">
+                          {activePackage === 4 ? t('α (СКР.)', 'α (TWIST)') : t('φ (ФАЗА)', 'φ (PHASE)')}:
+                        </span>
+                        <span className="font-mono text-cyan-300 font-bold">{(state.phi / Math.PI).toFixed(1)}π</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max={Math.PI * 2}
                         step="0.05"
-                        value={state.ratioBA}
-                        onChange={(e) => setState(prev => ({ ...prev, ratioBA: parseFloat(e.target.value) }))}
+                        value={state.phi}
+                        onChange={(e) => setState(prev => ({ ...prev, phi: parseFloat(e.target.value) }))}
                         className="w-full accent-cyan-400 cursor-pointer h-0.5"
                       />
                     </div>
-                  )}
 
-                  {/* Gamma / damping (if package 3 is active) */}
-                  {activePackage === 3 && (
-                    <div className="flex-1 flex flex-col gap-0.5 min-w-[45px]">
-                      <div className="flex justify-between items-center text-[8px] leading-none">
-                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('γ (ЗАТ.)', 'γ (DAMP)')}:</span>
-                        <span className="font-mono text-cyan-300 font-bold">{state.damping.toFixed(3)}</span>
+                    {/* Ratio B/A (if package 2 or 3 is active) */}
+                    {(activePackage === 2 || activePackage === 3) && (
+                      <div className="flex-1 flex flex-col gap-0.5 min-w-[45px]">
+                        <div className="flex justify-between items-center text-[8px] leading-none">
+                          <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">B/A:</span>
+                          <span className="font-mono text-cyan-300 font-bold">{state.ratioBA.toFixed(1)}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="2.0"
+                          step="0.05"
+                          value={state.ratioBA}
+                          onChange={(e) => setState(prev => ({ ...prev, ratioBA: parseFloat(e.target.value) }))}
+                          className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min="0.005"
-                        max="0.05"
-                        step="0.001"
-                        value={state.damping}
-                        onChange={(e) => setState(prev => ({ ...prev, damping: parseFloat(e.target.value) }))}
-                        className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                      />
+                    )}
+
+                    {/* Gamma / damping (if package 3 is active) */}
+                    {activePackage === 3 && (
+                      <div className="flex-1 flex flex-col gap-0.5 min-w-[45px]">
+                        <div className="flex justify-between items-center text-[8px] leading-none">
+                          <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('γ (ЗАТ.)', 'γ (DAMP)')}:</span>
+                          <span className="font-mono text-cyan-300 font-bold">{state.damping.toFixed(3)}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.005"
+                          max="0.05"
+                          step="0.001"
+                          value={state.damping}
+                          onChange={(e) => setState(prev => ({ ...prev, damping: parseFloat(e.target.value) }))}
+                          className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4. Action Close Button (Only if fullscreen) */}
+                  {isFullScreen && (
+                    <div className="flex items-center gap-1.5 border-l border-white/5 pl-2 shrink-0">
+                      <button
+                        onClick={() => setIsFullScreen(false)}
+                        className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition cursor-pointer flex items-center justify-center h-7 w-7"
+                        title={t('Свернуть', 'Exit Fullscreen')}
+                      >
+                        <Minimize2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   )}
                 </div>
+              )}
+            </div>
 
-                {/* 4. Action Close Button (Only if fullscreen) */}
-                {isFullScreen && (
-                  <div className="flex items-center gap-1.5 border-l border-white/5 pl-2 shrink-0">
-                    <button
-                      onClick={() => setIsFullScreen(false)}
-                      className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition cursor-pointer flex items-center justify-center h-7 w-7"
-                      title={t('Свернуть', 'Exit Fullscreen')}
+            {/* Sliders Panel - right of canvas on desktop, below canvas on mobile */}
+            {!isFullScreen && (
+              <div className="w-full md:w-[320px] flex flex-col gap-4 bg-black/40 border border-white/5 rounded-xl p-4 shrink-0 select-none">
+                <div className="text-xs font-bold text-cyan-400 tracking-wider font-mono border-b border-white/5 pb-2 uppercase flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4" />
+                  {t('Параметры волны', 'Wave Parameters')}
+                </div>
+
+                {/* 1. Frequency Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px] font-mono">
+                    <span className="text-slate-400 font-semibold">{t('Частота (Гц)', 'Frequency (Hz)')}</span>
+                    <span className="text-cyan-400 font-bold">{state.frequency} {t('Гц', 'Hz')}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="20000"
+                    step="1"
+                    value={state.frequency}
+                    onChange={(e) => handleFrequencyChange(parseInt(e.target.value))}
+                    className="accent-cyan-400 cursor-pointer w-full h-1"
+                  />
+                  {/* Fine tuning buttons */}
+                  <div className="flex gap-1.5 justify-end pt-1">
+                    <button 
+                      onClick={() => handleFrequencyChange(state.frequency - 1)}
+                      className="px-2 py-0.5 bg-white/5 hover:bg-white/10 active:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 rounded text-[9px] font-mono transition border border-white/5 cursor-pointer"
+                      title="-1 Hz"
                     >
-                      <Minimize2 className="w-3.5 h-3.5" />
+                      -1
                     </button>
+                    <button 
+                      onClick={() => handleFrequencyChange(state.frequency + 1)}
+                      className="px-2 py-0.5 bg-white/5 hover:bg-white/10 active:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 rounded text-[9px] font-mono transition border border-white/5 cursor-pointer"
+                      title="+1 Hz"
+                    >
+                      +1
+                    </button>
+                    <button 
+                      onClick={() => handleFrequencyChange(state.frequency - 10)}
+                      className="px-2 py-0.5 bg-white/5 hover:bg-white/10 active:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 rounded text-[9px] font-mono transition border border-white/5 cursor-pointer"
+                      title="-10 Hz"
+                    >
+                      -10
+                    </button>
+                    <button 
+                      onClick={() => handleFrequencyChange(state.frequency + 10)}
+                      className="px-2 py-0.5 bg-white/5 hover:bg-white/10 active:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 rounded text-[9px] font-mono transition border border-white/5 cursor-pointer"
+                      title="+10 Hz"
+                    >
+                      +10
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Thickness Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px] font-mono">
+                    <span className="text-slate-400 font-semibold">{t('Толщина h (мм)', 'Plate thickness (h)')}</span>
+                    <span className="text-cyan-300 font-bold">{state.thickness.toFixed(1)} {t('мм', 'mm')}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="8.0"
+                    step="0.1"
+                    value={state.thickness}
+                    onChange={(e) => setState(prev => ({ ...prev, thickness: parseFloat(e.target.value) }))}
+                    className="accent-cyan-400 cursor-pointer w-full h-1"
+                  />
+                </div>
+
+                {/* 3. Phase / Twist Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px] font-mono">
+                    <span className="text-slate-400 font-semibold">
+                      {activePackage === 4 ? t('Угол скручивания α', 'Twist angle α') : t('Сдвиг фазы φ', 'Phase shift φ')}
+                    </span>
+                    <span className="text-cyan-300 font-bold">{(state.phi / Math.PI).toFixed(1)}π</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={Math.PI * 2}
+                    step="0.05"
+                    value={state.phi}
+                    onChange={(e) => setState(prev => ({ ...prev, phi: parseFloat(e.target.value) }))}
+                    className="accent-cyan-400 cursor-pointer w-full h-1"
+                  />
+                </div>
+
+                {/* 4. RICIS Regularization Slider */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px] font-mono">
+                    <span className="text-slate-400 font-semibold">{t('Регуляризатор θ', 'RICIS Regularizer θ')}</span>
+                    <span className="text-cyan-300 font-bold">{state.regularization.toFixed(3)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.000"
+                    max="0.500"
+                    step="0.005"
+                    value={state.regularization}
+                    onChange={(e) => setState(prev => ({ ...prev, regularization: parseFloat(e.target.value) }))}
+                    className="accent-cyan-400 cursor-pointer w-full h-1"
+                  />
+                </div>
+
+                {/* 5. Ratio B/A (if package 2 or 3 is active) */}
+                {(activePackage === 2 || activePackage === 3) && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-[11px] font-mono">
+                      <span className="text-slate-400 font-semibold">{t('Асимметрия мод B/A', 'Mod asymmetry B/A')}</span>
+                      <span className="text-cyan-300 font-bold">{state.ratioBA.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="2.0"
+                      step="0.05"
+                      value={state.ratioBA}
+                      onChange={(e) => setState(prev => ({ ...prev, ratioBA: parseFloat(e.target.value) }))}
+                      className="accent-cyan-400 cursor-pointer w-full h-1"
+                    />
+                  </div>
+                )}
+
+                {/* 6. Gamma / Damping (if package 3 is active) */}
+                {activePackage === 3 && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-[11px] font-mono">
+                      <span className="text-slate-400 font-semibold">{t('Коэф. затухания γ', 'Damping coefficient γ')}</span>
+                      <span className="text-cyan-300 font-bold">{state.damping.toFixed(3)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.005"
+                      max="0.05"
+                      step="0.001"
+                      value={state.damping}
+                      onChange={(e) => setState(prev => ({ ...prev, damping: parseFloat(e.target.value) }))}
+                      className="accent-cyan-400 cursor-pointer w-full h-1"
+                    />
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Right Side Vertical Controllers (Widescreen) / Horizontal (Mobile) */}
-            <div className="flex flex-col sm:flex-row items-stretch justify-center bg-black/40 border border-white/5 rounded-lg p-3 w-full sm:w-auto select-none shrink-0 gap-4 sm:gap-4 min-w-0">
-              {/* Thickness (h) */}
-              <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={t('Толщина пластины (h)', 'Plate thickness (h)')}>
-                  {t('h (мм)', 'h (mm)')}
-                </div>
-                {/* Widescreen Vertical Slider */}
-                <div className="hidden sm:flex flex-1 flex-col items-center justify-center relative w-full my-1 min-h-[160px]">
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="8.0"
-                    step="0.1"
-                    value={state.thickness}
-                    onChange={(e) => setState(prev => ({ ...prev, thickness: parseFloat(e.target.value) }))}
-                    style={{
-                      WebkitAppearance: 'slider-vertical',
-                      height: '160px',
-                      width: '6px'
-                    }}
-                    className="accent-cyan-400 cursor-ns-resize h-full"
-                  />
-                </div>
-                {/* Mobile Horizontal Slider */}
-                <div className="flex sm:hidden flex-1 px-1 w-full">
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="8.0"
-                    step="0.1"
-                    value={state.thickness}
-                    onChange={(e) => setState(prev => ({ ...prev, thickness: parseFloat(e.target.value) }))}
-                    className="accent-cyan-400 cursor-ew-resize w-full"
-                  />
-                </div>
-                <div className="text-center font-mono text-[10px] text-cyan-300 font-bold bg-cyan-950/30 px-1 py-0.5 rounded border border-cyan-800/30 min-w-[45px] sm:w-full truncate">
-                  {state.thickness.toFixed(1)}
-                </div>
-              </div>
-
-              {/* Phase / Twist */}
-              <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={activePackage === 4 ? t('Угол скручивания (α)', 'Twist angle (α)') : t('Сдвиг фазы (φ)', 'Phase shift (φ)')}>
-                  {activePackage === 4 ? 'α (Twist)' : 'φ (Phase)'}
-                </div>
-                {/* Widescreen Vertical Slider */}
-                <div className="hidden sm:flex flex-1 flex-col items-center justify-center relative w-full my-1 min-h-[160px]">
-                  <input
-                    type="range"
-                    min="0"
-                    max={Math.PI * 2}
-                    step="0.05"
-                    value={state.phi}
-                    onChange={(e) => setState(prev => ({ ...prev, phi: parseFloat(e.target.value) }))}
-                    style={{
-                      WebkitAppearance: 'slider-vertical',
-                      height: '160px',
-                      width: '6px'
-                    }}
-                    className="accent-cyan-400 cursor-ns-resize h-full"
-                  />
-                </div>
-                {/* Mobile Horizontal Slider */}
-                <div className="flex sm:hidden flex-1 px-1 w-full">
-                  <input
-                    type="range"
-                    min="0"
-                    max={Math.PI * 2}
-                    step="0.05"
-                    value={state.phi}
-                    onChange={(e) => setState(prev => ({ ...prev, phi: parseFloat(e.target.value) }))}
-                    className="accent-cyan-400 cursor-ew-resize w-full"
-                  />
-                </div>
-                <div className="text-center font-mono text-[10px] text-cyan-300 font-bold bg-cyan-950/30 px-1 py-0.5 rounded border border-cyan-800/30 min-w-[45px] sm:w-full truncate">
-                  {(state.phi / Math.PI).toFixed(1)}π
-                </div>
-              </div>
-
-              {/* RICIS Regularization (θ) */}
-              <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={t('Регуляризатор RICIS (θ)', 'RICIS Regularizer (θ)')}>
-                  θ (RICIS)
-                </div>
-                {/* Widescreen Vertical Slider */}
-                <div className="hidden sm:flex flex-1 flex-col items-center justify-center relative w-full my-1 min-h-[160px]">
-                  <input
-                    type="range"
-                    min="0.000"
-                    max="0.500"
-                    step="0.005"
-                    value={state.regularization}
-                    onChange={(e) => setState(prev => ({ ...prev, regularization: parseFloat(e.target.value) }))}
-                    style={{
-                      WebkitAppearance: 'slider-vertical',
-                      height: '160px',
-                      width: '6px'
-                    }}
-                    className="accent-cyan-400 cursor-ns-resize h-full"
-                  />
-                </div>
-                {/* Mobile Horizontal Slider */}
-                <div className="flex sm:hidden flex-1 px-1 w-full">
-                  <input
-                    type="range"
-                    min="0.000"
-                    max="0.500"
-                    step="0.005"
-                    value={state.regularization}
-                    onChange={(e) => setState(prev => ({ ...prev, regularization: parseFloat(e.target.value) }))}
-                    className="accent-cyan-400 cursor-ew-resize w-full"
-                  />
-                </div>
-                <div className="text-center font-mono text-[10px] text-cyan-300 font-bold bg-cyan-950/30 px-1 py-0.5 rounded border border-cyan-800/30 min-w-[45px] sm:w-full truncate">
-                  {state.regularization.toFixed(2)}
-                </div>
-              </div>
-
-              {/* B/A (if package 2 or 3 is active) */}
-              {(activePackage === 2 || activePackage === 3) && (
-                <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                  <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={t('Асимметрия мод B/A', 'Mod asymmetry B/A')}>
-                    B/A
-                  </div>
-                  {/* Widescreen Vertical Slider */}
-                  <div className="hidden sm:flex flex-1 flex-col items-center justify-center relative w-full my-1 min-h-[160px]">
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="2.0"
-                      step="0.05"
-                      value={state.ratioBA}
-                      onChange={(e) => setState(prev => ({ ...prev, ratioBA: parseFloat(e.target.value) }))}
-                      style={{
-                        WebkitAppearance: 'slider-vertical',
-                        height: '160px',
-                        width: '6px'
-                      }}
-                      className="accent-cyan-400 cursor-ns-resize h-full"
-                    />
-                  </div>
-                  {/* Mobile Horizontal Slider */}
-                  <div className="flex sm:hidden flex-1 px-1 w-full">
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="2.0"
-                      step="0.05"
-                      value={state.ratioBA}
-                      onChange={(e) => setState(prev => ({ ...prev, ratioBA: parseFloat(e.target.value) }))}
-                      className="accent-cyan-400 cursor-ew-resize w-full"
-                    />
-                  </div>
-                  <div className="text-center font-mono text-[10px] text-cyan-300 font-bold bg-cyan-950/30 px-1 py-0.5 rounded border border-cyan-800/30 min-w-[45px] sm:w-full truncate">
-                    {state.ratioBA.toFixed(1)}
-                  </div>
-                </div>
-              )}
-
-              {/* Gamma (if package 3 is active) */}
-              {activePackage === 3 && (
-                <div className="flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-2 sm:gap-1.5 flex-1 sm:w-14">
-                  <div className="text-center font-mono text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate sm:w-full" title={t('Коэффициент затухания (γ)', 'Damping coefficient (γ)')}>
-                    γ (Damp)
-                  </div>
-                  {/* Widescreen Vertical Slider */}
-                  <div className="hidden sm:flex flex-1 flex-col items-center justify-center relative w-full my-1 min-h-[160px]">
-                    <input
-                      type="range"
-                      min="0.005"
-                      max="0.05"
-                      step="0.001"
-                      value={state.damping}
-                      onChange={(e) => setState(prev => ({ ...prev, damping: parseFloat(e.target.value) }))}
-                      style={{
-                        WebkitAppearance: 'slider-vertical',
-                        height: '160px',
-                        width: '6px'
-                      }}
-                      className="accent-cyan-400 cursor-ns-resize h-full"
-                    />
-                  </div>
-                  {/* Mobile Horizontal Slider */}
-                  <div className="flex sm:hidden flex-1 px-1 w-full">
-                    <input
-                      type="range"
-                      min="0.005"
-                      max="0.05"
-                      step="0.001"
-                      value={state.damping}
-                      onChange={(e) => setState(prev => ({ ...prev, damping: parseFloat(e.target.value) }))}
-                      className="accent-cyan-400 cursor-ew-resize w-full"
-                    />
-                  </div>
-                  <div className="text-center font-mono text-[10px] text-cyan-300 font-bold bg-cyan-950/30 px-1 py-0.5 rounded border border-cyan-800/30 min-w-[45px] sm:w-full truncate">
-                    {state.damping.toFixed(3)}
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           <div className="w-full flex items-center justify-between mt-4 border-t border-white/5 pt-3">

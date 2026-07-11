@@ -1228,202 +1228,210 @@ ${pathElements}</svg>`;
               </div>
             )}
 
-            {/* Micro-Navigation HUD Map Overlay */}
-            <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 text-slate-300 pointer-events-none select-none max-w-[200px] z-30">
-              <div className="text-[10px] font-bold text-cyan-400 tracking-wider font-mono">MAP POSITION HUD</div>
-              <div className="space-y-1 mt-1.5 font-mono text-[9px] leading-relaxed text-slate-400">
-                <div className="truncate">X: <span className="text-white font-semibold">{centerX.toFixed(8)}</span></div>
-                <div className="truncate">Y: <span className="text-white font-semibold">{centerY.toFixed(8)}</span></div>
-                <div>Z: <span className="text-white font-semibold">{(1.0 / zoom).toExponential(3)}</span></div>
+            {/* Micro-Navigation HUD Map Overlay (Only in Fullscreen) */}
+            {isFullScreen && (
+              <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 text-slate-300 pointer-events-none select-none max-w-[200px] z-30">
+                <div className="text-[10px] font-bold text-cyan-400 tracking-wider font-mono">MAP POSITION HUD</div>
+                <div className="space-y-1 mt-1.5 font-mono text-[9px] leading-relaxed text-slate-400">
+                  <div className="truncate">X: <span className="text-white font-semibold">{centerX.toFixed(8)}</span></div>
+                  <div className="truncate">Y: <span className="text-white font-semibold">{centerY.toFixed(8)}</span></div>
+                  <div>Z: <span className="text-white font-semibold">{(1.0 / zoom).toExponential(3)}</span></div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Floating Navigation Controls */}
             <div className="absolute bottom-4 right-4 flex items-center gap-1.5 bg-black/60 backdrop-blur-md p-1.5 rounded-lg border border-white/10 z-30">
-              <button
-                onClick={zoomIn}
-                className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
-                title={t('Приблизить', 'Zoom In')}
-              >
-                <ZoomIn className="w-4 h-4" />
-              </button>
-              <button
-                onClick={zoomOut}
-                className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
-                title={t('Отдалить', 'Zoom Out')}
-              >
-                <ZoomOut className="w-4 h-4" />
-              </button>
-              <button
-                onClick={resetView}
-                className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
-                title={t('Сбросить', 'Reset View')}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
+              {isFullScreen && (
+                <>
+                  <button
+                    onClick={zoomIn}
+                    className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                    title={t('Приблизить', 'Zoom In')}
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={zoomOut}
+                    className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                    title={t('Отдалить', 'Zoom Out')}
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={resetView}
+                    className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                    title={t('Сбросить', 'Reset View')}
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => {
                   setIsFullScreen(!isFullScreen);
                   setTimeout(() => renderFractal(), 50);
                 }}
-                className="p-1.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 transition cursor-pointer"
+                className="p-1.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 transition cursor-pointer flex items-center justify-center"
                 title={isFullScreen ? t('Свернуть', 'Exit Fullscreen') : t('Развернуть на весь экран', 'Fullscreen')}
               >
                 {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
             </div>
 
-            {/* Super Compact Floating HUD Overlay (Always Visible on Stage) */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur-md border border-cyan-500/10 rounded-xl p-1.5 flex flex-wrap md:flex-nowrap items-center gap-2 w-[96%] shadow-2xl z-40 text-[9px] text-slate-300">
-              {/* 1. Formula & Smooth Toggle Group */}
-              <div className="flex flex-row md:flex-col gap-1 border-r border-white/5 pr-2 shrink-0">
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('ФОРМУЛА', 'FORMULA')}:</span>
-                  <button
-                    onClick={() => {
-                      setJuliaMode(!juliaMode);
-                      setCenterX(juliaMode ? -0.7 : 0.0);
-                      setCenterY(0.0);
-                      setZoom(2.5);
-                    }}
-                    className="px-1 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-400 font-bold transition text-[8px] cursor-pointer"
-                  >
-                    {juliaMode ? 'JULIA' : 'MANDEL'}
-                  </button>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('СГЛАЖИВ.', 'SMOOTH')}:</span>
-                  <button
-                    onClick={() => setSmoothColoring(!smoothColoring)}
-                    className={`px-1 py-0.5 rounded text-[7.5px] font-bold transition cursor-pointer border ${
-                      smoothColoring 
-                        ? 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300 font-bold' 
-                        : 'bg-white/5 border-transparent text-slate-500'
-                    }`}
-                  >
-                    {smoothColoring ? 'ON' : 'OFF'}
-                  </button>
-                </div>
-              </div>
-
-              {/* 2. Julia Constant Sliders (Only if Julia is active) */}
-              {juliaMode && (
-                <div className="flex flex-col gap-0.5 border-r border-white/5 pr-2 min-w-[110px] max-w-[140px] shrink-0">
-                  <div className="flex justify-between text-[7.5px] font-bold font-mono text-slate-400 uppercase tracking-wider">
-                    <span>C.Real: <strong className="text-cyan-300">{juliaX.toFixed(3)}</strong></span>
+            {/* Super Compact Floating HUD Overlay (Only in Fullscreen) */}
+            {isFullScreen && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur-md border border-cyan-500/10 rounded-xl p-1.5 flex flex-wrap md:flex-nowrap items-center gap-2 w-[96%] shadow-2xl z-40 text-[9px] text-slate-300">
+                {/* 1. Formula & Smooth Toggle Group */}
+                <div className="flex flex-row md:flex-col gap-1 border-r border-white/5 pr-2 shrink-0">
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('ФОРМУЛА', 'FORMULA')}:</span>
+                    <button
+                      onClick={() => {
+                        setJuliaMode(!juliaMode);
+                        setCenterX(juliaMode ? -0.7 : 0.0);
+                        setCenterY(0.0);
+                        setZoom(2.5);
+                      }}
+                      className="px-1 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-400 font-bold transition text-[8px] cursor-pointer"
+                    >
+                      {juliaMode ? 'JULIA' : 'MANDEL'}
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    min="-2.0"
-                    max="1.0"
-                    step="0.005"
-                    value={juliaX}
-                    onChange={e => setJuliaX(parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                  />
-                  <div className="flex justify-between text-[7.5px] font-bold font-mono text-slate-400 uppercase tracking-wider">
-                    <span>C.Imag: <strong className="text-cyan-300">{juliaY.toFixed(3)}</strong></span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 font-bold uppercase text-[7.5px] tracking-wider w-[40px]">{t('СГЛАЖИВ.', 'SMOOTH')}:</span>
+                    <button
+                      onClick={() => setSmoothColoring(!smoothColoring)}
+                      className={`px-1 py-0.5 rounded text-[7.5px] font-bold transition cursor-pointer border ${
+                        smoothColoring 
+                          ? 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300 font-bold' 
+                          : 'bg-white/5 border-transparent text-slate-500'
+                      }`}
+                    >
+                      {smoothColoring ? 'ON' : 'OFF'}
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    min="-1.5"
-                    max="1.5"
-                    step="0.005"
-                    value={juliaY}
-                    onChange={e => setJuliaY(parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                  />
                 </div>
-              )}
 
-              {/* 3. Sliders: RICIS θ, Iterations, Grid size */}
-              <div className="flex-1 flex flex-row items-center gap-2 min-w-0">
-                {/* RICIS θ */}
-                <div className="flex-1 flex flex-col gap-0.5 min-w-[60px]">
-                  <div className="flex justify-between items-center text-[8px] leading-none">
-                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">θ:</span>
-                    <span className="font-mono text-cyan-300 font-bold">{ricisTheta.toFixed(3)}</span>
+                {/* 2. Julia Constant Sliders (Only if Julia is active) */}
+                {juliaMode && (
+                  <div className="flex flex-col gap-0.5 border-r border-white/5 pr-2 min-w-[110px] max-w-[140px] shrink-0">
+                    <div className="flex justify-between text-[7.5px] font-bold font-mono text-slate-400 uppercase tracking-wider">
+                      <span>C.Real: <strong className="text-cyan-300">{juliaX.toFixed(3)}</strong></span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-2.0"
+                      max="1.0"
+                      step="0.005"
+                      value={juliaX}
+                      onChange={e => setJuliaX(parseFloat(e.target.value))}
+                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                    />
+                    <div className="flex justify-between text-[7.5px] font-bold font-mono text-slate-400 uppercase tracking-wider">
+                      <span>C.Imag: <strong className="text-cyan-300">{juliaY.toFixed(3)}</strong></span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-1.5"
+                      max="1.5"
+                      step="0.005"
+                      value={juliaY}
+                      onChange={e => setJuliaY(parseFloat(e.target.value))}
+                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min="0.0"
-                    max="0.4"
-                    step="0.005"
-                    value={ricisTheta}
-                    onChange={e => setRicisTheta(parseFloat(e.target.value))}
-                    className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                  />
-                </div>
-
-                {/* Max Iterations */}
-                <div className="flex-1 flex flex-col gap-0.5 min-w-[60px]">
-                  <div className="flex justify-between items-center text-[8px] leading-none">
-                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ИТЕР.', 'ITER')}:</span>
-                    <span className="font-mono text-cyan-300 font-bold">{maxIterations}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="30"
-                    max="500"
-                    step="10"
-                    value={maxIterations}
-                    onChange={e => setMaxIterations(parseInt(e.target.value))}
-                    className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                  />
-                </div>
-
-                {/* Shader count grid size index */}
-                <div className="flex-1 flex flex-col gap-0.5 min-w-[60px]">
-                  <div className="flex justify-between items-center text-[8px] leading-none">
-                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('СЕТКА', 'GRID')}:</span>
-                    <span className="font-mono text-cyan-300 font-bold">
-                      {GRID_SIZES[gridSizeIndex]?.value}x{GRID_SIZES[gridSizeIndex]?.value}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max={GRID_SIZES.length - 1}
-                    step="1"
-                    value={gridSizeIndex}
-                    onChange={e => setGridSizeIndex(parseInt(e.target.value))}
-                    className="w-full accent-cyan-400 cursor-pointer h-0.5"
-                  />
-                </div>
-              </div>
-
-              {/* 4. Color Scheme select & Close button */}
-              <div className="flex items-center gap-1.5 border-l border-white/5 pl-2 shrink-0">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ГАММА', 'PALETTE')}:</span>
-                  <select
-                    value={colorScheme}
-                    onChange={e => setColorScheme(e.target.value as any)}
-                    className="bg-black/60 border border-white/15 rounded px-1 py-0.5 text-[8.5px] font-semibold text-cyan-300 accent-black cursor-pointer"
-                  >
-                    <option value="classic">Classic</option>
-                    <option value="psychedelic">Psychedelic</option>
-                    <option value="rainbow">Rainbow</option>
-                    <option value="monochrome">Monochr.</option>
-                    <option value="fire">Fire</option>
-                    <option value="cosmic">Cosmic</option>
-                  </select>
-                </div>
-
-                {isFullScreen && (
-                  <button
-                    onClick={() => {
-                      setIsFullScreen(false);
-                      setTimeout(() => renderFractal(), 50);
-                    }}
-                    className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition cursor-pointer flex items-center justify-center h-7 w-7"
-                    title={t('Свернуть', 'Exit Fullscreen')}
-                  >
-                    <Minimize2 className="w-3.5 h-3.5" />
-                  </button>
                 )}
+
+                {/* 3. Sliders: RICIS θ, Iterations, Grid size */}
+                <div className="flex-1 flex flex-row items-center gap-2 min-w-0">
+                  {/* RICIS θ */}
+                  <div className="flex-1 flex flex-col gap-0.5 min-w-[60px]">
+                    <div className="flex justify-between items-center text-[8px] leading-none">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">θ:</span>
+                      <span className="font-mono text-cyan-300 font-bold">{ricisTheta.toFixed(3)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.0"
+                      max="0.4"
+                      step="0.005"
+                      value={ricisTheta}
+                      onChange={e => setRicisTheta(parseFloat(e.target.value))}
+                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                    />
+                  </div>
+
+                  {/* Max Iterations */}
+                  <div className="flex-1 flex flex-col gap-0.5 min-w-[60px]">
+                    <div className="flex justify-between items-center text-[8px] leading-none">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ИТЕР.', 'ITER')}:</span>
+                      <span className="font-mono text-cyan-300 font-bold">{maxIterations}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="30"
+                      max="500"
+                      step="10"
+                      value={maxIterations}
+                      onChange={e => setMaxIterations(parseInt(e.target.value))}
+                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                    />
+                  </div>
+
+                  {/* Shader count grid size index */}
+                  <div className="flex-1 flex flex-col gap-0.5 min-w-[60px]">
+                    <div className="flex justify-between items-center text-[8px] leading-none">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('СЕТКА', 'GRID')}:</span>
+                      <span className="font-mono text-cyan-300 font-bold">
+                        {GRID_SIZES[gridSizeIndex]?.value}x{GRID_SIZES[gridSizeIndex]?.value}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max={GRID_SIZES.length - 1}
+                      step="1"
+                      value={gridSizeIndex}
+                      onChange={e => setGridSizeIndex(parseInt(e.target.value))}
+                      className="w-full accent-cyan-400 cursor-pointer h-0.5"
+                    />
+                  </div>
+                </div>
+
+                {/* 4. Color Scheme select & Close button */}
+                <div className="flex items-center gap-1.5 border-l border-white/5 pl-2 shrink-0">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[7.5px]">{t('ГАММА', 'PALETTE')}:</span>
+                    <select
+                      value={colorScheme}
+                      onChange={e => setColorScheme(e.target.value as any)}
+                      className="bg-black/60 border border-white/15 rounded px-1 py-0.5 text-[8.5px] font-semibold text-cyan-300 accent-black cursor-pointer"
+                    >
+                      <option value="classic">Classic</option>
+                      <option value="psychedelic">Psychedelic</option>
+                      <option value="rainbow">Rainbow</option>
+                      <option value="monochrome">Monochr.</option>
+                      <option value="fire">Fire</option>
+                      <option value="cosmic">Cosmic</option>
+                    </select>
+                  </div>
+
+                  {isFullScreen && (
+                    <button
+                      onClick={() => {
+                        setIsFullScreen(false);
+                        setTimeout(() => renderFractal(), 50);
+                      }}
+                      className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition cursor-pointer flex items-center justify-center h-7 w-7"
+                      title={t('Свернуть', 'Exit Fullscreen')}
+                    >
+                      <Minimize2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Quick Info Bar */}

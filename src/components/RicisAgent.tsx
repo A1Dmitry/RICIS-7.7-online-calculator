@@ -399,8 +399,7 @@ export default function RicisAgent() {
       }
     } catch (e: any) {
       console.error('Failed to delete review:', e);
-      setAdminError(e.message || t('Ошибка удаления отзыва. Требуется авторизация администратора.', 'Error deleting review. Administrator authorization required.'));
-      setShowAdminModal(true);
+      alert(e.message || 'Ошибка удаления отзыва. Требуется авторизация администратора.');
     }
   };
 
@@ -437,8 +436,7 @@ export default function RicisAgent() {
       }
     } catch (e: any) {
       console.error('Failed to toggle review complete:', e);
-      setAdminError(e.message || t('Ошибка обновления статуса отзыва. Требуется авторизация администратора.', 'Error updating review status. Administrator authorization required.'));
-      setShowAdminModal(true);
+      alert(e.message || 'Ошибка обновления статуса отзыва. Требуется авторизация администратора.');
     }
   };
 
