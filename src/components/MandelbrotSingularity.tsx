@@ -81,6 +81,37 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
   const dragStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const centerStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const appliedPresetRef = useRef<any>(null);
+  const lastTouchDist = useRef<number>(0);
+  const isPinching = useRef<boolean>(false);
+  const lastPresetJsonRef = useRef<string>('');
+
+  // Flag to indicate active gesture or wheeling to prevent race conditions during React rendering updates
+  const isInteractingRef = useRef<boolean>(false);
+  const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Real-time coordinates and zoom refs for high-frequency user interactions
+  const centerXRef = useRef<number>(centerX);
+  const centerYRef = useRef<number>(centerY);
+  const zoomRef = useRef<number>(zoom);
+
+  // Sync state values to refs (covers parent presets, bookmarks, and buttons)
+  useEffect(() => {
+    if (!isInteractingRef.current) {
+      centerXRef.current = centerX;
+    }
+  }, [centerX]);
+
+  useEffect(() => {
+    if (!isInteractingRef.current) {
+      centerYRef.current = centerY;
+    }
+  }, [centerY]);
+
+  useEffect(() => {
+    if (!isInteractingRef.current) {
+      zoomRef.current = zoom;
+    }
+  }, [zoom]);
 
   // Escape key listener for exiting full screen
   useEffect(() => {
@@ -99,18 +130,31 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
   // Apply parent presets if any
   useEffect(() => {
-    if (preset && preset !== appliedPresetRef.current) {
-      appliedPresetRef.current = preset;
-      if (typeof preset.centerX === 'number') setCenterX(preset.centerX);
-      if (typeof preset.centerY === 'number') setCenterY(preset.centerY);
-      if (typeof preset.zoom === 'number') setZoom(preset.zoom);
-      if (typeof preset.maxIterations === 'number') setMaxIterations(preset.maxIterations);
-      if (preset.colorScheme) setColorScheme(preset.colorScheme);
-      if (preset.smoothColoring !== undefined) setSmoothColoring(preset.smoothColoring);
-      if (preset.juliaMode !== undefined) setJuliaMode(preset.juliaMode);
-      if (typeof preset.juliaX === 'number') setJuliaX(preset.juliaX);
-      if (typeof preset.juliaY === 'number') setJuliaY(preset.juliaY);
-      if (typeof preset.ricisTheta === 'number') setRicisTheta(preset.ricisTheta);
+    if (preset) {
+      const presetJson = JSON.stringify(preset);
+      if (presetJson !== lastPresetJsonRef.current) {
+        lastPresetJsonRef.current = presetJson;
+        appliedPresetRef.current = preset;
+        if (typeof preset.centerX === 'number') {
+          setCenterX(preset.centerX);
+          centerXRef.current = preset.centerX;
+        }
+        if (typeof preset.centerY === 'number') {
+          setCenterY(preset.centerY);
+          centerYRef.current = preset.centerY;
+        }
+        if (typeof preset.zoom === 'number') {
+          setZoom(preset.zoom);
+          zoomRef.current = preset.zoom;
+        }
+        if (typeof preset.maxIterations === 'number') setMaxIterations(preset.maxIterations);
+        if (preset.colorScheme) setColorScheme(preset.colorScheme);
+        if (preset.smoothColoring !== undefined) setSmoothColoring(preset.smoothColoring);
+        if (preset.juliaMode !== undefined) setJuliaMode(preset.juliaMode);
+        if (typeof preset.juliaX === 'number') setJuliaX(preset.juliaX);
+        if (typeof preset.juliaY === 'number') setJuliaY(preset.juliaY);
+        if (typeof preset.ricisTheta === 'number') setRicisTheta(preset.ricisTheta);
+      }
     }
   }, [preset]);
 
@@ -166,8 +210,11 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
   const applyBookmark = (b: typeof bookmarks[0]) => {
     setCenterX(b.state.centerX);
+    centerXRef.current = b.state.centerX;
     setCenterY(b.state.centerY);
+    centerYRef.current = b.state.centerY;
     setZoom(b.state.zoom);
+    zoomRef.current = b.state.zoom;
     setMaxIterations(b.state.maxIterations);
     setJuliaMode(b.state.juliaMode);
     if (b.state.juliaX !== undefined) setJuliaX(b.state.juliaX);
@@ -880,9 +927,9 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
   // Drag and drop / navigation logic
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    isInteractingRef.current = true;
     isDragging.current = true;
     dragStart.current = { x: e.clientX, y: e.clientY };
-    centerStart.current = { x: centerX, y: centerY };
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -897,24 +944,141 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     const height = canvas.clientHeight || 1;
     const aspect = width / height;
     
-    // Map pixels to complex coordinates
-    const scaleX = (zoom * aspect) / width;
-    const scaleY = zoom / height;
+    // Map pixels to complex coordinates using current zoom
+    const scaleX = (zoomRef.current * aspect) / width;
+    const scaleY = zoomRef.current / height;
 
-    const newCenterX = centerStart.current.x - dx * scaleX;
-    const newCenterY = centerStart.current.y + dy * scaleY;
+    const newCenterX = centerXRef.current - dx * scaleX;
+    const newCenterY = centerYRef.current + dy * scaleY;
 
     if (!isNaN(newCenterX) && isFinite(newCenterX) && !isNaN(newCenterY) && isFinite(newCenterY)) {
+      centerXRef.current = newCenterX;
+      centerYRef.current = newCenterY;
       setCenterX(newCenterX);
       setCenterY(newCenterY);
     }
+
+    dragStart.current = { x: e.clientX, y: e.clientY };
   };
 
   const handleMouseUpOrLeave = () => {
     if (isDragging.current) {
       isDragging.current = false;
       renderFractal(); // Final high resolution render
+      setTimeout(() => {
+        isInteractingRef.current = false;
+      }, 50);
     }
+  };
+
+  // Touch event handlers for mobile gestures (pan & pinch-to-zoom)
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    isInteractingRef.current = true;
+
+    if (e.touches.length === 1) {
+      isDragging.current = true;
+      isPinching.current = false;
+      dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      isDragging.current = true;
+      isPinching.current = true;
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const mx = (t1.clientX + t2.clientX) / 2;
+      const my = (t1.clientY + t2.clientY) / 2;
+      dragStart.current = { x: mx, y: my };
+      lastTouchDist.current = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const width = canvas.clientWidth || 1;
+    const height = canvas.clientHeight || 1;
+    const aspect = width / height;
+
+    if (e.touches.length === 1 && isDragging.current && !isPinching.current) {
+      const touch = e.touches[0];
+      const dx = touch.clientX - dragStart.current.x;
+      const dy = touch.clientY - dragStart.current.y;
+
+      const scaleX = (zoomRef.current * aspect) / width;
+      const scaleY = zoomRef.current / height;
+
+      const newCenterX = centerXRef.current - dx * scaleX;
+      const newCenterY = centerYRef.current + dy * scaleY;
+
+      if (!isNaN(newCenterX) && isFinite(newCenterX) && !isNaN(newCenterY) && isFinite(newCenterY)) {
+        centerXRef.current = newCenterX;
+        centerYRef.current = newCenterY;
+        setCenterX(newCenterX);
+        setCenterY(newCenterY);
+      }
+
+      dragStart.current = { x: touch.clientX, y: touch.clientY };
+    } else if (e.touches.length === 2 && isPinching.current) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const mx = (t1.clientX + t2.clientX) / 2;
+      const my = (t1.clientY + t2.clientY) / 2;
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+
+      if (dist > 0 && lastTouchDist.current > 0) {
+        const ratio = lastTouchDist.current / dist;
+        const nextZoom = Math.max(1e-15, Math.min(20, zoomRef.current * ratio));
+
+        const rect = canvas.getBoundingClientRect();
+        const touchX = mx - rect.left;
+        const touchY = my - rect.top;
+
+        const stX = touchX / width;
+        const stY = 1.0 - (touchY / height);
+
+        const worldX = centerXRef.current + (stX - 0.5) * aspect * zoomRef.current;
+        const worldY = centerYRef.current + (stY - 0.5) * zoomRef.current;
+
+        let nextCenterX = worldX - (stX - 0.5) * aspect * nextZoom;
+        let nextCenterY = worldY - (stY - 0.5) * nextZoom;
+
+        const dx = mx - dragStart.current.x;
+        const dy = my - dragStart.current.y;
+        const scaleX = (nextZoom * aspect) / width;
+        const scaleY = nextZoom / height;
+
+        nextCenterX = nextCenterX - dx * scaleX;
+        nextCenterY = nextCenterY + dy * scaleY;
+
+        if (
+          !isNaN(nextCenterX) && isFinite(nextCenterX) &&
+          !isNaN(nextCenterY) && isFinite(nextCenterY) &&
+          !isNaN(nextZoom) && isFinite(nextZoom)
+        ) {
+          zoomRef.current = nextZoom;
+          centerXRef.current = nextCenterX;
+          centerYRef.current = nextCenterY;
+          setZoom(nextZoom);
+          setCenterX(nextCenterX);
+          setCenterY(nextCenterY);
+        }
+
+        dragStart.current = { x: mx, y: my };
+        lastTouchDist.current = dist;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isDragging.current = false;
+    isPinching.current = false;
+    renderFractal();
+    setTimeout(() => {
+      isInteractingRef.current = false;
+    }, 50);
   };
 
   // Wheel zoom at mouse cursor position with Shift requirement and dynamic zoom scaling
@@ -938,6 +1102,14 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
       // If Shift is held, prevent standard page scroll/zoom and zoom into coordinate
       e.preventDefault();
       setShowZoomHint(false);
+      isInteractingRef.current = true;
+
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+      }
+      wheelTimeoutRef.current = setTimeout(() => {
+        isInteractingRef.current = false;
+      }, 150);
 
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -951,18 +1123,18 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
       const stX = mouseX / width;
       const stY = 1.0 - (mouseY / height); // Invert Y
       
-      const worldX = centerX + (stX - 0.5) * aspect * zoom;
-      const worldY = centerY + (stY - 0.5) * zoom;
+      const worldX = centerXRef.current + (stX - 0.5) * aspect * zoomRef.current;
+      const worldY = centerYRef.current + (stY - 0.5) * zoomRef.current;
 
       // Dynamic zoom factor depending on zoom depth (closer = smaller step, farther = larger step)
-      const logZ = Math.log10(zoom);
+      const logZ = Math.log10(zoomRef.current);
       const t = (logZ + 15) / 15.3; // normalize from 1e-15 to 2.0
       const clampedT = Math.max(0, Math.min(1, t));
       const zoomStepPercent = 0.05 + clampedT * 0.20; // 5% step size at deepest, 25% at farthest
 
       // When deltaY < 0, scroll up (zoom in)
       const factor = e.deltaY < 0 ? (1.0 - zoomStepPercent) : (1.0 / (1.0 - zoomStepPercent));
-      const nextZoom = Math.max(1e-15, Math.min(20, zoom * factor));
+      const nextZoom = Math.max(1e-15, Math.min(20, zoomRef.current * factor));
 
       // Calculate new center so worldX/worldY remains under mouse cursor
       const nextCenterX = worldX - (stX - 0.5) * aspect * nextZoom;
@@ -973,6 +1145,9 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
         !isNaN(nextCenterY) && isFinite(nextCenterY) &&
         !isNaN(nextZoom) && isFinite(nextZoom)
       ) {
+        zoomRef.current = nextZoom;
+        centerXRef.current = nextCenterX;
+        centerYRef.current = nextCenterY;
         setZoom(nextZoom);
         setCenterX(nextCenterX);
         setCenterY(nextCenterY);
@@ -982,8 +1157,11 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     canvas.addEventListener('wheel', onWheel, { passive: false });
     return () => {
       canvas.removeEventListener('wheel', onWheel);
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+      }
     };
-  }, [centerX, centerY, zoom, isActive]);
+  }, [isActive]);
 
   // Button zoom triggers
   const zoomIn = () => {
@@ -995,9 +1173,15 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
   };
 
   const resetView = () => {
-    setCenterX(juliaMode ? 0.0 : -0.7);
-    setCenterY(0.0);
-    setZoom(juliaMode ? 2.5 : 2.5);
+    const cx = juliaMode ? 0.0 : -0.7;
+    const cy = 0.0;
+    const z = 2.5;
+    setCenterX(cx);
+    centerXRef.current = cx;
+    setCenterY(cy);
+    centerYRef.current = cy;
+    setZoom(z);
+    zoomRef.current = z;
     setRicisTheta(0.0);
   };
 
@@ -1209,7 +1393,11 @@ ${pathElements}</svg>`;
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUpOrLeave}
               onMouseLeave={handleMouseUpOrLeave}
-              className="w-full h-full cursor-grab active:cursor-grabbing block"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
+              className="w-full h-full cursor-grab active:cursor-grabbing block touch-none"
               id="mandelbrot-stage"
             />
 
@@ -1517,6 +1705,79 @@ ${pathElements}</svg>`;
                 </div>
               </div>
             )}
+
+            {/* Camera Controls ("Движки" / Sliders for position and scale) */}
+            <div className="bg-white/5 p-3 rounded-lg border border-white/5 space-y-3">
+              <span className="text-[10px] font-bold font-mono tracking-wider text-cyan-400 flex items-center gap-1.5 uppercase">
+                <Move className="w-3.5 h-3.5" />
+                {t('Управление Камерой (RICIS-3)', 'Camera Navigation (RICIS-3)')}
+              </span>
+              
+              <div className="space-y-2.5">
+                {/* Camera X */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[9px] font-mono">
+                    <span className="text-slate-400">Camera X</span>
+                    <span className="text-cyan-300 font-bold">{centerX.toFixed(6)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-2.0"
+                    max="2.0"
+                    step="0.0001"
+                    value={centerX}
+                    onChange={e => {
+                      const val = parseFloat(e.target.value);
+                      centerXRef.current = val;
+                      setCenterX(val);
+                    }}
+                    className="w-full accent-cyan-400 cursor-pointer h-1"
+                  />
+                </div>
+
+                {/* Camera Y */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[9px] font-mono">
+                    <span className="text-slate-400">Camera Y</span>
+                    <span className="text-cyan-300 font-bold">{centerY.toFixed(6)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-2.0"
+                    max="2.0"
+                    step="0.0001"
+                    value={centerY}
+                    onChange={e => {
+                      const val = parseFloat(e.target.value);
+                      centerYRef.current = val;
+                      setCenterY(val);
+                    }}
+                    className="w-full accent-cyan-400 cursor-pointer h-1"
+                  />
+                </div>
+
+                {/* Camera Zoom (Logarithmic scale) */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[9px] font-mono">
+                    <span className="text-slate-400">{t('Масштаб (Zoom)', 'Zoom Scale')}</span>
+                    <span className="text-cyan-300 font-bold">{(2.5 / zoom).toExponential(3)}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-15.0"
+                    max="1.3"
+                    step="0.01"
+                    value={Math.log10(zoom)}
+                    onChange={e => {
+                      const val = Math.pow(10, parseFloat(e.target.value));
+                      zoomRef.current = val;
+                      setZoom(val);
+                    }}
+                    className="w-full accent-cyan-400 cursor-pointer h-1"
+                  />
+                </div>
+              </div>
+            </div>
 
             {/* RICIS theta Warping */}
             <div className="space-y-2">

@@ -18,7 +18,8 @@ export enum SingularityMode {
   CASES_AND_SOLUTIONS = 'CASES_AND_SOLUTIONS',
   RICIS_AGENT = 'RICIS_AGENT',
   CHLADNI = 'CHLADNI',
-  MANDELBROT = 'MANDELBROT'
+  MANDELBROT = 'MANDELBROT',
+  CDCC = 'CDCC'
 }
 
 export interface MandelbrotState {
@@ -132,4 +133,12 @@ export interface PoincareState {
   regularization: number;   // RICIS theta parameter (0 to 1)
   mode: 'neckpinch' | 'sphere';
 }
+
+export interface CDCCState {
+  gridSize: number;
+  theta: number;
+  animationSpeed: number;
+  showMissingNumber: boolean;
+}
+
 

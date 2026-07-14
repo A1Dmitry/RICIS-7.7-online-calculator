@@ -8,7 +8,8 @@ import { SingularityMode } from '../types';
 import { useLanguage } from '../lib/i18n';
 import { 
   Orbit, Sparkles, Cpu, Droplet, LineChart, Flame, 
-  HelpCircle, ShieldAlert, CheckCircle2, Play, Info, ArrowRight, BookOpen, Terminal, Scale, ShieldCheck, Globe, Waves
+  HelpCircle, ShieldAlert, CheckCircle2, Play, Info, ArrowRight, BookOpen, Terminal, Scale, ShieldCheck, Globe, Waves,
+  Infinity, ExternalLink
 } from 'lucide-react';
 
 interface CaseStudy {
@@ -375,6 +376,40 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       },
       colorClass: 'text-amber-400 border-amber-500/30',
       bgGlow: 'from-amber-500/10'
+    },
+    {
+      id: 'cdcc',
+      title: 'Континуум-гипотеза Кантора (CDCC)',
+      titleEn: "Cantor's Diagonal Continuum Conjecture (CDCC)",
+      category: 'Теория множеств и сингулярности',
+      categoryEn: 'Set Theory & Singularities',
+      icon: Infinity,
+      mode: SingularityMode.CDCC,
+      classicalFail: 'Теоремы Гёделя о неполноте и доказательство Коэна: континуум-гипотеза (CH) независима от аксиоматики ZFC. Невозможно доказать или опровергнуть существование промежуточной мощности между счетным множеством и континуумом, что образует фундаментальную логическую сингулярность теории множеств.',
+      classicalFailEn: "Gödel's incompleteness theorems and Cohen's forcing proof show that the Continuum Hypothesis (CH) is independent of ZFC. It is impossible to prove or disprove the existence of an intermediate cardinality between countable sets and the continuum, creating a fundamental set-theoretic singularity.",
+      classicalFormula: '2^{\\aleph_0} = \\aleph_1 \\quad (\\text{Неразрешимо в ZFC})',
+      ricisSolution: 'Аппарат RICIS-III разрешает континуум-гипотезу через конструкцию монолитов высших порядков и индексацию бесконечностей. Континуум представляется как Линейный Монолит 1-го порядка, плотность точек которого строго следует из L1-тождеств и рекурсивных фрактальных законов R(Q).',
+      ricisSolutionEn: 'The RICIS-III framework resolves the Continuum Hypothesis through the construction of higher-order monoliths and recursive indexing of infinities. The continuum is represented as a First-Order Monolith (Line), where the density of points (cardinality) strictly follows from L1 identities and fractal unfolding laws R(Q).',
+      ricisFormula: '2^{\\aleph_0} = \\aleph_{1} = \\infty_{\\text{Line}} = \\text{Monolith}_{\\text{Order 1}}',
+      explanation: 'В рамках теории монолитов RICIS III классическое противоречие теории множеств разрешается за счёт устранения качественного разрыва типов. Множество вещественных чисел проецируется на непрерывный линейный монолит, где отношение мощностей перестаёт быть трансфинитным парадоксом, а становится топологически непрерывным переходом. Благодаря SP4 (Semantic Priority) и фрактальному закону, кардинальное число континуума строго детерминировано внутренней структурой единичного тождества X = X.',
+      explanationEn: 'Within the RICIS III theory of monoliths, the classical set-theoretic contradiction is resolved by eliminating qualitative type gaps. The set of real numbers is projected onto a continuous linear monolith, where the cardinality ratio ceases to be a transfinite paradox and becomes a topologically continuous transition. Thanks to SP4 (Semantic Priority) and the Fractal Law, the cardinal number of the continuum is strictly determined by the internal structure of the unit identity X = X.',
+      steps: [
+        'Формализация мощности счетного множества как простейшей точечной бесконечности (Атомный монолит)',
+        'Построение непрерывного числового континуума как Первого порядка монолита (Линия)',
+        'Применение фрактального закона R(Q) для развертывания бесконечных множеств без трансфинитных разрывов',
+        'Вывод тождественного равенства мощностей через канонические изоморфизмы RICIS-III',
+        'Полное снятие гипотезы независимости и доказательство истинности континуум-гипотезы Кантора'
+      ],
+      stepsEn: [
+        'Formalize countable cardinality as the simplest point-like infinity (Atomic Monolith)',
+        'Construct the continuous real continuum as a First-Order Monolith (Line)',
+        'Apply the Fractal Law R(Q) to unfold infinite sets without transfinite gaps',
+        'Derive the equivalence of cardinalities via canonical RICIS-III isomorphisms',
+        'Completely resolve the independence hypothesis and prove the validity of Cantor\'s Continuum Conjecture'
+      ],
+      presetParams: { gridSize: 8, theta: 0.0, animationSpeed: 1.5, showMissingNumber: true },
+      colorClass: 'text-emerald-400 border-emerald-500/30',
+      bgGlow: 'from-emerald-500/10'
     }
   ];
 

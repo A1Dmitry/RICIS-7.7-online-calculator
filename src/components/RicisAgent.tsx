@@ -478,8 +478,8 @@ export default function RicisAgent() {
     \\textbf{\\Huge RICIS III} \\\\[0.4cm]
     \\Large{Регуляризованные Неопределённости и Сингулярности} \\\\[0.2cm]
     \\large{Unified Complete Document --- Version 7.7 (Fully Consistent)} \\\\[0.4cm]
-    \\small{\\texttt{DOI: \\href{https://doi.org/10.5281/zenodo.17872755}{10.5281/zenodo.17872755}}} \\\\
-    \\small{\\texttt{\\href{https://zenodo.org/records/17872755}{zenodo.org/records/17872755}}}
+    \\small{\\texttt{DOI: \\href{https://doi.org/10.5281/zenodo.21309650}{10.5281/zenodo.21309650}}} \\\\
+    \\small{\\texttt{\\href{https://zenodo.org/records/21309650}{zenodo.org/records/21309650}}}
 }
 \\author{
     \\textbf{Алейников Дмитрий Владимирович} \\\\
@@ -1201,26 +1201,69 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                 </div>
 
                 <div className="bg-black/30 p-2.5 rounded border border-white/5 space-y-1.5">
-                  <div className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">{t('Научная публикация & DOI:', 'Scientific publication & DOI:')}</div>
+                  <div className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">{t('Научные публикации & Ресурсы:', 'Scientific Publications & Resources:')}</div>
+                  
+                  {/* Zenodo 21309650 (Main paper) */}
                   <div className="text-[10px] font-mono text-cyan-400 hover:text-cyan-200 break-all">
                     <a 
-                      href="https://doi.org/10.5281/zenodo.17872755" 
+                      href="https://doi.org/10.5281/zenodo.21309650" 
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className="flex items-center gap-1 inline-flex hover:underline"
                     >
-                      <span>DOI: 10.5281/zenodo.17872755</span>
+                      <span>DOI: 10.5281/zenodo.21309650 (RICIS III)</span>
                       <ExternalLink className="w-2.5 h-2.5" />
                     </a>
                   </div>
-                  <div className="text-[10px] font-mono text-cyan-400 hover:text-cyan-200">
+
+                  {/* Zenodo 18116204 */}
+                  <div className="text-[10px] font-mono text-cyan-400 hover:text-cyan-200 break-all">
+                    <a 
+                      href="https://doi.org/10.5281/zenodo.18116204" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-1 inline-flex hover:underline"
+                    >
+                      <span>DOI: 10.5281/zenodo.18116204</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+
+                  {/* Zenodo Records 17872755 */}
+                  <div className="text-[10px] font-mono text-cyan-400 hover:text-cyan-200 break-all">
                     <a 
                       href="https://zenodo.org/records/17872755" 
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className="flex items-center gap-1 inline-flex hover:underline"
                     >
-                      <span>{t('Репозиторий Zenodo', 'Zenodo Repository')}</span>
+                      <span>Zenodo: records/17872755</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+
+                  {/* Dzen article */}
+                  <div className="text-[10px] font-mono text-cyan-400 hover:text-cyan-200 break-all">
+                    <a 
+                      href="https://dzen.ru/a/aJYMMYwpLDzBCcQN" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-1 inline-flex hover:underline"
+                    >
+                      <span>{t('Статья на Дзен', 'Dzen Article')}</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+
+                  {/* LinkedIn profile */}
+                  <div className="text-[10px] font-mono text-cyan-400 hover:text-cyan-200 break-all">
+                    <a 
+                      href="https://www.linkedin.com/in/dmitry-aleinikov" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-1 inline-flex hover:underline"
+                    >
+                      <span>LinkedIn: Dmitry Aleinikov</span>
                       <ExternalLink className="w-2.5 h-2.5" />
                     </a>
                   </div>

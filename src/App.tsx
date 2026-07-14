@@ -21,6 +21,7 @@ import CasesAndSolutions from './components/CasesAndSolutions';
 import RicisAgent from './components/RicisAgent';
 import ChladniSingularity from './components/ChladniSingularity';
 import MandelbrotSingularity from './components/MandelbrotSingularity';
+import CDCCSingularity from './components/CDCCSingularity';
 import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown, ChevronUp, Share2, Check, Menu, X } from 'lucide-react';
 
 const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.ComponentType<any>, colorClass?: string }> = {
@@ -38,7 +39,8 @@ const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.Compon
   [SingularityMode.CASES_AND_SOLUTIONS]: { label: 'Решенные проблемы (RICIS)', icon: ShieldCheck, colorClass: 'text-cyan-400' },
   [SingularityMode.CHLADNI]: { label: 'Фигуры Хладни', icon: Waves, colorClass: 'text-amber-400' },
   [SingularityMode.MANDELBROT]: { label: 'Сингулярности Мандельброта', icon: Infinity, colorClass: 'text-cyan-400' },
-  [SingularityMode.RICIS_AGENT]: { label: 'ИИ Ассистент RICIS', icon: MessageSquare, colorClass: 'text-cyan-400' }
+  [SingularityMode.RICIS_AGENT]: { label: 'ИИ Ассистент RICIS', icon: MessageSquare, colorClass: 'text-cyan-400' },
+  [SingularityMode.CDCC]: { label: 'Континуум-гипотеза Кантора (CDCC)', icon: Infinity, colorClass: 'text-emerald-400' }
 };
 
 const ALL_PRESETS = [
@@ -97,6 +99,13 @@ const ALL_PRESETS = [
     nameEn: 'Mandelbrot Singularity Cusp',
     mode: SingularityMode.MANDELBROT,
     params: { centerX: 0.25, centerY: 0.0, zoom: 4.0, ricisTheta: 0.15, juliaMode: false }
+  },
+  {
+    id: 'cdcc_diagonal',
+    name: 'Континуум-гипотеза Кантора (CDCC)',
+    nameEn: "Cantor's Diagonal Continuum Conjecture",
+    mode: SingularityMode.CDCC,
+    params: { gridSize: 8, theta: 0.0, animationSpeed: 1.5, showMissingNumber: true }
   }
 ];
 
@@ -119,6 +128,7 @@ export default function App() {
   const [poincarePreset, setPoincarePreset] = useState<any>(undefined);
   const [chladniPreset, setChladniPreset] = useState<any>(undefined);
   const [mandelbrotPreset, setMandelbrotPreset] = useState<any>(undefined);
+  const [cdccPreset, setCdccPreset] = useState<any>(undefined);
 
   // Dynamic navigation optimization: track section visit counts
   const [visits, setVisits] = useState<Record<SingularityMode, number>>(() => {
@@ -250,6 +260,8 @@ export default function App() {
       setChladniPreset(params);
     } else if (mode === SingularityMode.MANDELBROT) {
       setMandelbrotPreset(params);
+    } else if (mode === SingularityMode.CDCC) {
+      setCdccPreset(params);
     }
     setActiveMode(mode);
   };
@@ -524,6 +536,13 @@ export default function App() {
                       <Infinity className="w-4 h-4 text-cyan-400 shrink-0" />
                       <span>{t('Множество Мандельброта', 'Mandelbrot Set')}</span>
                     </button>
+                    <button 
+                      onClick={() => { setActiveMode(SingularityMode.CDCC); closeAllDropdowns(); }}
+                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 ${activeMode === SingularityMode.CDCC ? 'bg-emerald-950/20 text-emerald-300 font-semibold border-l-2 border-emerald-500' : ''}`}
+                    >
+                      <Infinity className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>{t('Континуум-гипотеза (CDCC)', 'Continuum Conjecture (CDCC)')}</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -689,6 +708,13 @@ export default function App() {
                     <Infinity className="w-3.5 h-3.5" />
                     <span>{t('Множество Мандельброта', 'Mandelbrot Set')}</span>
                   </button>
+                  <button 
+                    onClick={() => { setActiveMode(SingularityMode.CDCC); closeAllDropdowns(); }}
+                    className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 flex items-center gap-2 ${activeMode === SingularityMode.CDCC ? 'text-emerald-400 bg-emerald-950/20' : 'text-slate-300'}`}
+                  >
+                    <Infinity className="w-3.5 h-3.5" />
+                    <span>{t('Континуум-гипотеза (CDCC)', 'Continuum Conjecture (CDCC)')}</span>
+                  </button>
                 </div>
 
                 {/* Presets */}
@@ -768,6 +794,9 @@ export default function App() {
           </div>
           <div className={activeMode === SingularityMode.MANDELBROT ? "" : "hidden"}>
             <MandelbrotSingularity preset={mandelbrotPreset} onChangeState={setActiveState} isActive={activeMode === SingularityMode.MANDELBROT} />
+          </div>
+          <div className={activeMode === SingularityMode.CDCC ? "" : "hidden"}>
+            <CDCCSingularity preset={cdccPreset} onChangeState={setActiveState} />
           </div>
         </main>
 
