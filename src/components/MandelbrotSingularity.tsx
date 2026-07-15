@@ -35,10 +35,37 @@ interface MandelbrotSingularityProps {
 export default function MandelbrotSingularity({ preset, onChangeState, isActive = true }: MandelbrotSingularityProps = {}) {
   const { t, language } = useLanguage();
 
-  // State
-  const [centerX, setCenterX] = useState<number>(-0.7);
-  const [centerY, setCenterY] = useState<number>(0);
-  const [zoom, setZoom] = useState<number>(2.5);
+  // State with LocalStorage preservation to prevent arbitrary resets
+  const [centerX, setCenterX] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('ricis_mandelbrot_camera_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.centerX === 'number') return parsed.centerX;
+      }
+    } catch (e) {}
+    return -0.7;
+  });
+  const [centerY, setCenterY] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('ricis_mandelbrot_camera_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.centerY === 'number') return parsed.centerY;
+      }
+    } catch (e) {}
+    return 0;
+  });
+  const [zoom, setZoom] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('ricis_mandelbrot_camera_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.zoom === 'number') return parsed.zoom;
+      }
+    } catch (e) {}
+    return 2.5;
+  });
   const [maxIterations, setMaxIterations] = useState<number>(150);
   const [colorScheme, setColorScheme] = useState<'classic' | 'psychedelic' | 'rainbow' | 'monochrome' | 'fire' | 'cosmic'>('cosmic');
   const [smoothColoring, setSmoothColoring] = useState<boolean>(true);
@@ -47,6 +74,19 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
   const [juliaY, setJuliaY] = useState<number>(0.27015);
   const [ricisTheta, setRicisTheta] = useState<number>(0.0); // RICIS III Regularization parameter
   const [gridSizeIndex, setGridSizeIndex] = useState<number>(2); // Default to 4x4 (16 segments)
+
+  // Raster Navigation Mode state
+  const [isNavigating, setIsNavigating] = useState<boolean>(false);
+  const [viewCenterX, setViewCenterX] = useState<number>(centerX);
+  const [viewCenterY, setViewCenterY] = useState<number>(centerY);
+  const [viewZoom, setViewZoom] = useState<number>(zoom);
+
+  // Recalculation progress and alert states
+  const [showRecalculationBar, setShowRecalculationBar] = useState<boolean>(false);
+  const recalculationStartTimeRef = useRef<number | null>(null);
+  const recalculationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [statusAlert, setStatusAlert] = useState<boolean>(false);
+  const statusAlertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // GRID_SIZES dictionary for adaptive shader mapping
   const GRID_SIZES = [
@@ -94,10 +134,73 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
   const centerYRef = useRef<number>(centerY);
   const zoomRef = useRef<number>(zoom);
 
+  // Navigation viewport coordinates and refs
+  const viewCenterXRef = useRef<number>(centerX);
+  const viewCenterYRef = useRef<number>(centerY);
+  const viewZoomRef = useRef<number>(zoom);
+  const isNavigatingRef = useRef<boolean>(false);
+  const stableBufferCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const getStableBuffer = (width: number, height: number) => {
+    if (!stableBufferCanvasRef.current) {
+      stableBufferCanvasRef.current = document.createElement('canvas');
+    }
+    const sCanvas = stableBufferCanvasRef.current;
+    if (sCanvas.width !== width || sCanvas.height !== height) {
+      sCanvas.width = width;
+      sCanvas.height = height;
+    }
+    return sCanvas;
+  };
+
+  const endNavigationAndRecalculate = () => {
+    isNavigatingRef.current = false;
+    setIsNavigating(false);
+    
+    // Copy view coordinates back to stable coordinates
+    centerXRef.current = viewCenterXRef.current;
+    centerYRef.current = viewCenterYRef.current;
+    zoomRef.current = viewZoomRef.current;
+    
+    setCenterX(viewCenterXRef.current);
+    setCenterY(viewCenterYRef.current);
+    setZoom(viewZoomRef.current);
+
+    // Save to localStorage
+    try {
+      localStorage.setItem('ricis_mandelbrot_camera_v2', JSON.stringify({
+        centerX: viewCenterXRef.current,
+        centerY: viewCenterYRef.current,
+        zoom: viewZoomRef.current
+      }));
+    } catch (e) {
+      console.error('Failed to save camera position:', e);
+    }
+
+    // Trigger progressive recalculation
+    recalculationStartTimeRef.current = Date.now();
+    if (recalculationTimerRef.current) {
+      clearTimeout(recalculationTimerRef.current);
+    }
+    recalculationTimerRef.current = setTimeout(() => {
+      if (renderQueue.current.length > 0 && !isNavigatingRef.current) {
+        setShowRecalculationBar(true);
+      }
+    }, 1000);
+  };
+
+  const handleRefresh = () => {
+    endNavigationAndRecalculate();
+  };
+
   // Sync state values to refs (covers parent presets, bookmarks, and buttons)
   useEffect(() => {
     if (!isInteractingRef.current) {
       centerXRef.current = centerX;
+    }
+    if (!isNavigatingRef.current) {
+      viewCenterXRef.current = centerX;
+      setViewCenterX(centerX);
     }
   }, [centerX]);
 
@@ -105,11 +208,19 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     if (!isInteractingRef.current) {
       centerYRef.current = centerY;
     }
+    if (!isNavigatingRef.current) {
+      viewCenterYRef.current = centerY;
+      setViewCenterY(centerY);
+    }
   }, [centerY]);
 
   useEffect(() => {
     if (!isInteractingRef.current) {
       zoomRef.current = zoom;
+    }
+    if (!isNavigatingRef.current) {
+      viewZoomRef.current = zoom;
+      setViewZoom(zoom);
     }
   }, [zoom]);
 
@@ -623,10 +734,10 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     const minCY = ty * S_L;
     const maxCY = (ty + 1) * S_L;
 
-    const screenMinX = ((minCX - (centerX - zoom * aspect * 0.5)) / (zoom * aspect)) * width;
-    const screenMaxX = ((maxCX - (centerX - zoom * aspect * 0.5)) / (zoom * aspect)) * width;
-    const screenMinY = (1.0 - (maxCY - (centerY - zoom * 0.5)) / zoom) * height;
-    const screenMaxY = (1.0 - (minCY - (centerY - zoom * 0.5)) / zoom) * height;
+    const screenMinX = ((minCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
+    const screenMaxX = ((maxCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
+    const screenMinY = (1.0 - (maxCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
+    const screenMaxY = (1.0 - (minCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
 
     ctx.drawImage(
       tileCanvas,
@@ -670,10 +781,10 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     const minCY = ty * S_L;
     const maxCY = (ty + 1) * S_L;
 
-    const screenMinX = ((minCX - (centerX - zoom * aspect * 0.5)) / (zoom * aspect)) * width;
-    const screenMaxX = ((maxCX - (centerX - zoom * aspect * 0.5)) / (zoom * aspect)) * width;
-    const screenMinY = (1.0 - (maxCY - (centerY - zoom * 0.5)) / zoom) * height;
-    const screenMaxY = (1.0 - (minCY - (centerY - zoom * 0.5)) / zoom) * height;
+    const screenMinX = ((minCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
+    const screenMaxX = ((maxCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
+    const screenMinY = (1.0 - (maxCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
+    const screenMaxY = (1.0 - (minCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
 
     ctx.drawImage(
       parentCanvas,
@@ -704,10 +815,10 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     const minCY = ty * S_L;
     const maxCY = (ty + 1) * S_L;
 
-    const screenMinX = ((minCX - (centerX - zoom * aspect * 0.5)) / (zoom * aspect)) * width;
-    const screenMaxX = ((maxCX - (centerX - zoom * aspect * 0.5)) / (zoom * aspect)) * width;
-    const screenMinY = (1.0 - (maxCY - (centerY - zoom * 0.5)) / zoom) * height;
-    const screenMaxY = (1.0 - (minCY - (centerY - zoom * 0.5)) / zoom) * height;
+    const screenMinX = ((minCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
+    const screenMaxX = ((maxCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
+    const screenMinY = (1.0 - (maxCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
+    const screenMaxY = (1.0 - (minCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
 
     ctx.fillStyle = '#050510';
     ctx.fillRect(screenMinX, screenMinY, screenMaxX - screenMinX, screenMaxY - screenMinY);
@@ -734,20 +845,55 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
     const aspect = width / height;
 
+    if (isNavigatingRef.current && stableBufferCanvasRef.current) {
+      // Draw translated and scaled raster image
+      ctx.fillStyle = '#04040a';
+      ctx.fillRect(0, 0, width, height);
+
+      const stableZoom = zoomRef.current; // the stable zoom level
+      const stableCenterX = centerXRef.current;
+      const stableCenterY = centerYRef.current;
+
+      const viewZ = viewZoomRef.current;
+      const viewCX = viewCenterXRef.current;
+      const viewCY = viewCenterYRef.current;
+
+      const scaleRatio = stableZoom / viewZ;
+      const dx_complex = stableCenterX - viewCX;
+      const dy_complex = viewCY - stableCenterY; // Y is inverted in screen coordinates
+
+      const w_drawn = scaleRatio * width;
+      const h_drawn = scaleRatio * height;
+
+      const x_left = (dx_complex / (viewZ * aspect) + 0.5 - 0.5 * scaleRatio) * width;
+      const y_top = (dy_complex / viewZ + 0.5 - 0.5 * scaleRatio) * height;
+
+      // Draw the stable buffer image
+      ctx.drawImage(stableBufferCanvasRef.current, x_left, y_top, w_drawn, h_drawn);
+
+      // Draw optional subtle border or overlay if zoomed out extremely far to show original frame bounds
+      if (scaleRatio < 1.0) {
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x_left, y_top, w_drawn, h_drawn);
+      }
+      return;
+    }
+
     // Clear main canvas
     ctx.fillStyle = '#04040a';
     ctx.fillRect(0, 0, width, height);
 
     // Determine current target level based on gridSize selection
     const G = GRID_SIZES[gridSizeIndex]?.value ?? 4;
-    const targetLevel = Math.max(0, Math.min(20, Math.round(-Math.log2(zoom / (2.5 * G)))));
+    const targetLevel = Math.max(0, Math.min(20, Math.round(-Math.log2(zoomRef.current / (2.5 * G)))));
     const S_L = 2.5 * Math.pow(2, -targetLevel);
 
     // Calculate current viewport bounds in complex coordinates
-    const viewportMinX = centerX - zoom * aspect * 0.5;
-    const viewportMaxX = centerX + zoom * aspect * 0.5;
-    const viewportMinY = centerY - zoom * 0.5;
-    const viewportMaxY = centerY + zoom * 0.5;
+    const viewportMinX = centerXRef.current - zoomRef.current * aspect * 0.5;
+    const viewportMaxX = centerXRef.current + zoomRef.current * aspect * 0.5;
+    const viewportMinY = centerYRef.current - zoomRef.current * 0.5;
+    const viewportMaxY = centerYRef.current + zoomRef.current * 0.5;
 
     const minTX = Math.floor(viewportMinX / S_L);
     const maxTX = Math.floor(viewportMaxX / S_L);
@@ -815,7 +961,26 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
   // Progressive Queue Processor
   const processQueue = () => {
-    if (renderQueue.current.length === 0) return;
+    if (renderQueue.current.length === 0) {
+      // Clear recalculation timer and hide bar on completion
+      recalculationStartTimeRef.current = null;
+      if (recalculationTimerRef.current) {
+        clearTimeout(recalculationTimerRef.current);
+        recalculationTimerRef.current = null;
+      }
+      setShowRecalculationBar(false);
+
+      if (!isNavigatingRef.current && canvasRef.current) {
+        const mainCanvas = canvasRef.current;
+        const sCanvas = getStableBuffer(mainCanvas.width, mainCanvas.height);
+        const sCtx = sCanvas.getContext('2d');
+        if (sCtx) {
+          sCtx.clearRect(0, 0, sCanvas.width, sCanvas.height);
+          sCtx.drawImage(mainCanvas, 0, 0);
+        }
+      }
+      return;
+    }
 
     const gl = glRef.current;
     const program = programRef.current;
@@ -917,6 +1082,17 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
       const tEnd = performance.now();
       setRenderTimeMs(Math.round(tEnd - tStart));
       drawAllTiles();
+
+      // If the queue has just become empty, capture the stable buffer immediately
+      if (renderQueue.current.length === 0 && !isNavigatingRef.current && canvasRef.current) {
+        const mainCanvas = canvasRef.current;
+        const sCanvas = getStableBuffer(mainCanvas.width, mainCanvas.height);
+        const sCtx = sCanvas.getContext('2d');
+        if (sCtx) {
+          sCtx.clearRect(0, 0, sCanvas.width, sCanvas.height);
+          sCtx.drawImage(mainCanvas, 0, 0);
+        }
+      }
     }
   };
 
@@ -930,6 +1106,23 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     isInteractingRef.current = true;
     isDragging.current = true;
     dragStart.current = { x: e.clientX, y: e.clientY };
+
+    // Clear old recalculation bar/timer when beginning interaction
+    if (recalculationTimerRef.current) {
+      clearTimeout(recalculationTimerRef.current);
+      recalculationTimerRef.current = null;
+    }
+    setShowRecalculationBar(false);
+
+    // If not currently navigating, sync view coordinates with current coordinates
+    if (!isNavigatingRef.current) {
+      viewCenterXRef.current = centerX;
+      viewCenterYRef.current = centerY;
+      viewZoomRef.current = zoom;
+      setViewCenterX(centerX);
+      setViewCenterY(centerY);
+      setViewZoom(zoom);
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -944,18 +1137,22 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     const height = canvas.clientHeight || 1;
     const aspect = width / height;
     
-    // Map pixels to complex coordinates using current zoom
-    const scaleX = (zoomRef.current * aspect) / width;
-    const scaleY = zoomRef.current / height;
+    // Map pixels to complex coordinates using current viewZoom
+    const scaleX = (viewZoomRef.current * aspect) / width;
+    const scaleY = viewZoomRef.current / height;
 
-    const newCenterX = centerXRef.current - dx * scaleX;
-    const newCenterY = centerYRef.current + dy * scaleY;
+    const newCenterX = viewCenterXRef.current - dx * scaleX;
+    const newCenterY = viewCenterYRef.current + dy * scaleY;
 
     if (!isNaN(newCenterX) && isFinite(newCenterX) && !isNaN(newCenterY) && isFinite(newCenterY)) {
-      centerXRef.current = newCenterX;
-      centerYRef.current = newCenterY;
-      setCenterX(newCenterX);
-      setCenterY(newCenterY);
+      viewCenterXRef.current = newCenterX;
+      viewCenterYRef.current = newCenterY;
+      setViewCenterX(newCenterX);
+      setViewCenterY(newCenterY);
+
+      isNavigatingRef.current = true;
+      setIsNavigating(true);
+      drawAllTiles();
     }
 
     dragStart.current = { x: e.clientX, y: e.clientY };
@@ -964,10 +1161,10 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
   const handleMouseUpOrLeave = () => {
     if (isDragging.current) {
       isDragging.current = false;
-      renderFractal(); // Final high resolution render
       setTimeout(() => {
         isInteractingRef.current = false;
       }, 50);
+      endNavigationAndRecalculate();
     }
   };
 
@@ -977,6 +1174,23 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     if (!canvas) return;
 
     isInteractingRef.current = true;
+
+    // Clear old recalculation bar/timer when beginning interaction
+    if (recalculationTimerRef.current) {
+      clearTimeout(recalculationTimerRef.current);
+      recalculationTimerRef.current = null;
+    }
+    setShowRecalculationBar(false);
+
+    // If not currently navigating, sync view coordinates with current coordinates
+    if (!isNavigatingRef.current) {
+      viewCenterXRef.current = centerX;
+      viewCenterYRef.current = centerY;
+      viewZoomRef.current = zoom;
+      setViewCenterX(centerX);
+      setViewCenterY(centerY);
+      setViewZoom(zoom);
+    }
 
     if (e.touches.length === 1) {
       isDragging.current = true;
@@ -1007,17 +1221,21 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
       const dx = touch.clientX - dragStart.current.x;
       const dy = touch.clientY - dragStart.current.y;
 
-      const scaleX = (zoomRef.current * aspect) / width;
-      const scaleY = zoomRef.current / height;
+      const scaleX = (viewZoomRef.current * aspect) / width;
+      const scaleY = viewZoomRef.current / height;
 
-      const newCenterX = centerXRef.current - dx * scaleX;
-      const newCenterY = centerYRef.current + dy * scaleY;
+      const newCenterX = viewCenterXRef.current - dx * scaleX;
+      const newCenterY = viewCenterYRef.current + dy * scaleY;
 
       if (!isNaN(newCenterX) && isFinite(newCenterX) && !isNaN(newCenterY) && isFinite(newCenterY)) {
-        centerXRef.current = newCenterX;
-        centerYRef.current = newCenterY;
-        setCenterX(newCenterX);
-        setCenterY(newCenterY);
+        viewCenterXRef.current = newCenterX;
+        viewCenterYRef.current = newCenterY;
+        setViewCenterX(newCenterX);
+        setViewCenterY(newCenterY);
+
+        isNavigatingRef.current = true;
+        setIsNavigating(true);
+        drawAllTiles();
       }
 
       dragStart.current = { x: touch.clientX, y: touch.clientY };
@@ -1030,7 +1248,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
       if (dist > 0 && lastTouchDist.current > 0) {
         const ratio = lastTouchDist.current / dist;
-        const nextZoom = Math.max(1e-15, Math.min(20, zoomRef.current * ratio));
+        const nextZoom = Math.max(1e-15, Math.min(20, viewZoomRef.current * ratio));
 
         const rect = canvas.getBoundingClientRect();
         const touchX = mx - rect.left;
@@ -1039,8 +1257,8 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
         const stX = touchX / width;
         const stY = 1.0 - (touchY / height);
 
-        const worldX = centerXRef.current + (stX - 0.5) * aspect * zoomRef.current;
-        const worldY = centerYRef.current + (stY - 0.5) * zoomRef.current;
+        const worldX = viewCenterXRef.current + (stX - 0.5) * aspect * viewZoomRef.current;
+        const worldY = viewCenterYRef.current + (stY - 0.5) * viewZoomRef.current;
 
         let nextCenterX = worldX - (stX - 0.5) * aspect * nextZoom;
         let nextCenterY = worldY - (stY - 0.5) * nextZoom;
@@ -1058,12 +1276,16 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
           !isNaN(nextCenterY) && isFinite(nextCenterY) &&
           !isNaN(nextZoom) && isFinite(nextZoom)
         ) {
-          zoomRef.current = nextZoom;
-          centerXRef.current = nextCenterX;
-          centerYRef.current = nextCenterY;
-          setZoom(nextZoom);
-          setCenterX(nextCenterX);
-          setCenterY(nextCenterY);
+          viewZoomRef.current = nextZoom;
+          viewCenterXRef.current = nextCenterX;
+          viewCenterYRef.current = nextCenterY;
+          setViewZoom(nextZoom);
+          setViewCenterX(nextCenterX);
+          setViewCenterY(nextCenterY);
+
+          isNavigatingRef.current = true;
+          setIsNavigating(true);
+          drawAllTiles();
         }
 
         dragStart.current = { x: mx, y: my };
@@ -1075,41 +1297,49 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
   const handleTouchEnd = () => {
     isDragging.current = false;
     isPinching.current = false;
-    renderFractal();
     setTimeout(() => {
       isInteractingRef.current = false;
     }, 50);
+    endNavigationAndRecalculate();
   };
 
-  // Wheel zoom at mouse cursor position with Shift requirement and dynamic zoom scaling
+  // Wheel zoom at mouse cursor position with Shift requirement and exponential inverse zoom scaling
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const onWheel = (e: WheelEvent) => {
       if (!e.shiftKey) {
-        // Normal scrolling, show helper toast/hint
-        setShowZoomHint(true);
-        if (zoomHintTimeoutRef.current) {
-          clearTimeout(zoomHintTimeoutRef.current);
+        // Normal scrolling: do not zoom. Flash warning in the status bar instead of annoying popup.
+        setStatusAlert(true);
+        if (statusAlertTimeoutRef.current) {
+          clearTimeout(statusAlertTimeoutRef.current);
         }
-        zoomHintTimeoutRef.current = setTimeout(() => {
-          setShowZoomHint(false);
-        }, 2500);
+        statusAlertTimeoutRef.current = setTimeout(() => {
+          setStatusAlert(false);
+        }, 3000);
         return; // Allow page to scroll normally if Shift is not held
       }
 
       // If Shift is held, prevent standard page scroll/zoom and zoom into coordinate
       e.preventDefault();
-      setShowZoomHint(false);
       isInteractingRef.current = true;
+
+      // Clear old recalculation bar/timer when beginning interaction
+      if (recalculationTimerRef.current) {
+        clearTimeout(recalculationTimerRef.current);
+        recalculationTimerRef.current = null;
+      }
+      setShowRecalculationBar(false);
 
       if (wheelTimeoutRef.current) {
         clearTimeout(wheelTimeoutRef.current);
       }
       wheelTimeoutRef.current = setTimeout(() => {
         isInteractingRef.current = false;
-      }, 150);
+        // Automatically trigger progressive recalculation when scrolling stops!
+        endNavigationAndRecalculate();
+      }, 500); // 500ms of wheel inactivity means the user stopped scrolling
 
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -1123,18 +1353,16 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
       const stX = mouseX / width;
       const stY = 1.0 - (mouseY / height); // Invert Y
       
-      const worldX = centerXRef.current + (stX - 0.5) * aspect * zoomRef.current;
-      const worldY = centerYRef.current + (stY - 0.5) * zoomRef.current;
+      const worldX = viewCenterXRef.current + (stX - 0.5) * aspect * viewZoomRef.current;
+      const worldY = viewCenterYRef.current + (stY - 0.5) * viewZoomRef.current;
 
-      // Dynamic zoom factor depending on zoom depth (closer = smaller step, farther = larger step)
-      const logZ = Math.log10(zoomRef.current);
-      const t = (logZ + 15) / 15.3; // normalize from 1e-15 to 2.0
-      const clampedT = Math.max(0, Math.min(1, t));
-      const zoomStepPercent = 0.05 + clampedT * 0.20; // 5% step size at deepest, 25% at farthest
+      // Exponential inverse dependency: as zoom (magnification) increases, zoom step percentage decreases exponentially.
+      // viewZoomRef.current ranges from 1e-15 to 2.5
+      const zoomStepPercent = 0.03 + 0.22 * Math.pow(viewZoomRef.current / 2.5, 0.15);
 
       // When deltaY < 0, scroll up (zoom in)
       const factor = e.deltaY < 0 ? (1.0 - zoomStepPercent) : (1.0 / (1.0 - zoomStepPercent));
-      const nextZoom = Math.max(1e-15, Math.min(20, zoomRef.current * factor));
+      const nextZoom = Math.max(1e-15, Math.min(20, viewZoomRef.current * factor));
 
       // Calculate new center so worldX/worldY remains under mouse cursor
       const nextCenterX = worldX - (stX - 0.5) * aspect * nextZoom;
@@ -1145,12 +1373,16 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
         !isNaN(nextCenterY) && isFinite(nextCenterY) &&
         !isNaN(nextZoom) && isFinite(nextZoom)
       ) {
-        zoomRef.current = nextZoom;
-        centerXRef.current = nextCenterX;
-        centerYRef.current = nextCenterY;
-        setZoom(nextZoom);
-        setCenterX(nextCenterX);
-        setCenterY(nextCenterY);
+        viewZoomRef.current = nextZoom;
+        viewCenterXRef.current = nextCenterX;
+        viewCenterYRef.current = nextCenterY;
+        setViewZoom(nextZoom);
+        setViewCenterX(nextCenterX);
+        setViewCenterY(nextCenterY);
+
+        isNavigatingRef.current = true;
+        setIsNavigating(true);
+        drawAllTiles();
       }
     };
 
@@ -1165,24 +1397,68 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
   // Button zoom triggers
   const zoomIn = () => {
-    setZoom(prev => Math.max(1e-15, prev * 0.7));
+    if (recalculationTimerRef.current) {
+      clearTimeout(recalculationTimerRef.current);
+      recalculationTimerRef.current = null;
+    }
+    setShowRecalculationBar(false);
+
+    const nextZ = Math.max(1e-15, viewZoomRef.current * 0.7);
+    viewZoomRef.current = nextZ;
+    setViewZoom(nextZ);
+    endNavigationAndRecalculate();
   };
 
   const zoomOut = () => {
-    setZoom(prev => Math.min(20, prev * 1.3));
+    if (recalculationTimerRef.current) {
+      clearTimeout(recalculationTimerRef.current);
+      recalculationTimerRef.current = null;
+    }
+    setShowRecalculationBar(false);
+
+    const nextZ = Math.min(20, viewZoomRef.current * 1.3);
+    viewZoomRef.current = nextZ;
+    setViewZoom(nextZ);
+    endNavigationAndRecalculate();
   };
 
   const resetView = () => {
     const cx = juliaMode ? 0.0 : -0.7;
     const cy = 0.0;
     const z = 2.5;
-    setCenterX(cx);
+
+    viewCenterXRef.current = cx;
+    viewCenterYRef.current = cy;
+    viewZoomRef.current = z;
+    setViewCenterX(cx);
+    setViewCenterY(cy);
+    setViewZoom(z);
+
     centerXRef.current = cx;
-    setCenterY(cy);
     centerYRef.current = cy;
-    setZoom(z);
     zoomRef.current = z;
+    setCenterX(cx);
+    setCenterY(cy);
+    setZoom(z);
+
     setRicisTheta(0.0);
+
+    // Save defaults to localStorage
+    try {
+      localStorage.setItem('ricis_mandelbrot_camera_v2', JSON.stringify({
+        centerX: cx,
+        centerY: cy,
+        zoom: z
+      }));
+    } catch (e) {}
+
+    if (recalculationTimerRef.current) {
+      clearTimeout(recalculationTimerRef.current);
+      recalculationTimerRef.current = null;
+    }
+    setShowRecalculationBar(false);
+
+    endNavigationAndRecalculate();
   };
 
   // Initialize WebGL Offscreen Canvas on Mount
@@ -1401,17 +1677,36 @@ ${pathElements}</svg>`;
               id="mandelbrot-stage"
             />
 
-            {/* Shift+Wheel Zoom Hint overlay */}
-            {showZoomHint && (
-              <div className="absolute inset-0 bg-black/70 backdrop-blur-[1.5px] flex items-center justify-center pointer-events-none z-40 transition-all animate-in fade-in duration-200">
-                <div className="bg-slate-900/95 border border-cyan-500/40 px-5 py-3 rounded-xl text-center shadow-2xl max-w-xs pointer-events-auto">
-                  <Move className="w-5 h-5 text-cyan-400 mx-auto mb-2 animate-bounce" />
-                  <p className="text-xs font-semibold text-white">
-                    {t('Зажмите Shift + Колесико мыши', 'Hold Shift + Scroll wheel')}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-1 leading-normal">
-                    {t('для масштабирования фрактала, чтобы страница не прокручивалась.', 'to zoom the fractal, preventing the page from scrolling.')}
-                  </p>
+            {/* Navigating indicator */}
+            {isNavigating && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-cyan-950/90 backdrop-blur-md border border-cyan-500/40 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-ping" />
+                <span className="text-[9px] font-semibold text-cyan-200 uppercase tracking-wider font-sans">
+                  {t('ПЕРЕМЕЩЕНИЕ КАМЕРЫ...', 'NAVIGATING VIEWPORT...')}
+                </span>
+              </div>
+            )}
+
+            {/* Glowing Recalculation Progress Bar */}
+            {showRecalculationBar && (
+              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-40 w-[80%] max-w-xs bg-black/85 backdrop-blur-md border border-cyan-500/30 rounded-lg p-2.5 flex flex-col gap-1.5 shadow-lg animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex justify-between items-center text-[9px] font-mono">
+                  <span className="text-cyan-400 font-bold flex items-center gap-1 font-sans">
+                    <RefreshCw className="w-2.5 h-2.5 animate-spin" style={{ animationDuration: '3s' }} />
+                    {t('ВЫЧИСЛЕНИЕ...', 'CALCULATING...')}
+                  </span>
+                  <span className="text-slate-400">
+                    {t('Сегментов: ', 'Segs: ')}
+                    <span className="text-white font-bold">{renderQueue.current.length}</span>
+                  </span>
+                </div>
+                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 transition-all duration-300"
+                    style={{ 
+                      width: `${Math.max(5, 100 - (renderQueue.current.length / (GRID_SIZES[gridSizeIndex]?.value * GRID_SIZES[gridSizeIndex]?.value || 16)) * 100)}%` 
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -1430,31 +1725,27 @@ ${pathElements}</svg>`;
 
             {/* Floating Navigation Controls */}
             <div className="absolute bottom-4 right-4 flex items-center gap-1.5 bg-black/60 backdrop-blur-md p-1.5 rounded-lg border border-white/10 z-30">
-              {isFullScreen && (
-                <>
-                  <button
-                    onClick={zoomIn}
-                    className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
-                    title={t('Приблизить', 'Zoom In')}
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={zoomOut}
-                    className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
-                    title={t('Отдалить', 'Zoom Out')}
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={resetView}
-                    className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
-                    title={t('Сбросить', 'Reset View')}
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                </>
-              )}
+              <button
+                onClick={zoomIn}
+                className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                title={t('Приблизить', 'Zoom In')}
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button
+                onClick={zoomOut}
+                className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                title={t('Отдалить', 'Zoom Out')}
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <button
+                onClick={resetView}
+                className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
+                title={t('Сбросить', 'Reset View')}
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
               <button
                 onClick={() => {
                   setIsFullScreen(!isFullScreen);
@@ -1624,9 +1915,11 @@ ${pathElements}</svg>`;
 
           {/* Quick Info Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-[10px] text-slate-400 font-mono">
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              {t('Управление: зажмите ЛКМ для перемещения, Shift + колесико для зума.', 'Usage: Drag to pan, Shift + wheel to zoom.')}
+            <span className={`flex items-center gap-1.5 transition-all duration-300 ${statusAlert ? 'text-yellow-400 font-bold scale-[1.01]' : 'text-slate-400'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${statusAlert ? 'bg-yellow-400 animate-ping' : 'bg-cyan-400 animate-pulse'}`} />
+              {statusAlert 
+                ? t('ВНИМАНИЕ: Для масштабирования зажмите Shift + колесико мыши!', 'ATTENTION: Hold Shift + scroll wheel to zoom!')
+                : t('Управление: зажмите ЛКМ для перемещения, Shift + колесико для зума.', 'Usage: Drag to pan, Shift + wheel to zoom.')}
             </span>
             <div className="flex gap-4">
               <span>{t('Разрешение SVG:', 'SVG Resolution:')} <strong className="text-slate-200">{svgResolution}x{svgResolution} px</strong></span>
@@ -2024,7 +2317,7 @@ ${pathElements}</svg>`;
               <input
                 type="text"
                 readOnly
-                value={`${window.location.origin}${window.location.pathname}?mode=mandelbrot&state=${encodeURIComponent(JSON.stringify({
+                value={`${window.location.origin}${window.location.pathname}?mode=MANDELBROT&state=${encodeURIComponent(JSON.stringify({
                   centerX,
                   centerY,
                   zoom,
@@ -2052,7 +2345,7 @@ ${pathElements}</svg>`;
                     juliaY,
                     ricisTheta
                   };
-                  const url = `${window.location.origin}${window.location.pathname}?mode=mandelbrot&state=${encodeURIComponent(JSON.stringify(stateObj))}`;
+                  const url = `${window.location.origin}${window.location.pathname}?mode=MANDELBROT&state=${encodeURIComponent(JSON.stringify(stateObj))}`;
                   navigator.clipboard.writeText(url).then(() => {
                     setLinkCopied(true);
                     setTimeout(() => setLinkCopied(false), 2000);

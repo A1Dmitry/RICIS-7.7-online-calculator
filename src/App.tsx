@@ -218,17 +218,20 @@ export default function App() {
       const modeParam = params.get('mode');
       const stateParam = params.get('state');
 
-      if (modeParam && Object.values(SingularityMode).includes(modeParam as SingularityMode)) {
-        const mode = modeParam as SingularityMode;
-        
-        if (stateParam) {
-          const parsedState = JSON.parse(decodeURIComponent(stateParam));
-          if (parsedState && typeof parsedState === 'object') {
-            handleLoadPreset(mode, parsedState);
-            return;
+      if (modeParam) {
+        const uppercaseMode = modeParam.toUpperCase();
+        if (Object.values(SingularityMode).includes(uppercaseMode as SingularityMode)) {
+          const mode = uppercaseMode as SingularityMode;
+          
+          if (stateParam) {
+            const parsedState = JSON.parse(decodeURIComponent(stateParam));
+            if (parsedState && typeof parsedState === 'object') {
+              handleLoadPreset(mode, parsedState);
+              return;
+            }
           }
+          setActiveMode(mode);
         }
-        setActiveMode(mode);
       }
     } catch (e) {
       console.error("Error parsing shared state from URL:", e);

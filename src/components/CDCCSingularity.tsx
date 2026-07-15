@@ -15,6 +15,18 @@ interface CDCCSingularityProps {
 }
 
 // Function Packages representing Deferred Expressions in RICIS-III
+interface DeferredExpression {
+  symbolicFormulaRu: string;
+  symbolicFormulaEn: string;
+  latexRepresentation: string;
+  nodeType: 'unary_op' | 'binary_op' | 'variable' | 'constant';
+  children?: string[];
+  isDeferred: boolean;
+  evaluate: (theta: number) => number;
+  evaluateWithIndex: (theta: number) => { value: number; index: string; isInfinitesimal: boolean };
+  getDerivative: (theta: number) => number;
+}
+
 interface FunctionPack {
   id: string;
   nameRu: string;
@@ -35,6 +47,8 @@ interface FunctionPack {
   canBeSimplified: boolean;
   simplifiedExprRu?: string;
   simplifiedExprEn?: string;
+  deferredF: DeferredExpression;
+  deferredG: DeferredExpression;
 }
 
 const FUNCTION_PACKS: FunctionPack[] = [
@@ -55,7 +69,45 @@ const FUNCTION_PACKS: FunctionPack[] = [
     resolveValue: Math.PI / 2,
     resolveLabelRu: 'π/2 ≈ 1.571',
     resolveLabelEn: 'π/2 ≈ 1.571',
-    canBeSimplified: false
+    canBeSimplified: false,
+    deferredF: {
+      symbolicFormulaRu: 'F(θ) = cos(π * θ / 2)',
+      symbolicFormulaEn: 'F(θ) = cos(π * θ / 2)',
+      latexRepresentation: '\\cos(\\pi\\theta/2)',
+      nodeType: 'unary_op',
+      children: ['cos', 'π * θ / 2'],
+      isDeferred: true,
+      evaluate: (theta) => Math.cos((Math.PI * theta) / 2),
+      evaluateWithIndex: (theta) => {
+        const val = Math.cos((Math.PI * theta) / 2);
+        const isNearZero = Math.abs(theta - 1.0) < 1e-5;
+        return {
+          value: val,
+          index: isNearZero ? '0_{cos(πθ/2)}' : val.toFixed(4),
+          isInfinitesimal: isNearZero
+        };
+      },
+      getDerivative: (theta) => - (Math.PI / 2) * Math.sin((Math.PI * theta) / 2)
+    },
+    deferredG: {
+      symbolicFormulaRu: 'G(θ) = 1 - θ',
+      symbolicFormulaEn: 'G(θ) = 1 - θ',
+      latexRepresentation: '1 - \\theta',
+      nodeType: 'binary_op',
+      children: ['1', 'θ'],
+      isDeferred: true,
+      evaluate: (theta) => 1 - theta,
+      evaluateWithIndex: (theta) => {
+        const val = 1 - theta;
+        const isNearZero = Math.abs(theta - 1.0) < 1e-5;
+        return {
+          value: val,
+          index: isNearZero ? '0_{1-θ}' : val.toFixed(4),
+          isInfinitesimal: isNearZero
+        };
+      },
+      getDerivative: (theta) => -1
+    }
   },
   {
     id: 'pack_polynomial',
@@ -76,7 +128,45 @@ const FUNCTION_PACKS: FunctionPack[] = [
     resolveLabelEn: '2.000',
     canBeSimplified: true,
     simplifiedExprRu: 'F(θ)/G(θ) = (θ-1)(θ+1) / (θ-1) = θ + 1',
-    simplifiedExprEn: 'F(θ)/G(θ) = (θ-1)(θ+1) / (θ-1) = θ + 1'
+    simplifiedExprEn: 'F(θ)/G(θ) = (θ-1)(θ+1) / (θ-1) = θ + 1',
+    deferredF: {
+      symbolicFormulaRu: 'F(θ) = θ² - 1',
+      symbolicFormulaEn: 'F(θ) = θ² - 1',
+      latexRepresentation: '\\theta^2 - 1',
+      nodeType: 'binary_op',
+      children: ['θ^2', '1'],
+      isDeferred: true,
+      evaluate: (theta) => theta * theta - 1,
+      evaluateWithIndex: (theta) => {
+        const val = theta * theta - 1;
+        const isNearZero = Math.abs(theta - 1.0) < 1e-5;
+        return {
+          value: val,
+          index: isNearZero ? '0_{θ²-1}' : val.toFixed(4),
+          isInfinitesimal: isNearZero
+        };
+      },
+      getDerivative: (theta) => 2 * theta
+    },
+    deferredG: {
+      symbolicFormulaRu: 'G(θ) = θ - 1',
+      symbolicFormulaEn: 'G(θ) = θ - 1',
+      latexRepresentation: '\\theta - 1',
+      nodeType: 'binary_op',
+      children: ['θ', '1'],
+      isDeferred: true,
+      evaluate: (theta) => theta - 1,
+      evaluateWithIndex: (theta) => {
+        const val = theta - 1;
+        const isNearZero = Math.abs(theta - 1.0) < 1e-5;
+        return {
+          value: val,
+          index: isNearZero ? '0_{θ-1}' : val.toFixed(4),
+          isInfinitesimal: isNearZero
+        };
+      },
+      getDerivative: (theta) => 1
+    }
   },
   {
     id: 'pack_sin_linear',
@@ -95,7 +185,45 @@ const FUNCTION_PACKS: FunctionPack[] = [
     resolveValue: Math.PI,
     resolveLabelRu: 'π ≈ 3.142',
     resolveLabelEn: 'π ≈ 3.142',
-    canBeSimplified: false
+    canBeSimplified: false,
+    deferredF: {
+      symbolicFormulaRu: 'F(θ) = sin(π * θ)',
+      symbolicFormulaEn: 'F(θ) = sin(π * θ)',
+      latexRepresentation: '\\sin(\\pi\\theta)',
+      nodeType: 'unary_op',
+      children: ['sin', 'π * θ'],
+      isDeferred: true,
+      evaluate: (theta) => Math.sin(Math.PI * theta),
+      evaluateWithIndex: (theta) => {
+        const val = Math.sin(Math.PI * theta);
+        const isNearZero = Math.abs(theta - 1.0) < 1e-5;
+        return {
+          value: val,
+          index: isNearZero ? '0_{sin(πθ)}' : val.toFixed(4),
+          isInfinitesimal: isNearZero
+        };
+      },
+      getDerivative: (theta) => Math.PI * Math.cos(Math.PI * theta)
+    },
+    deferredG: {
+      symbolicFormulaRu: 'G(θ) = 1 - θ',
+      symbolicFormulaEn: 'G(θ) = 1 - θ',
+      latexRepresentation: '1 - \\theta',
+      nodeType: 'binary_op',
+      children: ['1', 'θ'],
+      isDeferred: true,
+      evaluate: (theta) => 1 - theta,
+      evaluateWithIndex: (theta) => {
+        const val = 1 - theta;
+        const isNearZero = Math.abs(theta - 1.0) < 1e-5;
+        return {
+          value: val,
+          index: isNearZero ? '0_{1-θ}' : val.toFixed(4),
+          isInfinitesimal: isNearZero
+        };
+      },
+      getDerivative: (theta) => -1
+    }
   }
 ];
 
@@ -112,6 +240,7 @@ export default function CDCCSingularity({ preset, onChangeState }: CDCCSingulari
   const [generationCount, setGenerationCount] = useState<number>(0);
   const [highlightedRow, setHighlightedRow] = useState<number | null>(null);
   const [activePackId, setActivePackId] = useState<string>('pack_cos_linear');
+  const [solverSubTab, setSolverSubTab] = useState<'expression_core' | 'step_logs'>('expression_core');
 
   const activePack = FUNCTION_PACKS.find(p => p.id === activePackId) || FUNCTION_PACKS[0];
 
@@ -847,9 +976,28 @@ export default function CDCCSingularity({ preset, onChangeState }: CDCCSingulari
               <div className="md:col-span-7 flex flex-col justify-between">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-300">
-                      {t('Пошаговый Конвейер Вычислений (RICIS-III)', 'Step-by-Step Computational Pipeline')}
-                    </span>
+                    <div className="flex bg-zinc-900 border border-white/5 p-0.5 rounded-lg">
+                      <button
+                        onClick={() => setSolverSubTab('expression_core')}
+                        className={`px-3 py-1 text-[10px] font-mono rounded-md font-medium transition ${
+                          solverSubTab === 'expression_core' 
+                            ? 'bg-emerald-500 text-black font-bold' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {t('Символьное ядро', 'Symbolic Core')}
+                      </button>
+                      <button
+                        onClick={() => setSolverSubTab('step_logs')}
+                        className={`px-3 py-1 text-[10px] font-mono rounded-md font-medium transition ${
+                          solverSubTab === 'step_logs' 
+                            ? 'bg-emerald-500 text-black font-bold' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {t('Шаги вычислений', 'Trace Logs')}
+                      </button>
+                    </div>
                     {Math.abs(state.theta - 1.0) < 0.005 ? (
                       <span className="text-[9px] bg-red-950/40 text-red-400 border border-red-800/40 px-1.5 py-0.5 rounded animate-pulse font-mono flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
@@ -863,77 +1011,177 @@ export default function CDCCSingularity({ preset, onChangeState }: CDCCSingulari
                   </div>
 
                   {/* Computational Terminal */}
-                  <div className="bg-black/60 border border-white/5 rounded-lg p-3.5 space-y-3 font-mono text-[11px] leading-relaxed text-slate-300 min-h-[220px]">
-                    
-                    {/* Math Expression Frame */}
-                    <div className="p-2.5 bg-zinc-900/40 border border-white/5 rounded flex items-center justify-between text-xs">
-                      <div>
-                        <div className="text-[10px] text-slate-500 uppercase">{t('Математическая формулировка:', 'Mathematical formulation:')}</div>
-                        <div className="text-cyan-400 font-bold mt-1 text-[13px]">
-                          {language === 'ru' ? activePack.latexRu : activePack.latexEn}
+                  {solverSubTab === 'expression_core' ? (
+                    <div className="bg-black/60 border border-white/5 rounded-lg p-3.5 space-y-3 font-mono text-[11px] leading-relaxed text-slate-300 min-h-[220px]">
+                      {/* Interactive Visual Node Diagram */}
+                      <div className="flex flex-col items-center justify-center py-2 relative">
+                        {/* Target node */}
+                        <div className="p-2 bg-zinc-900 border border-emerald-500/20 rounded-md text-center max-w-[200px] w-full z-10 shadow-lg">
+                          <span className="text-[9px] text-slate-500 uppercase block">{t('СИНГУЛЯРНОЕ ОТНОШЕНИЕ', 'SINGULAR RELATION')}</span>
+                          <span className="text-emerald-400 font-bold text-xs">f(θ) = F(θ) / G(θ)</span>
+                        </div>
+
+                        {/* Connector lines to children */}
+                        <div className="w-full flex items-center justify-around h-6 relative">
+                          <div className="absolute top-0 bottom-0 left-1/4 right-1/4 border-t border-dashed border-white/10" />
+                          <div className="w-0.5 h-full border-l border-dashed border-white/10" />
+                          <div className="w-0.5 h-full border-l border-dashed border-white/10" />
+                        </div>
+
+                        {/* Dual expression nodes */}
+                        <div className="grid grid-cols-2 gap-4 w-full">
+                          {/* F Node */}
+                          <div className={`p-2 bg-black/40 border rounded-md transition-all ${
+                            Math.abs(state.theta - 1.0) < 0.005 
+                              ? 'border-cyan-500/50 bg-cyan-950/10 shadow-[0_0_10px_rgba(6,182,212,0.15)]' 
+                              : 'border-white/5'
+                          }`}>
+                            <div className="flex items-center justify-between border-b border-white/5 pb-1 mb-1 text-[9px] text-slate-500">
+                              <span>{t('УЗЕЛ: ЧИСЛИТЕЛЬ F', 'NODE: NUMERATOR F')}</span>
+                              <span className="text-cyan-400 font-bold bg-cyan-950/30 px-1 rounded border border-cyan-800/20">DEFERRED</span>
+                            </div>
+                            <div className="text-cyan-400 font-bold text-[10px] break-all">
+                              {language === 'ru' ? activePack.deferredF.symbolicFormulaRu : activePack.deferredF.symbolicFormulaEn}
+                            </div>
+                            <div className="mt-1.5 pt-1.5 border-t border-white/5 flex flex-col gap-0.5 text-[9px]">
+                              <span className="text-slate-500">{t('Текущая оценка:', 'Current evaluation:')}</span>
+                              {Math.abs(state.theta - 1.0) < 0.005 ? (
+                                <span className="text-cyan-400 font-bold flex items-center gap-1">
+                                  <span>0_F</span>
+                                  <span className="text-[8px] text-slate-500">({activePack.deferredF.evaluateWithIndex(state.theta).index})</span>
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">{activePack.deferredF.evaluate(state.theta).toFixed(4)}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* G Node */}
+                          <div className={`p-2 bg-black/40 border rounded-md transition-all ${
+                            Math.abs(state.theta - 1.0) < 0.005 
+                              ? 'border-amber-500/50 bg-amber-950/10 shadow-[0_0_10px_rgba(245,158,11,0.15)]' 
+                              : 'border-white/5'
+                          }`}>
+                            <div className="flex items-center justify-between border-b border-white/5 pb-1 mb-1 text-[9px] text-slate-500">
+                              <span>{t('УЗЕЛ: ЗНАМЕНАТЕЛЬ G', 'NODE: DENOMINATOR G')}</span>
+                              <span className="text-amber-500 font-bold bg-amber-950/30 px-1 rounded border border-amber-800/20">DEFERRED</span>
+                            </div>
+                            <div className="text-amber-400 font-bold text-[10px] break-all">
+                              {language === 'ru' ? activePack.deferredG.symbolicFormulaRu : activePack.deferredG.symbolicFormulaEn}
+                            </div>
+                            <div className="mt-1.5 pt-1.5 border-t border-white/5 flex flex-col gap-0.5 text-[9px]">
+                              <span className="text-slate-500">{t('Текущая оценка:', 'Current evaluation:')}</span>
+                              {Math.abs(state.theta - 1.0) < 0.005 ? (
+                                <span className="text-amber-400 font-bold flex items-center gap-1">
+                                  <span>0_G</span>
+                                  <span className="text-[8px] text-slate-500">({activePack.deferredG.evaluateWithIndex(state.theta).index})</span>
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">{activePack.deferredG.evaluate(state.theta).toFixed(4)}</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-[10px] text-slate-500 uppercase">{t('Классическое значение:', 'Classical Value:')}</div>
-                        <div className="text-amber-500 font-semibold mt-1">
-                          {Math.abs(state.theta - 1.0) < 0.005 ? (
-                            <span className="text-red-500 font-bold">{t('Деление на 0! (NaN)', 'Div by 0! (NaN)')}</span>
-                          ) : (
-                            (activePack.evalF(state.theta) / activePack.evalG(state.theta)).toFixed(3)
-                          )}
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Phase-by-phase trace */}
-                    <div className="space-y-1.5 text-[10px] max-h-[160px] overflow-y-auto pr-1">
-                      
-                      {/* Phase 0.5: Semantic Indexing */}
-                      <div className="border-l-2 border-cyan-500 pl-2 py-0.5">
-                        <span className="text-cyan-400 font-bold block">PHASE 0.5: SEMANTIC INDEXING (SP4)</span>
-                        <span className="text-slate-400">
-                          {t('Индексирование по отложенному выражению, а не по скалярному числу:', 'Indexing by deferred expression, not by scalar value:')}
-                        </span>
-                        <div className="text-slate-300 mt-0.5 bg-zinc-950/60 p-1 rounded border border-white/5 text-[9px]">
-                          F = {language === 'ru' ? activePack.fExprRu : activePack.fExprEn}
-                          <br />
-                          G = {language === 'ru' ? activePack.gExprRu : activePack.gExprEn}
-                        </div>
-                      </div>
-
-                      {/* Phase 1: SP2 Algebraic reduction */}
-                      <div className="border-l-2 border-emerald-500 pl-2 py-0.5">
-                        <span className="text-emerald-400 font-bold block">PHASE 1: SAFETY CHECK (SP2)</span>
-                        <span className="text-slate-400">
-                          {activePack.canBeSimplified 
-                            ? `${t('Обнаружено сокращаемое выражение:', 'Cancellable expression detected:')} ${language === 'ru' ? activePack.simplifiedExprRu : activePack.simplifiedExprEn}`
-                            : t('Алгебраическое сокращение невозможно. Переход к прямому вычислению.', 'No algebraic cancellation possible. Transitioning to direct evaluation.')}
-                        </span>
-                      </div>
-
-                      {/* Phase 2: RICIS Transform */}
-                      <div className="border-l-2 border-purple-500 pl-2 py-0.5">
-                        <span className="text-purple-400 font-bold block">PHASE 2: RICIS TRANSFORM (SP3 & A4)</span>
-                        <span className="text-slate-400">
-                          {t('Замена отношения нулей отношением самих отложенных выражений: ', 'Replacing the ratio of zeroes with the ratio of deferred expressions: ')}
-                          <strong className="text-white">0_F / 0_G = F / G</strong>
-                        </span>
+                      {/* Symbolic Resolution Verdict */}
+                      <div className="p-2.5 bg-zinc-900/40 border border-white/5 rounded-lg text-xs space-y-1">
+                        <div className="text-[9px] text-slate-500 uppercase font-mono">{t('РИКИС СИМВОЛЬНОЕ РАЗРЕШЕНИЕ (0_F / 0_G):', 'RICIS SYMBOLIC RESOLUTION (0_F / 0_G):')}</div>
                         {Math.abs(state.theta - 1.0) < 0.005 ? (
-                          <div className="text-emerald-400 mt-1 font-bold">
-                            {t('Сингулярность разрешена! Предельное значение: ', 'Singularity resolved! Limiting value: ')} 
-                            {language === 'ru' ? activePack.resolveLabelRu : activePack.resolveLabelEn}
+                          <div className="space-y-1.5">
+                            <div className="text-emerald-400 font-bold flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>{t('Обнаружен разрыв 0/0. Задействовано Аксиоматическое ядро:', '0/0 Discontinuity detected. Axiomatic core engaged:')}</span>
+                            </div>
+                            <div className="text-slate-300 text-[10px] leading-relaxed">
+                              {t('Поскольку F и G представлены как отложенные выражения, а не как числа, они сохраняют информацию о своей внутренней плотности. Аксиома А4 дает:', 'Since F and G are held as deferred expressions rather than flat numbers, they preserve internal weight information. Axiom A4 gives:')}{' '}
+                              <strong className="text-emerald-400 font-bold">0_F / 0_G = F / G</strong>.
+                              <br />
+                              {t('Численный вес находится через отношение производных (Закон Индексов SP3/SP4):', 'The numerical weight is found via the ratio of derivatives (SP3/SP4 Index Law):')}{' '}
+                              <span className="text-cyan-300">F\'(1) / G\'(1) = {activePack.derivF(1.0).toFixed(3)} / {activePack.derivG(1.0).toFixed(3)} = {activePack.resolveLabelRu}</span>
+                            </div>
                           </div>
                         ) : (
-                          <div className="text-slate-500 mt-0.5">
-                            {t('Текущее отношение: ', 'Current ratio: ')} 
-                            {(activePack.evalF(state.theta) / activePack.evalG(state.theta)).toFixed(3)}
+                          <div className="text-slate-400 text-[10px]">
+                            {t('Параметр θ вне сингулярности. Применяются классические скалярные правила деления:', 'Parameter θ is outside the singularity. Classical scalar division rules apply:')}{' '}
+                            <span className="text-white">F(θ)/G(θ) = {(activePack.evalF(state.theta) / activePack.evalG(state.theta)).toFixed(4)}</span>
                           </div>
                         )}
                       </div>
+                    </div>
+                  ) : (
+                    <div className="bg-black/60 border border-white/5 rounded-lg p-3.5 space-y-3 font-mono text-[11px] leading-relaxed text-slate-300 min-h-[220px]">
+                      
+                      {/* Math Expression Frame */}
+                      <div className="p-2.5 bg-zinc-900/40 border border-white/5 rounded flex items-center justify-between text-xs">
+                        <div>
+                          <div className="text-[10px] text-slate-500 uppercase">{t('Математическая формулировка:', 'Mathematical formulation:')}</div>
+                          <div className="text-cyan-400 font-bold mt-1 text-[13px]">
+                            {language === 'ru' ? activePack.latexRu : activePack.latexEn}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] text-slate-500 uppercase">{t('Классическое значение:', 'Classical Value:')}</div>
+                          <div className="text-amber-500 font-semibold mt-1">
+                            {Math.abs(state.theta - 1.0) < 0.005 ? (
+                              <span className="text-red-500 font-bold">{t('Деление на 0! (NaN)', 'Div by 0! (NaN)')}</span>
+                            ) : (
+                              (activePack.evalF(state.theta) / activePack.evalG(state.theta)).toFixed(3)
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Phase-by-phase trace */}
+                      <div className="space-y-1.5 text-[10px] max-h-[160px] overflow-y-auto pr-1">
+                        
+                        {/* Phase 0.5: Semantic Indexing */}
+                        <div className="border-l-2 border-cyan-500 pl-2 py-0.5">
+                          <span className="text-cyan-400 font-bold block">PHASE 0.5: SEMANTIC INDEXING (SP4)</span>
+                          <span className="text-slate-400">
+                            {t('Индексирование по отложенному выражению, а не по скалярному числу:', 'Indexing by deferred expression, not by scalar value:')}
+                          </span>
+                          <div className="text-slate-300 mt-0.5 bg-zinc-950/60 p-1 rounded border border-white/5 text-[9px]">
+                            F = {language === 'ru' ? activePack.fExprRu : activePack.fExprEn}
+                            <br />
+                            G = {language === 'ru' ? activePack.gExprRu : activePack.gExprEn}
+                          </div>
+                        </div>
+
+                        {/* Phase 1: SP2 Algebraic reduction */}
+                        <div className="border-l-2 border-emerald-500 pl-2 py-0.5">
+                          <span className="text-emerald-400 font-bold block">PHASE 1: SAFETY CHECK (SP2)</span>
+                          <span className="text-slate-400">
+                            {activePack.canBeSimplified 
+                              ? `${t('Обнаружено сокращаемое выражение:', 'Cancellable expression detected:')} ${language === 'ru' ? activePack.simplifiedExprRu : activePack.simplifiedExprEn}`
+                              : t('Алгебраическое сокращение невозможно. Переход к прямому вычислению.', 'No algebraic cancellation possible. Transitioning to direct evaluation.')}
+                          </span>
+                        </div>
+
+                        {/* Phase 2: RICIS Transform */}
+                        <div className="border-l-2 border-purple-500 pl-2 py-0.5">
+                          <span className="text-purple-400 font-bold block">PHASE 2: RICIS TRANSFORM (SP3 & A4)</span>
+                          <span className="text-slate-400">
+                            {t('Замена отношения нулей отношением самих отложенных выражений: ', 'Replacing the ratio of zeroes with the ratio of deferred expressions: ')}
+                            <strong className="text-white">0_F / 0_G = F / G</strong>
+                          </span>
+                          {Math.abs(state.theta - 1.0) < 0.005 ? (
+                            <div className="text-emerald-400 mt-1 font-bold">
+                              {t('Сингулярность разрешена! Предельное значение: ', 'Singularity resolved! Limiting value: ')} 
+                              {language === 'ru' ? activePack.resolveLabelRu : activePack.resolveLabelEn}
+                            </div>
+                          ) : (
+                            <div className="text-slate-500 mt-0.5">
+                              {t('Текущее отношение: ', 'Current ratio: ')} 
+                              {(activePack.evalF(state.theta) / activePack.evalG(state.theta)).toFixed(3)}
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
 
                     </div>
-
-                  </div>
+                  )}
                 </div>
 
                 {/* Proof Status Bar */}
