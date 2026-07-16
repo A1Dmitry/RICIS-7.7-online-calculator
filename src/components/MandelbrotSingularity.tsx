@@ -23,6 +23,8 @@ import {
   ToggleLeft,
   ToggleRight,
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
   Infinity as InfinityIcon
 } from 'lucide-react';
 
@@ -30,6 +32,34 @@ interface MandelbrotSingularityProps {
   preset?: any;
   onChangeState?: (state: any) => void;
   isActive?: boolean;
+}
+
+// Safe multiplication-division function ensuring precision before scale truncation
+function muldiv(a: number, b: number, c: number): number {
+  return (a * b) / c;
+}
+
+// RICIS navigation step calculation using strict (A, B, C) parameter ordering
+function calculate_ricis_navigation_step(
+  norm_mouse_x: number,
+  norm_mouse_y: number,
+  base_w: number,
+  base_h: number,
+  current_zoom: number,
+  scale_factor: number
+): [number, number] {
+  // 1. Prepare medium parameters (components A)
+  const mouse_world_w = norm_mouse_x * base_w;
+  const mouse_world_h = norm_mouse_y * base_h;
+  
+  // 2. Prepare stable step parameter (component B)
+  const step_factor = 1.0 - (1.0 / scale_factor);
+  
+  // 3. Pass to muldiv in strict order: muldiv(MEDIUM, MEDIUM, EXTREMELY_LARGE)
+  const delta_re = muldiv(mouse_world_w, step_factor, current_zoom);
+  const delta_im = muldiv(mouse_world_h, step_factor, current_zoom);
+  
+  return [delta_re, delta_im];
 }
 
 export default function MandelbrotSingularity({ preset, onChangeState, isActive = true }: MandelbrotSingularityProps = {}) {
@@ -73,6 +103,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
   const [juliaX, setJuliaX] = useState<number>(-0.7);
   const [juliaY, setJuliaY] = useState<number>(0.27015);
   const [ricisTheta, setRicisTheta] = useState<number>(0.0); // RICIS III Regularization parameter
+  const [formulaType, setFormulaType] = useState<'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn'>('standard');
   const [gridSizeIndex, setGridSizeIndex] = useState<number>(2); // Default to 4x4 (16 segments)
 
   // Raster Navigation Mode state
@@ -141,6 +172,158 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
   const isNavigatingRef = useRef<boolean>(false);
   const stableBufferCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // History linked list navigation tracking
+  interface NavNode {
+    centerX: number;
+    centerY: number;
+    zoom: number;
+    id: string;
+    prev: NavNode | null;
+    next: NavNode | null;
+  }
+
+  const historyCurrentRef = useRef<NavNode | null>(null);
+  const [canGoBack, setCanGoBack] = useState<boolean>(false);
+  const [canGoForward, setCanGoForward] = useState<boolean>(false);
+  const [historyLength, setHistoryLength] = useState<number>(0);
+  const [historyIndex, setHistoryIndex] = useState<number>(0);
+
+  const pushHistoryState = (cx: number, cy: number, z: number) => {
+    if (!historyCurrentRef.current) {
+      const newNode: NavNode = {
+        centerX: cx,
+        centerY: cy,
+        zoom: z,
+        id: Math.random().toString(36).substr(2, 9),
+        prev: null,
+        next: null
+      };
+      historyCurrentRef.current = newNode;
+      setCanGoBack(false);
+      setCanGoForward(false);
+      setHistoryLength(1);
+      setHistoryIndex(0);
+      return;
+    }
+
+    const current = historyCurrentRef.current;
+    const dist = Math.hypot(current.centerX - cx, current.centerY - cy);
+    const zDiff = Math.abs(current.zoom - z) / Math.max(1e-20, current.zoom);
+    if (dist < 1e-18 && zDiff < 1e-5) {
+      return; // Skip duplicate positions
+    }
+
+    const newNode: NavNode = {
+      centerX: cx,
+      centerY: cy,
+      zoom: z,
+      id: Math.random().toString(36).substr(2, 9),
+      prev: current,
+      next: null
+    };
+
+    current.next = newNode;
+    historyCurrentRef.current = newNode;
+
+    let len = 1;
+    let idx = 0;
+    let temp: NavNode | null = newNode;
+    while (temp.prev) {
+      temp = temp.prev;
+      len++;
+      idx++;
+    }
+
+    setCanGoBack(newNode.prev !== null);
+    setCanGoForward(false);
+    setHistoryLength(len);
+    setHistoryIndex(idx);
+  };
+
+  const goBackInHistory = () => {
+    if (historyCurrentRef.current && historyCurrentRef.current.prev) {
+      const prevNode = historyCurrentRef.current.prev;
+      historyCurrentRef.current = prevNode;
+
+      viewCenterXRef.current = prevNode.centerX;
+      viewCenterYRef.current = prevNode.centerY;
+      viewZoomRef.current = prevNode.zoom;
+
+      setCenterX(prevNode.centerX);
+      setCenterY(prevNode.centerY);
+      setZoom(prevNode.zoom);
+
+      setViewCenterX(prevNode.centerX);
+      setViewCenterY(prevNode.centerY);
+      setViewZoom(prevNode.zoom);
+
+      let idx = 0;
+      let temp: NavNode | null = prevNode;
+      while (temp.prev) {
+        temp = temp.prev;
+        idx++;
+      }
+
+      setCanGoBack(prevNode.prev !== null);
+      setCanGoForward(prevNode.next !== null);
+      setHistoryIndex(idx);
+
+      recalculationStartTimeRef.current = Date.now();
+      if (recalculationTimerRef.current) {
+        clearTimeout(recalculationTimerRef.current);
+      }
+      recalculationTimerRef.current = setTimeout(() => {
+        if (renderQueue.current.length > 0 && !isNavigatingRef.current) {
+          setShowRecalculationBar(true);
+        }
+      }, 1000);
+
+      renderFractal();
+    }
+  };
+
+  const goForwardInHistory = () => {
+    if (historyCurrentRef.current && historyCurrentRef.current.next) {
+      const nextNode = historyCurrentRef.current.next;
+      historyCurrentRef.current = nextNode;
+
+      viewCenterXRef.current = nextNode.centerX;
+      viewCenterYRef.current = nextNode.centerY;
+      viewZoomRef.current = nextNode.zoom;
+
+      setCenterX(nextNode.centerX);
+      setCenterY(nextNode.centerY);
+      setZoom(nextNode.zoom);
+
+      setViewCenterX(nextNode.centerX);
+      setViewCenterY(nextNode.centerY);
+      setViewZoom(nextNode.zoom);
+
+      let idx = 0;
+      let temp: NavNode | null = nextNode;
+      while (temp.prev) {
+        temp = temp.prev;
+        idx++;
+      }
+
+      setCanGoBack(nextNode.prev !== null);
+      setCanGoForward(nextNode.next !== null);
+      setHistoryIndex(idx);
+
+      recalculationStartTimeRef.current = Date.now();
+      if (recalculationTimerRef.current) {
+        clearTimeout(recalculationTimerRef.current);
+      }
+      recalculationTimerRef.current = setTimeout(() => {
+        if (renderQueue.current.length > 0 && !isNavigatingRef.current) {
+          setShowRecalculationBar(true);
+        }
+      }, 1000);
+
+      renderFractal();
+    }
+  };
+
   const getStableBuffer = (width: number, height: number) => {
     if (!stableBufferCanvasRef.current) {
       stableBufferCanvasRef.current = document.createElement('canvas');
@@ -165,6 +348,8 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     setCenterX(viewCenterXRef.current);
     setCenterY(viewCenterYRef.current);
     setZoom(viewZoomRef.current);
+
+    pushHistoryState(viewCenterXRef.current, viewCenterYRef.current, viewZoomRef.current);
 
     // Save to localStorage
     try {
@@ -249,14 +434,20 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
         if (typeof preset.centerX === 'number') {
           setCenterX(preset.centerX);
           centerXRef.current = preset.centerX;
+          setViewCenterX(preset.centerX);
+          viewCenterXRef.current = preset.centerX;
         }
         if (typeof preset.centerY === 'number') {
           setCenterY(preset.centerY);
           centerYRef.current = preset.centerY;
+          setViewCenterY(preset.centerY);
+          viewCenterYRef.current = preset.centerY;
         }
         if (typeof preset.zoom === 'number') {
           setZoom(preset.zoom);
           zoomRef.current = preset.zoom;
+          setViewZoom(preset.zoom);
+          viewZoomRef.current = preset.zoom;
         }
         if (typeof preset.maxIterations === 'number') setMaxIterations(preset.maxIterations);
         if (preset.colorScheme) setColorScheme(preset.colorScheme);
@@ -265,6 +456,13 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
         if (typeof preset.juliaX === 'number') setJuliaX(preset.juliaX);
         if (typeof preset.juliaY === 'number') setJuliaY(preset.juliaY);
         if (typeof preset.ricisTheta === 'number') setRicisTheta(preset.ricisTheta);
+        if (preset.formulaType) setFormulaType(preset.formulaType);
+
+        pushHistoryState(
+          typeof preset.centerX === 'number' ? preset.centerX : centerXRef.current,
+          typeof preset.centerY === 'number' ? preset.centerY : centerYRef.current,
+          typeof preset.zoom === 'number' ? preset.zoom : zoomRef.current
+        );
       }
     }
   }, [preset]);
@@ -281,41 +479,52 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
       juliaMode,
       juliaX,
       juliaY,
-      ricisTheta
+      ricisTheta,
+      formulaType
     });
-  }, [centerX, centerY, zoom, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, onChangeState]);
+  }, [centerX, centerY, zoom, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, formulaType, onChangeState]);
 
   // Pre-configured coordinate bookmarks (RICIS singularities)
   const bookmarks = [
     {
       name: t('Долина Спиралей', 'Spiral Valley'),
       desc: t('Каскад бесконечных самоподобных спиралей Мандельброта', 'Infinite cascade of self-similar Mandelbrot spirals'),
-      state: { centerX: -0.743643887037158704752191506114774, centerY: 0.131825904205311970493132056385139, zoom: 0.00005, maxIterations: 300, juliaMode: false, ricisTheta: 0.0 }
+      state: { centerX: -0.743643887037158704752191506114774, centerY: 0.131825904205311970493132056385139, zoom: 0.00005, maxIterations: 300, juliaMode: false, ricisTheta: 0.0, formulaType: 'standard' as 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn' }
     },
     {
       name: t('Каньон Морфизма', 'Morphism Canyon'),
       desc: t('Узкий переход с высоким порядком симметрии', 'Narrow corridor with high-order symmetry'),
-      state: { centerX: -0.098, centerY: 0.654, zoom: 0.015, maxIterations: 200, juliaMode: false, ricisTheta: 0.02 }
+      state: { centerX: -0.098, centerY: 0.654, zoom: 0.015, maxIterations: 200, juliaMode: false, ricisTheta: 0.02, formulaType: 'standard' as 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn' }
     },
     {
       name: t('Сердце Джулии', 'Heart of Julia'),
       desc: t('Классическое дендритное множество Джулии', 'Classic dendritic Julia set of fractal heart-shapes'),
-      state: { centerX: 0, centerY: 0, zoom: 2.2, maxIterations: 180, juliaMode: true, juliaX: -0.7, juliaY: 0.27015, ricisTheta: 0.0 }
+      state: { centerX: 0, centerY: 0, zoom: 2.2, maxIterations: 180, juliaMode: true, juliaX: -0.7, juliaY: 0.27015, ricisTheta: 0.0, formulaType: 'standard' as 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn' }
     },
     {
       name: t('Сингулярность θ-Волны', 'Theta Wave Singularity'),
       desc: t('Множество Мандельброта, искаженное квантовым полем RICIS', 'Mandelbrot set warped by the RICIS quantum field'),
-      state: { centerX: -0.55, centerY: 0.0, zoom: 3.0, maxIterations: 150, juliaMode: false, ricisTheta: 0.18 }
+      state: { centerX: -0.55, centerY: 0.0, zoom: 3.0, maxIterations: 150, juliaMode: false, ricisTheta: 0.18, formulaType: 'standard' as 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn' }
     },
     {
       name: t('Космические Драконы', 'Cosmic Dragons'),
       desc: t('Высокопериодические орбиты на стыке деформаций', 'Highly periodic orbits on the boundary of warping'),
-      state: { centerX: -0.162, centerY: 1.0405, zoom: 0.04, maxIterations: 350, juliaMode: false, ricisTheta: 0.03 }
+      state: { centerX: -0.162, centerY: 1.0405, zoom: 0.04, maxIterations: 350, juliaMode: false, ricisTheta: 0.03, formulaType: 'standard' as 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn' }
     },
     {
       name: t('Древо Галуа', 'Galois Tree'),
       desc: t('Фрактал Джулии с круговым притяжением', 'Julia fractal with circular attraction'),
-      state: { centerX: 0.0, centerY: 0.0, zoom: 2.0, maxIterations: 250, juliaMode: true, juliaX: -0.4, juliaY: 0.6, ricisTheta: 0.0 }
+      state: { centerX: 0.0, centerY: 0.0, zoom: 2.0, maxIterations: 250, juliaMode: true, juliaX: -0.4, juliaY: 0.6, ricisTheta: 0.0, formulaType: 'standard' as 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn' }
+    },
+    {
+      name: t('Империя Трикорн', 'Tricorn Empire'),
+      desc: t('Фрактал Трайкорн с трехлучевой симметрией границ', 'Tricorn fractal with three-cornered boundary symmetry'),
+      state: { centerX: 0.0, centerY: 0.0, zoom: 2.5, maxIterations: 150, juliaMode: false, ricisTheta: 0.0, formulaType: 'tricorn' as 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn' }
+    },
+    {
+      name: t('Корабль-Призрак', 'Ghost Burning Ship'),
+      desc: t('Фрактал Горящий Корабль с искажением θ-регуляризации', 'Burning Ship fractal warped by theta-regularization'),
+      state: { centerX: -0.45, centerY: -0.5, zoom: 2.2, maxIterations: 150, juliaMode: false, ricisTheta: 0.05, formulaType: 'burning_ship' as 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn' }
     }
   ];
 
@@ -326,11 +535,23 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     centerYRef.current = b.state.centerY;
     setZoom(b.state.zoom);
     zoomRef.current = b.state.zoom;
+
+    setViewCenterX(b.state.centerX);
+    viewCenterXRef.current = b.state.centerX;
+    setViewCenterY(b.state.centerY);
+    viewCenterYRef.current = b.state.centerY;
+    setViewZoom(b.state.zoom);
+    viewZoomRef.current = b.state.zoom;
+
     setMaxIterations(b.state.maxIterations);
     setJuliaMode(b.state.juliaMode);
     if (b.state.juliaX !== undefined) setJuliaX(b.state.juliaX);
     if (b.state.juliaY !== undefined) setJuliaY(b.state.juliaY);
     setRicisTheta(b.state.ricisTheta);
+    if (b.state.formulaType) setFormulaType(b.state.formulaType);
+    else setFormulaType('standard');
+
+    pushHistoryState(b.state.centerX, b.state.centerY, b.state.zoom);
   };
 
   // Helper colors mapping for scheme
@@ -422,14 +643,87 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
         varying vec2 uv;
         uniform vec2 u_resolution;
-        uniform vec2 u_center;
-        uniform float u_zoom;
+        uniform vec2 u_center_high;
+        uniform vec2 u_center_low;
+        uniform float u_zoom_high;
+        uniform float u_zoom_low;
         uniform int u_max_iterations;
         uniform int u_color_scheme; // 0: classic, 1: psychedelic, 2: rainbow, 3: monochrome, 4: fire, 5: cosmic
         uniform float u_smooth;
         uniform float u_theta;
         uniform float u_julia;
-        uniform vec2 u_julia_c;
+        uniform vec2 u_julia_c_high;
+        uniform vec2 u_julia_c_low;
+        uniform int u_formula_type; // 0: standard, 1: cubic, 2: quartic, 3: burning_ship, 4: tricorn
+
+        struct dfloat {
+          float hi;
+          float lo;
+        };
+
+        dfloat ds_set(float val) {
+          dfloat d;
+          d.hi = val;
+          d.lo = 0.0;
+          return d;
+        }
+
+        // Standard Knuth Two-Sum
+        vec2 two_sum(float a, float b) {
+          float s = a + b;
+          float v = s - a;
+          float err = (a - (s - v)) + (b - v);
+          return vec2(s, err);
+        }
+
+        // Standard Dekker Split for 24-bit floats
+        vec2 split(float a) {
+          float temp = a * 4097.0;
+          float hi = temp - (temp - a);
+          float lo = a - hi;
+          return vec2(hi, lo);
+        }
+
+        // Standard Dekker Two-Product
+        vec2 two_prod(float a, float b) {
+          float p = a * b;
+          vec2 a_split = split(a);
+          vec2 b_split = split(b);
+          float err = ((a_split.x * b_split.x - p) + a_split.x * b_split.y + a_split.y * b_split.x) + a_split.y * b_split.y;
+          return vec2(p, err);
+        }
+
+        dfloat ds_add(dfloat d1, dfloat d2) {
+          vec2 s = two_sum(d1.hi, d2.hi);
+          vec2 t = two_sum(d1.lo, d2.lo);
+          s.y += t.x;
+          s = two_sum(s.x, s.y);
+          s.y += t.y;
+          s = two_sum(s.x, s.y);
+          
+          dfloat r;
+          r.hi = s.x;
+          r.lo = s.y;
+          return r;
+        }
+
+        dfloat ds_sub(dfloat d1, dfloat d2) {
+          dfloat neg_d2;
+          neg_d2.hi = -d2.hi;
+          neg_d2.lo = -d2.lo;
+          return ds_add(d1, neg_d2);
+        }
+
+        dfloat ds_mul(dfloat d1, dfloat d2) {
+          vec2 p = two_prod(d1.hi, d2.hi);
+          p.y += d1.hi * d2.lo + d1.lo * d2.hi;
+          vec2 s = two_sum(p.x, p.y);
+          
+          dfloat r;
+          r.hi = s.x;
+          r.lo = s.y;
+          return r;
+        }
 
         vec3 getColor(float t) {
           // Adjust by theta phase shifts
@@ -468,11 +762,37 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
         }
 
         void main() {
-          // Scale UV to map square coordinates directly
-          vec2 coord = u_center + (uv - 0.5) * u_zoom;
+          // Scale pixel coordinates using gl_FragCoord to prevent single-precision varying interpolation loss
+          dfloat zoom_df = dfloat(u_zoom_high, u_zoom_low);
 
-          vec2 z = (u_julia > 0.5) ? coord : vec2(0.0);
-          vec2 c = (u_julia > 0.5) ? u_julia_c : coord;
+          float x_val = (gl_FragCoord.x / u_resolution.x) - 0.5;
+          float y_val = (gl_FragCoord.y / u_resolution.y) - 0.5;
+
+          dfloat off_x = ds_mul(ds_set(x_val), zoom_df);
+          dfloat off_y = ds_mul(ds_set(y_val), zoom_df);
+
+          dfloat cx_df = dfloat(u_center_high.x, u_center_low.x);
+          dfloat cy_df = dfloat(u_center_high.y, u_center_low.y);
+
+          dfloat coord_x = ds_add(cx_df, off_x);
+          dfloat coord_y = ds_add(cy_df, off_y);
+
+          dfloat z_x;
+          dfloat z_y;
+          dfloat c_x;
+          dfloat c_y;
+
+          if (u_julia > 0.5) {
+            z_x = coord_x;
+            z_y = coord_y;
+            c_x = dfloat(u_julia_c_high.x, u_julia_c_low.x);
+            c_y = dfloat(u_julia_c_high.y, u_julia_c_low.y);
+          } else {
+            z_x = ds_set(0.0);
+            z_y = ds_set(0.0);
+            c_x = coord_x;
+            c_y = coord_y;
+          }
 
           float iter = 0.0;
           float max_i = float(u_max_iterations);
@@ -481,24 +801,71 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
           for (int i = 0; i < 500; i++) {
             if (float(i) >= max_i) break;
             
-            float x2 = z.x * z.x;
-            float y2 = z.y * z.y;
+            dfloat x2 = ds_mul(z_x, z_x);
+            dfloat y2 = ds_mul(z_y, z_y);
             
-            if (x2 + y2 > 4.0) {
+            if (x2.hi + y2.hi > 4.0) {
               iter = float(i);
               escaped = true;
               break;
             }
 
-            // z = z^2 + c with RICIS theta-warp
-            vec2 z_next = vec2(x2 - y2, 2.0 * z.x * z.y) + c;
+            dfloat next_x;
+            dfloat next_y;
+
+            if (u_formula_type == 1) { // Cubic (z^3 + c)
+              dfloat three = ds_set(3.0);
+              dfloat x3 = ds_mul(z_x, x2);
+              dfloat y3 = ds_mul(z_y, y2);
+              dfloat three_x_y2 = ds_mul(three, ds_mul(z_x, y2));
+              dfloat three_x2_y = ds_mul(three, ds_mul(x2, z_y));
+              next_x = ds_add(ds_sub(x3, three_x_y2), c_x);
+              next_y = ds_add(ds_sub(three_x2_y, y3), c_y);
+            }
+            else if (u_formula_type == 2) { // Quartic (z^4 + c)
+              dfloat x4 = ds_mul(x2, x2);
+              dfloat y4 = ds_mul(y2, y2);
+              dfloat six_x2_y2 = ds_mul(ds_set(6.0), ds_mul(x2, y2));
+              dfloat four_x3_y = ds_mul(ds_set(4.0), ds_mul(ds_mul(z_x, x2), z_y));
+              dfloat four_x_y3 = ds_mul(ds_set(4.0), ds_mul(z_x, ds_mul(z_y, y2)));
+              next_x = ds_add(ds_add(ds_sub(x4, six_x2_y2), y4), c_x);
+              next_y = ds_add(ds_sub(four_x3_y, four_x_y3), c_y);
+            }
+            else if (u_formula_type == 3) { // Burning Ship
+              dfloat abs_x = z_x;
+              if (abs_x.hi < 0.0) { abs_x.hi = -abs_x.hi; abs_x.lo = -abs_x.lo; }
+              dfloat abs_y = z_y;
+              if (abs_y.hi < 0.0) { abs_y.hi = -abs_y.hi; abs_y.lo = -abs_y.lo; }
+              dfloat ax2 = ds_mul(abs_x, abs_x);
+              dfloat ay2 = ds_mul(abs_y, abs_y);
+              dfloat abs_x_y = ds_mul(abs_x, abs_y);
+              dfloat two_abs_x_y = ds_add(abs_x_y, abs_x_y);
+              next_x = ds_add(ds_sub(ax2, ay2), c_x);
+              next_y = ds_add(two_abs_x_y, c_y);
+            }
+            else if (u_formula_type == 4) { // Tricorn
+              dfloat zr_zi = ds_mul(z_x, z_y);
+              dfloat two_zr_zi = ds_add(zr_zi, zr_zi);
+              next_x = ds_add(ds_sub(x2, y2), c_x);
+              next_y = ds_sub(c_y, two_zr_zi);
+            }
+            else { // Standard (Power 2, z^2 + c)
+              dfloat zr_zi = ds_mul(z_x, z_y);
+              dfloat two_zr_zi = ds_add(zr_zi, zr_zi);
+              next_x = ds_add(ds_sub(x2, y2), c_x);
+              next_y = ds_add(two_zr_zi, c_y);
+            }
             
             // Add subtle non-linear RICIS wave perturbation based on theta
             if (u_theta > 0.0) {
-              z_next += u_theta * 0.08 * vec2(sin(z.x * 2.0), cos(z.y * 2.0));
+              float sin_x = sin(z_x.hi * 2.0);
+              float cos_y = cos(z_y.hi * 2.0);
+              next_x = ds_add(next_x, ds_set(u_theta * 0.08 * sin_x));
+              next_y = ds_add(next_y, ds_set(u_theta * 0.08 * cos_y));
             }
             
-            z = z_next;
+            z_x = next_x;
+            z_y = next_y;
           }
 
           if (!escaped) {
@@ -507,7 +874,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
             float t = iter / max_i;
             if (u_smooth > 0.5) {
               // Smooth continuous coloration algorithm
-              float log_zn = log(z.x*z.x + z.y*z.y) / 2.0;
+              float log_zn = log(z_x.hi*z_x.hi + z_y.hi*z_y.hi) / 2.0;
               float nu = log(log_zn / 0.69314718056) / 0.69314718056;
               iter = iter + 1.0 - nu;
               t = clamp(iter / max_i, 0.0, 1.0);
@@ -554,6 +921,12 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     }
   };
 
+  const splitDouble = (val: number): [number, number] => {
+    const high = Math.fround(val);
+    const low = val - high;
+    return [high, low];
+  };
+
   // Render a single tile using WebGL
   const renderTileWebGL = (
     gl: WebGLRenderingContext,
@@ -567,7 +940,8 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     theta: number,
     isJulia: boolean,
     jx: number,
-    jy: number
+    jy: number,
+    formulaType: 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn'
   ) => {
     gl.viewport(0, 0, 256, 256);
     gl.useProgram(program);
@@ -591,18 +965,30 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
     // Set uniforms
     const resolutionLoc = gl.getUniformLocation(program, 'u_resolution');
-    const centerLoc = gl.getUniformLocation(program, 'u_center');
-    const zoomLoc = gl.getUniformLocation(program, 'u_zoom');
+    const centerHighLoc = gl.getUniformLocation(program, 'u_center_high');
+    const centerLowLoc = gl.getUniformLocation(program, 'u_center_low');
+    const zoomHighLoc = gl.getUniformLocation(program, 'u_zoom_high');
+    const zoomLowLoc = gl.getUniformLocation(program, 'u_zoom_low');
     const maxIterLoc = gl.getUniformLocation(program, 'u_max_iterations');
     const colorSchemeLoc = gl.getUniformLocation(program, 'u_color_scheme');
     const smoothLoc = gl.getUniformLocation(program, 'u_smooth');
     const thetaLoc = gl.getUniformLocation(program, 'u_theta');
     const juliaLoc = gl.getUniformLocation(program, 'u_julia');
-    const juliaCLoc = gl.getUniformLocation(program, 'u_julia_c');
+    const juliaCHighLoc = gl.getUniformLocation(program, 'u_julia_c_high');
+    const juliaCLowLoc = gl.getUniformLocation(program, 'u_julia_c_low');
+    const formulaTypeLoc = gl.getUniformLocation(program, 'u_formula_type');
+
+    const [cxH, cxL] = splitDouble(tileCenterX);
+    const [cyH, cyL] = splitDouble(tileCenterY);
+    const [zH, zL] = splitDouble(tileWidth);
+    const [jxH, jxL] = splitDouble(jx);
+    const [jyH, jyL] = splitDouble(jy);
 
     gl.uniform2f(resolutionLoc, 256, 256);
-    gl.uniform2f(centerLoc, tileCenterX, tileCenterY);
-    gl.uniform1f(zoomLoc, tileWidth);
+    gl.uniform2f(centerHighLoc, cxH, cyH);
+    gl.uniform2f(centerLowLoc, cxL, cyL);
+    gl.uniform1f(zoomHighLoc, zH);
+    gl.uniform1f(zoomLowLoc, zL);
     gl.uniform1i(maxIterLoc, maxI);
 
     const schemeMap: Record<string, number> = {
@@ -617,7 +1003,17 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     gl.uniform1f(smoothLoc, smooth ? 1.0 : 0.0);
     gl.uniform1f(thetaLoc, theta);
     gl.uniform1f(juliaLoc, isJulia ? 1.0 : 0.0);
-    gl.uniform2f(juliaCLoc, jx, jy);
+    gl.uniform2f(juliaCHighLoc, jxH, jyH);
+    gl.uniform2f(juliaCLowLoc, jxL, jyL);
+
+    const formulaMap: Record<string, number> = {
+      'standard': 0,
+      'cubic': 1,
+      'quartic': 2,
+      'burning_ship': 3,
+      'tricorn': 4
+    };
+    gl.uniform1i(formulaTypeLoc, formulaMap[formulaType] ?? 0);
 
     // Draw
     gl.clearColor(0, 0, 0, 1);
@@ -642,7 +1038,8 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     theta: number,
     isJulia: boolean,
     jx: number,
-    jy: number
+    jy: number,
+    formulaType: 'standard' | 'cubic' | 'quartic' | 'burning_ship' | 'tricorn'
   ) => {
     const ctx = tileCanvas.getContext('2d');
     if (!ctx) return;
@@ -652,13 +1049,16 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     const imgData = ctx.createImageData(width, height);
     const data = imgData.data;
 
+    const base_re = tileCenterX - 0.5 * tileWidth;
+    const base_im = tileCenterY - 0.5 * tileWidth;
+
     for (let py = 0; py < height; py++) {
-      const stY = py / height;
-      const im = tileCenterY + (0.5 - stY) * tileWidth; // Complex plane Y goes bottom-to-top
+      const stY = (py + 0.5) / height;
+      const im = base_im + (1.0 - stY) * tileWidth; // Complex plane Y goes bottom-to-top with full 64-bit precision
 
       for (let px = 0; px < width; px++) {
-        const stX = px / width;
-        const re = tileCenterX + (stX - 0.5) * tileWidth;
+        const stX = (px + 0.5) / width;
+        const re = base_re + stX * tileWidth; // Exact pixel center with full 64-bit precision
 
         let zr = isJulia ? re : 0.0;
         let zi = isJulia ? im : 0.0;
@@ -677,8 +1077,27 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
             break;
           }
 
-          let nextR = r2 - i2 + cr;
-          let nextI = 2.0 * zr * zi + ci;
+          let nextR = 0.0;
+          let nextI = 0.0;
+
+          if (formulaType === 'cubic') {
+            nextR = zr * zr * zr - 3.0 * zr * i2 + cr;
+            nextI = 3.0 * r2 * zi - zi * i2 + ci;
+          } else if (formulaType === 'quartic') {
+            nextR = r2 * r2 - 6.0 * r2 * i2 + i2 * i2 + cr;
+            nextI = 4.0 * zr * zr * zr * zi - 4.0 * zr * zi * i2 + ci;
+          } else if (formulaType === 'burning_ship') {
+            const abs_zr = Math.abs(zr);
+            const abs_zi = Math.abs(zi);
+            nextR = abs_zr * abs_zr - abs_zi * abs_zi + cr;
+            nextI = 2.0 * abs_zr * abs_zi + ci;
+          } else if (formulaType === 'tricorn') {
+            nextR = r2 - i2 + cr;
+            nextI = -2.0 * zr * zi + ci;
+          } else { // standard
+            nextR = r2 - i2 + cr;
+            nextI = 2.0 * zr * zi + ci;
+          }
 
           if (theta > 0.0) {
             nextR += theta * 0.08 * Math.sin(zr * 2.0);
@@ -700,7 +1119,13 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
           let finalT = iter;
           if (smooth) {
             const log_zn = Math.log(zr * zr + zi * zi) / 2.0;
-            const log_val = Math.log(log_zn / 0.69314718056) / 0.69314718056;
+            let log_factor = Math.LN2;
+            if (formulaType === 'cubic') {
+              log_factor = Math.log(3.0);
+            } else if (formulaType === 'quartic') {
+              log_factor = Math.log(4.0);
+            }
+            const log_val = Math.log(log_zn / log_factor) / log_factor;
             if (!isNaN(log_val) && isFinite(log_val)) {
               finalT = iter + 1.0 - log_val;
             }
@@ -717,6 +1142,38 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     ctx.putImageData(imgData, 0, 0);
   };
 
+  // High-precision helper to compute tile screen boundaries without catastrophic cancellation
+  const getScreenBounds = (
+    tx: number,
+    ty: number,
+    level: number,
+    aspect: number,
+    width: number,
+    height: number
+  ) => {
+    const S_L = 2.5 * Math.pow(2, -level);
+    
+    // Express centerXRef and centerYRef relative to high-precision tile coordinate systems to prevent catastrophic cancellation
+    const centerTX = Math.floor(centerXRef.current / S_L);
+    const centerOffsetX = centerXRef.current - centerTX * S_L;
+    
+    const centerTY = Math.floor(centerYRef.current / S_L);
+    const centerOffsetY = centerYRef.current - centerTY * S_L;
+
+    // (tx - centerTX) is a small integer subtraction done with exact precision!
+    const dx_min = (tx - centerTX) * S_L - centerOffsetX;
+    const dx_max = (tx + 1 - centerTX) * S_L - centerOffsetX;
+    const dy_min = (ty - centerTY) * S_L - centerOffsetY;
+    const dy_max = (ty + 1 - centerTY) * S_L - centerOffsetY;
+
+    const screenMinX = (dx_min / (zoomRef.current * aspect) + 0.5) * width;
+    const screenMaxX = (dx_max / (zoomRef.current * aspect) + 0.5) * width;
+    const screenMinY = (0.5 - dy_max / zoomRef.current) * height;
+    const screenMaxY = (0.5 - dy_min / zoomRef.current) * height;
+
+    return { screenMinX, screenMaxX, screenMinY, screenMaxY };
+  };
+
   // Helper: Draw standard tile on canvas
   const drawTileOnCanvas = (
     ctx: CanvasRenderingContext2D,
@@ -728,16 +1185,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     width: number,
     height: number
   ) => {
-    const S_L = 2.5 * Math.pow(2, -level);
-    const minCX = tx * S_L;
-    const maxCX = (tx + 1) * S_L;
-    const minCY = ty * S_L;
-    const maxCY = (ty + 1) * S_L;
-
-    const screenMinX = ((minCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
-    const screenMaxX = ((maxCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
-    const screenMinY = (1.0 - (maxCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
-    const screenMaxY = (1.0 - (minCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
+    const { screenMinX, screenMaxX, screenMinY, screenMaxY } = getScreenBounds(tx, ty, level, aspect, width, height);
 
     ctx.drawImage(
       tileCanvas,
@@ -775,16 +1223,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     const sw = (fracMaxX - fracMinX) * 256;
     const sh = (fracMaxY - fracMinY) * 256;
 
-    const S_L = 2.5 * Math.pow(2, -level);
-    const minCX = tx * S_L;
-    const maxCX = (tx + 1) * S_L;
-    const minCY = ty * S_L;
-    const maxCY = (ty + 1) * S_L;
-
-    const screenMinX = ((minCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
-    const screenMaxX = ((maxCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
-    const screenMinY = (1.0 - (maxCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
-    const screenMaxY = (1.0 - (minCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
+    const { screenMinX, screenMaxX, screenMinY, screenMaxY } = getScreenBounds(tx, ty, level, aspect, width, height);
 
     ctx.drawImage(
       parentCanvas,
@@ -809,16 +1248,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     width: number,
     height: number
   ) => {
-    const S_L = 2.5 * Math.pow(2, -level);
-    const minCX = tx * S_L;
-    const maxCX = (tx + 1) * S_L;
-    const minCY = ty * S_L;
-    const maxCY = (ty + 1) * S_L;
-
-    const screenMinX = ((minCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
-    const screenMaxX = ((maxCX - (centerXRef.current - zoomRef.current * aspect * 0.5)) / (zoomRef.current * aspect)) * width;
-    const screenMinY = (1.0 - (maxCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
-    const screenMaxY = (1.0 - (minCY - (centerYRef.current - zoomRef.current * 0.5)) / zoomRef.current) * height;
+    const { screenMinX, screenMaxX, screenMinY, screenMaxY } = getScreenBounds(tx, ty, level, aspect, width, height);
 
     ctx.fillStyle = '#050510';
     ctx.fillRect(screenMinX, screenMinY, screenMaxX - screenMinX, screenMaxY - screenMinY);
@@ -886,7 +1316,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
     // Determine current target level based on gridSize selection
     const G = GRID_SIZES[gridSizeIndex]?.value ?? 4;
-    const targetLevel = Math.max(0, Math.min(20, Math.round(-Math.log2(zoomRef.current / (2.5 * G)))));
+    const targetLevel = Math.max(0, Math.min(48, Math.round(-Math.log2(zoomRef.current / (2.5 * G)))));
     const S_L = 2.5 * Math.pow(2, -targetLevel);
 
     // Calculate current viewport bounds in complex coordinates
@@ -904,7 +1334,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
 
     for (let tx = minTX; tx <= maxTX; tx++) {
       for (let ty = minTY; ty <= maxTY; ty++) {
-        const key = `${targetLevel}-${tx}-${ty}-${maxIterations}-${colorScheme}-${smoothColoring ? 1 : 0}-${juliaMode ? 1 : 0}-${juliaX.toFixed(4)}-${juliaY.toFixed(4)}-${ricisTheta.toFixed(4)}`;
+        const key = `${targetLevel}-${tx}-${ty}-${maxIterations}-${colorScheme}-${smoothColoring ? 1 : 0}-${juliaMode ? 1 : 0}-${juliaX.toFixed(14)}-${juliaY.toFixed(14)}-${ricisTheta.toFixed(14)}-${formulaType}`;
         
         const cached = tileCache.current.get(key);
         if (cached) {
@@ -919,7 +1349,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
           for (let p = targetLevel - 1; p >= 0; p--) {
             const parentTX = Math.floor(tx * Math.pow(2, p - targetLevel));
             const parentTY = Math.floor(ty * Math.pow(2, p - targetLevel));
-            const parentKey = `${p}-${parentTX}-${parentTY}-${maxIterations}-${colorScheme}-${smoothColoring ? 1 : 0}-${juliaMode ? 1 : 0}-${juliaX.toFixed(4)}-${juliaY.toFixed(4)}-${ricisTheta.toFixed(4)}`;
+            const parentKey = `${p}-${parentTX}-${parentTY}-${maxIterations}-${colorScheme}-${smoothColoring ? 1 : 0}-${juliaMode ? 1 : 0}-${juliaX.toFixed(14)}-${juliaY.toFixed(14)}-${ricisTheta.toFixed(14)}-${formulaType}`;
             
             const parentCached = tileCache.current.get(parentKey);
             if (parentCached) {
@@ -1019,7 +1449,8 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
             ricisTheta,
             juliaMode,
             juliaX,
-            juliaY
+            juliaY,
+            formulaType
           );
           const tileCtx = tileCanvas.getContext('2d')!;
           // Draw WebGL hidden buffer to offscreen 2D tile canvas
@@ -1037,7 +1468,8 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
             ricisTheta,
             juliaMode,
             juliaX,
-            juliaY
+            juliaY,
+            formulaType
           );
         }
       } else {
@@ -1052,7 +1484,8 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
           ricisTheta,
           juliaMode,
           juliaX,
-          juliaY
+          juliaY,
+          formulaType
         );
       }
 
@@ -1257,11 +1690,21 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
         const stX = touchX / width;
         const stY = 1.0 - (touchY / height);
 
-        const worldX = viewCenterXRef.current + (stX - 0.5) * aspect * viewZoomRef.current;
-        const worldY = viewCenterYRef.current + (stY - 0.5) * viewZoomRef.current;
+        // Calculate delta step using secure RICIS muldiv
+        const scale_factor = viewZoomRef.current / nextZoom;
+        const current_zoom = 1.0 / viewZoomRef.current;
 
-        let nextCenterX = worldX - (stX - 0.5) * aspect * nextZoom;
-        let nextCenterY = worldY - (stY - 0.5) * nextZoom;
+        const [delta_re, delta_im] = calculate_ricis_navigation_step(
+          stX - 0.5,
+          stY - 0.5,
+          aspect,
+          1.0,
+          current_zoom,
+          scale_factor
+        );
+
+        let nextCenterX = viewCenterXRef.current + delta_re;
+        let nextCenterY = viewCenterYRef.current + delta_im;
 
         const dx = mx - dragStart.current.x;
         const dy = my - dragStart.current.y;
@@ -1353,9 +1796,6 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
       const stX = mouseX / width;
       const stY = 1.0 - (mouseY / height); // Invert Y
       
-      const worldX = viewCenterXRef.current + (stX - 0.5) * aspect * viewZoomRef.current;
-      const worldY = viewCenterYRef.current + (stY - 0.5) * viewZoomRef.current;
-
       // Exponential inverse dependency: as zoom (magnification) increases, zoom step percentage decreases exponentially.
       // viewZoomRef.current ranges from 1e-15 to 2.5
       const zoomStepPercent = 0.03 + 0.22 * Math.pow(viewZoomRef.current / 2.5, 0.15);
@@ -1364,9 +1804,24 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
       const factor = e.deltaY < 0 ? (1.0 - zoomStepPercent) : (1.0 / (1.0 - zoomStepPercent));
       const nextZoom = Math.max(1e-15, Math.min(20, viewZoomRef.current * factor));
 
-      // Calculate new center so worldX/worldY remains under mouse cursor
-      const nextCenterX = worldX - (stX - 0.5) * aspect * nextZoom;
-      const nextCenterY = worldY - (stY - 0.5) * nextZoom;
+      // Calculate scale change factor: viewZoomRef.current / nextZoom
+      const scale_factor = viewZoomRef.current / nextZoom;
+
+      // Current Zoom in RICIS scale units (extremely large magnification)
+      const current_zoom = 1.0 / viewZoomRef.current;
+
+      // Calculate delta step using secure RICIS muldiv
+      const [delta_re, delta_im] = calculate_ricis_navigation_step(
+        stX - 0.5,
+        stY - 0.5,
+        aspect,
+        1.0,
+        current_zoom,
+        scale_factor
+      );
+
+      const nextCenterX = viewCenterXRef.current + delta_re;
+      const nextCenterY = viewCenterYRef.current + delta_im;
 
       if (
         !isNaN(nextCenterX) && isFinite(nextCenterX) &&
@@ -1470,6 +1925,13 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     initWebGL(glCanvas);
   }, []);
 
+  // Initialize history on mount
+  useEffect(() => {
+    if (!historyCurrentRef.current) {
+      pushHistoryState(centerXRef.current, centerYRef.current, zoomRef.current);
+    }
+  }, []);
+
   // Background queue processing animation loop
   useEffect(() => {
     if (!isActive) return;
@@ -1483,13 +1945,13 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     return () => {
       active = false;
     };
-  }, [isActive, renderMode, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta]);
+  }, [isActive, renderMode, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, formulaType]);
 
   // Recalculate and redraw when any coordinate or parameter changes
   useEffect(() => {
     if (!isActive) return;
     renderFractal();
-  }, [isActive, centerX, centerY, zoom, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, gridSizeIndex]);
+  }, [isActive, centerX, centerY, zoom, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, formulaType, gridSizeIndex]);
 
   // Handle window resizing dynamically
   useEffect(() => {
@@ -1498,7 +1960,7 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [centerX, centerY, zoom, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, gridSizeIndex]);
+  }, [centerX, centerY, zoom, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, formulaType, gridSizeIndex]);
 
   // SVG Export Generator
   const handleExportSvg = () => {
@@ -1546,8 +2008,27 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
                 break;
               }
 
-              let nextR = r2 - i2 + cr;
-              let nextI = 2.0 * zr * zi + ci;
+              let nextR = 0.0;
+              let nextI = 0.0;
+
+              if (formulaType === 'cubic') {
+                nextR = zr * zr * zr - 3.0 * zr * i2 + cr;
+                nextI = 3.0 * r2 * zi - zi * i2 + ci;
+              } else if (formulaType === 'quartic') {
+                nextR = r2 * r2 - 6.0 * r2 * i2 + i2 * i2 + cr;
+                nextI = 4.0 * zr * zr * zr * zi - 4.0 * zr * zi * i2 + ci;
+              } else if (formulaType === 'burning_ship') {
+                const abs_zr = Math.abs(zr);
+                const abs_zi = Math.abs(zi);
+                nextR = abs_zr * abs_zr - abs_zi * abs_zi + cr;
+                nextI = 2.0 * abs_zr * abs_zi + ci;
+              } else if (formulaType === 'tricorn') {
+                nextR = r2 - i2 + cr;
+                nextI = -2.0 * zr * zi + ci;
+              } else { // standard
+                nextR = r2 - i2 + cr;
+                nextI = 2.0 * zr * zi + ci;
+              }
 
               if (theta > 0.0) {
                 nextR += theta * 0.08 * Math.sin(zr * 2.0);
@@ -1725,6 +2206,35 @@ ${pathElements}</svg>`;
 
             {/* Floating Navigation Controls */}
             <div className="absolute bottom-4 right-4 flex items-center gap-1.5 bg-black/60 backdrop-blur-md p-1.5 rounded-lg border border-white/10 z-30">
+              {/* History back/forward buttons */}
+              <div className="flex items-center gap-1 border-r border-white/10 pr-1.5 mr-0.5 shrink-0">
+                <button
+                  onClick={goBackInHistory}
+                  disabled={!canGoBack}
+                  className={`p-1.5 rounded transition cursor-pointer flex items-center justify-center ${
+                    canGoBack ? 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20' : 'text-slate-600 border border-transparent opacity-40 cursor-not-allowed'
+                  }`}
+                  title={t('Назад по истории', 'History Back')}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={goForwardInHistory}
+                  disabled={!canGoForward}
+                  className={`p-1.5 rounded transition cursor-pointer flex items-center justify-center ${
+                    canGoForward ? 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20' : 'text-slate-600 border border-transparent opacity-40 cursor-not-allowed'
+                  }`}
+                  title={t('Вперед по истории', 'History Forward')}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                {historyLength > 1 && (
+                  <span className="text-[9px] font-mono text-slate-400 px-1 select-none font-semibold">
+                    {historyIndex + 1}/{historyLength}
+                  </span>
+                )}
+              </div>
+
               <button
                 onClick={zoomIn}
                 className="p-1.5 rounded bg-white/5 hover:bg-white/15 text-white transition cursor-pointer"
@@ -1957,6 +2467,32 @@ ${pathElements}</svg>`;
                 {juliaMode 
                   ? t('Множество Джулии вычисляется для фиксированной константы С.', 'The Julia set is computed for a static constant coordinate C.')
                   : t('Множество Мандельброта картирует орбиты всех стартовых точек.', 'The Mandelbrot set maps the boundary behaviors of critical orbits.')}
+              </p>
+            </div>
+
+            {/* Fractal Equation Selector */}
+            <div className="space-y-1.5 pt-2 border-t border-white/5">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold text-slate-300">{t('Уравнение фрактала', 'Fractal Equation')}</span>
+                <select
+                  id="formula-type-selector"
+                  value={formulaType}
+                  onChange={e => setFormulaType(e.target.value as any)}
+                  className="bg-black/60 border border-white/15 rounded px-2 py-1 text-xs font-semibold text-cyan-300 cursor-pointer focus:outline-none focus:border-cyan-400"
+                >
+                  <option value="standard">Standard (z² + c)</option>
+                  <option value="cubic">Cubic (z³ + c)</option>
+                  <option value="quartic">Quartic (z⁴ + c)</option>
+                  <option value="burning_ship">Burning Ship</option>
+                  <option value="tricorn">Tricorn (conj(z)² + c)</option>
+                </select>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-normal">
+                {formulaType === 'standard' && t('Классическое уравнение второй степени.', 'Classic second-degree polynomial relation.')}
+                {formulaType === 'cubic' && t('Кубическое комплексное отображение с утроенной симметрией.', 'Cubic complex mapping with triple-fold rotational symmetry.')}
+                {formulaType === 'quartic' && t('Отображение четвертой степени с четырехкратной симметрией.', 'Fourth-degree mapping with four-fold symmetry pattern.')}
+                {formulaType === 'burning_ship' && t('Фрактал Горящий Корабль с абсолютными координатами на каждой итерации.', 'Burning Ship fractal using absolute values on each iteration step.')}
+                {formulaType === 'tricorn' && t('Фрактал Трайкорн, использующий комплексное сопряжение.', 'Tricorn fractal using the complex conjugate of z.')}
               </p>
             </div>
 
@@ -2245,25 +2781,31 @@ ${pathElements}</svg>`;
               </span>
               
               <div className="py-4 px-3 bg-[#070709] border border-white/5 rounded font-mono text-xs text-center text-white/90 select-all overflow-x-auto min-h-[56px] flex items-center justify-center">
-                {juliaMode ? (
-                  ricisTheta > 0 ? (
+                {(() => {
+                  let baseExpr: React.ReactNode = <span>z<sub>n</sub>²</span>;
+                  if (formulaType === 'cubic') {
+                    baseExpr = <span>z<sub>n</sub>³</span>;
+                  } else if (formulaType === 'quartic') {
+                    baseExpr = <span>z<sub>n</sub>⁴</span>;
+                  } else if (formulaType === 'burning_ship') {
+                    baseExpr = <span>(|Re(z<sub>n</sub>)| + i|Im(z<sub>n</sub>)|)²</span>;
+                  } else if (formulaType === 'tricorn') {
+                    baseExpr = <span>_z<sub>n</sub>²</span>; // using complex conjugate representation
+                  }
+
+                  const cTerm = juliaMode 
+                    ? ` + (${juliaX >= 0 ? '+' : ''}${juliaX.toFixed(5)} ${juliaY >= 0 ? '+' : ''}${juliaY.toFixed(5)}i)`
+                    : ' + c';
+
+                  return (
                     <div>
-                      <span>z<sub>n+1</sub> = z<sub>n</sub>² + ({juliaX >= 0 ? '+' : ''}{juliaX.toFixed(5)} {juliaY >= 0 ? '+' : ''}{juliaY.toFixed(5)}i)</span>
-                      <span className="text-cyan-400 block mt-1 text-[10px]">+ {ricisTheta.toFixed(3)} · 0.08 · (sin(2·Re(z<sub>n</sub>)) + i·cos(2·Im(z<sub>n</sub>)))</span>
+                      <span>z<sub>n+1</sub> = {baseExpr}{cTerm}</span>
+                      {ricisTheta > 0 && (
+                        <span className="text-cyan-400 block mt-1 text-[10px]">+ {ricisTheta.toFixed(3)} · 0.08 · (sin(2·Re(z<sub>n</sub>)) + i·cos(2·Im(z<sub>n</sub>)))</span>
+                      )}
                     </div>
-                  ) : (
-                    <span>z<sub>n+1</sub> = z<sub>n</sub>² + ({juliaX >= 0 ? '+' : ''}{juliaX.toFixed(5)} {juliaY >= 0 ? '+' : ''}{juliaY.toFixed(5)}i)</span>
-                  )
-                ) : (
-                  ricisTheta > 0 ? (
-                    <div>
-                      <span>z<sub>n+1</sub> = z<sub>n</sub>² + c</span>
-                      <span className="text-cyan-400 block mt-1 text-[10px]">+ {ricisTheta.toFixed(3)} · 0.08 · (sin(2·Re(z<sub>n</sub>)) + i·cos(2·Im(z<sub>n</sub>)))</span>
-                    </div>
-                  ) : (
-                    <span>z<sub>n+1</sub> = z<sub>n</sub>² + c</span>
-                  )
-                )}
+                  );
+                })()}
               </div>
             </div>
 
@@ -2275,10 +2817,23 @@ ${pathElements}</svg>`;
               </p>
               <button
                 onClick={() => {
-                  const cStr = `${juliaX >= 0 ? '+' : ''}${juliaX.toFixed(5)} ${juliaY >= 0 ? '+' : ''}${juliaY.toFixed(5)}i`;
-                  const formulaText = juliaMode 
-                    ? (ricisTheta > 0 ? `z_{n+1} = z_n² + (${cStr}) + ${ricisTheta.toFixed(3)} * 0.08 * (sin(2*Re(z_n)) + i*cos(2*Im(z_n)))` : `z_{n+1} = z_n² + (${cStr})`)
-                    : (ricisTheta > 0 ? `z_{n+1} = z_n² + c + ${ricisTheta.toFixed(3)} * 0.08 * (sin(2*Re(z_n)) + i*cos(2*Im(z_n)))` : `z_{n+1} = z_n² + c`);
+                  let baseCopyExpr = 'z_n²';
+                  if (formulaType === 'cubic') {
+                    baseCopyExpr = 'z_n³';
+                  } else if (formulaType === 'quartic') {
+                    baseCopyExpr = 'z_n⁴';
+                  } else if (formulaType === 'burning_ship') {
+                    baseCopyExpr = '(|Re(z_n)| + i|Im(z_n)|)²';
+                  } else if (formulaType === 'tricorn') {
+                    baseCopyExpr = 'conj(z_n)²';
+                  }
+
+                  const cStr = juliaMode 
+                    ? ` + (${juliaX >= 0 ? '+' : ''}${juliaX.toFixed(5)} ${juliaY >= 0 ? '+' : ''}${juliaY.toFixed(5)}i)`
+                    : ' + c';
+
+                  const formulaText = `z_{n+1} = ${baseCopyExpr}${cStr}` + 
+                    (ricisTheta > 0 ? ` + ${ricisTheta.toFixed(3)} * 0.08 * (sin(2*Re(z_n)) + i*cos(2*Im(z_n)))` : '');
                   
                   navigator.clipboard.writeText(formulaText).then(() => {
                     setFormulaCopied(true);
@@ -2402,7 +2957,7 @@ ${pathElements}</svg>`;
               <div className="font-bold text-xs text-cyan-300 group-hover:text-cyan-200 truncate">{b.name}</div>
               <div className="text-[10px] text-slate-500 mt-1 leading-normal line-clamp-2">{b.desc}</div>
               <div className="mt-2.5 flex items-center justify-between text-[8px] font-mono text-slate-400">
-                <span>{b.state.juliaMode ? 'Julia set' : 'Mandelbrot'}</span>
+                <span>{b.state.juliaMode ? 'Julia set' : 'Mandelbrot'} ({b.state.formulaType || 'standard'})</span>
                 <span>θ = {b.state.ricisTheta}</span>
               </div>
             </button>

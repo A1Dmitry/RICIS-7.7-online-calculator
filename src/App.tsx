@@ -219,7 +219,10 @@ export default function App() {
       const stateParam = params.get('state');
 
       if (modeParam) {
-        const uppercaseMode = modeParam.toUpperCase();
+        let uppercaseMode = modeParam.toUpperCase();
+        if (uppercaseMode === 'MALDENBROT') {
+          uppercaseMode = 'MANDELBROT';
+        }
         if (Object.values(SingularityMode).includes(uppercaseMode as SingularityMode)) {
           const mode = uppercaseMode as SingularityMode;
           
@@ -754,34 +757,34 @@ export default function App() {
         {/* Dynamic Mode Screen Rendering with State-Preservation */}
         <main className="mb-12">
           <div className={activeMode === SingularityMode.GRAVITATIONAL ? "" : "hidden"}>
-            <GravitationalSingularity preset={gravitationalPreset} onChangeState={setActiveState} />
+            <GravitationalSingularity preset={gravitationalPreset} onChangeState={activeMode === SingularityMode.GRAVITATIONAL ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.COMPLEX_ANALYSIS ? "" : "hidden"}>
-            <ComplexSingularity preset={complexPreset} onChangeState={setActiveState} />
+            <ComplexSingularity preset={complexPreset} onChangeState={activeMode === SingularityMode.COMPLEX_ANALYSIS ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.KINEMATIC ? "" : "hidden"}>
-            <KinematicSingularity preset={kinematicPreset} onChangeState={setActiveState} />
+            <KinematicSingularity preset={kinematicPreset} onChangeState={activeMode === SingularityMode.KINEMATIC ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.NAVIER_STOKES ? "" : "hidden"}>
-            <NavierStokesSingularity preset={navierStokesPreset} onChangeState={setActiveState} />
+            <NavierStokesSingularity preset={navierStokesPreset} onChangeState={activeMode === SingularityMode.NAVIER_STOKES ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.RIEMANN ? "" : "hidden"}>
-            <RiemannSingularity preset={riemannPreset} onChangeState={setActiveState} />
+            <RiemannSingularity preset={riemannPreset} onChangeState={activeMode === SingularityMode.RIEMANN ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.YANG_MILLS ? "" : "hidden"}>
-            <YangMillsSingularity preset={yangMillsPreset} onChangeState={setActiveState} />
+            <YangMillsSingularity preset={yangMillsPreset} onChangeState={activeMode === SingularityMode.YANG_MILLS ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.P_VS_NP ? "" : "hidden"}>
-            <PVsNPSingularity preset={pVsNPPreset} onChangeState={setActiveState} />
+            <PVsNPSingularity preset={pVsNPPreset} onChangeState={activeMode === SingularityMode.P_VS_NP ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.HODGE ? "" : "hidden"}>
-            <HodgeSingularity preset={hodgePreset} onChangeState={setActiveState} />
+            <HodgeSingularity preset={hodgePreset} onChangeState={activeMode === SingularityMode.HODGE ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.BSD ? "" : "hidden"}>
-            <BSDSingularity preset={bsdPreset} onChangeState={setActiveState} />
+            <BSDSingularity preset={bsdPreset} onChangeState={activeMode === SingularityMode.BSD ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.POINCARE ? "" : "hidden"}>
-            <PoincareSingularity preset={poincarePreset} onChangeState={setActiveState} />
+            <PoincareSingularity preset={poincarePreset} onChangeState={activeMode === SingularityMode.POINCARE ? setActiveState : undefined} />
           </div>
           <div className={activeMode === SingularityMode.THEORY ? "" : "hidden"}>
             <RicisTheory />
@@ -793,13 +796,13 @@ export default function App() {
             <RicisAgent />
           </div>
           <div className={activeMode === SingularityMode.CHLADNI ? "" : "hidden"}>
-            <ChladniSingularity preset={chladniPreset} onChangeState={setActiveState} isActive={activeMode === SingularityMode.CHLADNI} />
+            <ChladniSingularity preset={chladniPreset} onChangeState={activeMode === SingularityMode.CHLADNI ? setActiveState : undefined} isActive={activeMode === SingularityMode.CHLADNI} />
           </div>
           <div className={activeMode === SingularityMode.MANDELBROT ? "" : "hidden"}>
-            <MandelbrotSingularity preset={mandelbrotPreset} onChangeState={setActiveState} isActive={activeMode === SingularityMode.MANDELBROT} />
+            <MandelbrotSingularity preset={mandelbrotPreset} onChangeState={activeMode === SingularityMode.MANDELBROT ? setActiveState : undefined} isActive={activeMode === SingularityMode.MANDELBROT} />
           </div>
           <div className={activeMode === SingularityMode.CDCC ? "" : "hidden"}>
-            <CDCCSingularity preset={cdccPreset} onChangeState={setActiveState} />
+            <CDCCSingularity preset={cdccPreset} onChangeState={activeMode === SingularityMode.CDCC ? setActiveState : undefined} />
           </div>
         </main>
 
