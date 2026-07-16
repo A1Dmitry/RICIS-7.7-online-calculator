@@ -22,7 +22,8 @@ import RicisAgent from './components/RicisAgent';
 import ChladniSingularity from './components/ChladniSingularity';
 import MandelbrotSingularity from './components/MandelbrotSingularity';
 import CDCCSingularity from './components/CDCCSingularity';
-import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown, ChevronUp, Share2, Check, Menu, X } from 'lucide-react';
+import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown, ChevronUp, Share2, Check, Menu, X, HelpCircle, Info, ExternalLink } from 'lucide-react';
+import Latex from './components/Latex';
 
 const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.ComponentType<any>, colorClass?: string }> = {
   [SingularityMode.GRAVITATIONAL]: { label: 'Гравитационные сингулярности', icon: Orbit, colorClass: 'text-cyan-400' },
@@ -70,28 +71,28 @@ const ALL_PRESETS = [
     name: 'Ударная волна Навье-Стокса',
     nameEn: 'Navier-Stokes Shockwave',
     mode: SingularityMode.NAVIER_STOKES,
-    params: { viscosity: 0.05, forceType: 'shear', meshResolution: 64, regularizer: 0.1, showVorticity: true }
+    params: { reynolds: 150, radialVelocity: 3.0, observerRadius: 0.05, regularization: 0.7, viscosity: 0.1 }
   },
   {
     id: 'riemann',
     name: 'Дзета Римана (Полюс s=1)',
     nameEn: 'Riemann Zeta (Pole s=1)',
     mode: SingularityMode.RIEMANN,
-    params: { sReal: 1.0, sImag: 0.0, regularizer: 0.15, zoom: 2.0, autoOscillate: false }
+    params: { sigma: 1.0, t: 0.0, regularization: 0.4, zoom: 3.5 }
   },
   {
     id: 'yangmills',
     name: 'Конфайнмент Янга-Миллса',
     nameEn: 'Yang-Mills Confinement',
     mode: SingularityMode.YANG_MILLS,
-    params: { coupling: 0.8, massGap: 0.3, thetaTerm: 0.0, latticeSpacial: 16, latticeTime: 32 }
+    params: { coupling: 1.5, distance: 0.02, regularization: 0.5, energyScale: 0.4 }
   },
   {
     id: 'chladni_node',
     name: 'Резонанс Хладни (2.2 kHz)',
     nameEn: 'Chladni Resonance (2.2 kHz)',
     mode: SingularityMode.CHLADNI,
-    params: { frequency: 2200, nFactor: 4, mFactor: 4, plateSize: 1, ricisScale: 0.12 }
+    params: { activePackage: 3, frequency: 800, regularization: 0.12, damping: 0.02, plateType: 'circle', sandType: 'colored' }
   },
   {
     id: 'mandelbrot_cusp',
@@ -157,6 +158,7 @@ export default function App() {
   const [headerExpanded, setHeaderExpanded] = useState<boolean>(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const toggleDropdown = (menuId: string) => {
@@ -607,6 +609,50 @@ export default function App() {
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                 </button>
               </div>
+
+              {/* Help Menu */}
+              <div className="relative">
+                <button 
+                  onClick={() => toggleDropdown('help')}
+                  className={`px-3 py-1.5 rounded flex items-center gap-1 font-bold transition cursor-pointer select-none border ${activeDropdown === 'help' ? 'bg-cyan-950/60 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5 border-transparent'}`}
+                >
+                  <HelpCircle className="w-3.5 h-3.5 mr-1" />
+                  <span>{t('СПРАВКА', 'HELP')}</span>
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
+                {activeDropdown === 'help' && (
+                  <div className="absolute right-0 mt-2.5 w-64 bg-[#09090b] border border-white/10 rounded-lg shadow-2xl py-1 z-50 animate-fade-in">
+                    <button 
+                      onClick={() => { setShowAboutModal(true); closeAllDropdowns(); }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 border-b border-white/5"
+                    >
+                      <Info className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span>{t('О проекте', 'About')}</span>
+                    </button>
+                    <button 
+                      onClick={() => { setActiveMode(SingularityMode.RICIS_AGENT); closeAllDropdowns(); }}
+                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 ${activeMode === SingularityMode.RICIS_AGENT ? 'bg-cyan-950/20 text-cyan-300 font-semibold' : ''}`}
+                    >
+                      <MessageSquare className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span>{t('ИИ сервис', 'AI Service')}</span>
+                    </button>
+                    <button 
+                      onClick={() => { setActiveMode(SingularityMode.THEORY); closeAllDropdowns(); }}
+                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 ${activeMode === SingularityMode.THEORY ? 'bg-cyan-950/20 text-cyan-300 font-semibold' : ''}`}
+                    >
+                      <BookOpen className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span>{t('Описание концепта', 'Concept Description')}</span>
+                    </button>
+                    <button 
+                      onClick={() => { setActiveMode(SingularityMode.CASES_AND_SOLUTIONS); closeAllDropdowns(); }}
+                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 ${activeMode === SingularityMode.CASES_AND_SOLUTIONS ? 'bg-cyan-950/20 text-cyan-300 font-semibold' : ''}`}
+                    >
+                      <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span>{t('Примеры простых сингулярностей', 'Simple Singularities Examples')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Language Selection */}
@@ -753,15 +799,48 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* AI Service */}
+                 {/* AI Service */}
                 <div className="space-y-1">
                   <div className="px-2 py-0.5 text-[9px] text-slate-500 uppercase tracking-widest font-bold border-b border-white/5">{t('ИИ Ассистент', 'AI Assistant')}</div>
                   <button 
                     onClick={() => { setActiveMode(SingularityMode.RICIS_AGENT); closeAllDropdowns(); }}
                     className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 flex items-center gap-2 ${activeMode === SingularityMode.RICIS_AGENT ? 'text-cyan-400 bg-cyan-950/20' : 'text-slate-300'}`}
                   >
-                    <MessageSquare className="w-3.5 h-3.5" />
+                    <MessageSquare className="w-3.5 h-3.5 animate-pulse" />
                     <span>{t('ИИ Ассистент RICIS', 'AI Assistant RICIS')}</span>
+                  </button>
+                </div>
+
+                {/* Help Section */}
+                <div className="space-y-1">
+                  <div className="px-2 py-0.5 text-[9px] text-slate-500 uppercase tracking-widest font-bold border-b border-white/5">{t('Справка / Помощь', 'Help / About')}</div>
+                  <button 
+                    onClick={() => { setShowAboutModal(true); closeAllDropdowns(); }}
+                    className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 text-slate-300 flex items-center gap-2"
+                  >
+                    <Info className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{t('О проекте', 'About')}</span>
+                  </button>
+                  <button 
+                    onClick={() => { setActiveMode(SingularityMode.RICIS_AGENT); closeAllDropdowns(); }}
+                    className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 flex items-center gap-2 ${activeMode === SingularityMode.RICIS_AGENT ? 'text-cyan-400 bg-cyan-950/20' : 'text-slate-300'}`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{t('ИИ сервис', 'AI Service')}</span>
+                  </button>
+                  <button 
+                    onClick={() => { setActiveMode(SingularityMode.THEORY); closeAllDropdowns(); }}
+                    className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 flex items-center gap-2 ${activeMode === SingularityMode.THEORY ? 'text-cyan-400 bg-cyan-950/20' : 'text-slate-300'}`}
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{t('Описание концепта', 'Concept Description')}</span>
+                  </button>
+                  <button 
+                    onClick={() => { setActiveMode(SingularityMode.CASES_AND_SOLUTIONS); closeAllDropdowns(); }}
+                    className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 flex items-center gap-2 ${activeMode === SingularityMode.CASES_AND_SOLUTIONS ? 'text-cyan-400 bg-cyan-950/20' : 'text-slate-300'}`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{t('Примеры простых сингулярностей', 'Simple Singularities Examples')}</span>
                   </button>
                 </div>
               </div>
@@ -831,6 +910,193 @@ export default function App() {
             <span>{t('2026 г.', '2026')}</span>
           </div>
         </footer>
+
+        {/* About Project Modal */}
+        {showAboutModal && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999] overflow-y-auto animate-fade-in">
+            <div className="bg-[#09090B] border border-cyan-500/20 max-w-2xl w-full rounded-xl overflow-hidden shadow-2xl relative my-8 flex flex-col max-h-[90vh]">
+              
+              {/* Modal Header */}
+              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-zinc-950">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-cyan-400" />
+                  <span className="font-mono text-xs text-cyan-400 font-bold tracking-widest uppercase">
+                    {t('RICIS III PARADIGM — О ПРОЕКТЕ', 'RICIS III PARADIGM — ABOUT PROJECT')}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => setShowAboutModal(false)}
+                  className="text-slate-400 hover:text-white p-1 hover:bg-white/5 rounded transition cursor-pointer"
+                  title={t('Закрыть', 'Close')}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto space-y-6 text-sm text-slate-300 leading-relaxed custom-scrollbar">
+                
+                {/* Visual Identity Hero */}
+                <div className="space-y-2 border-b border-white/5 pb-4">
+                  <div className="text-white text-lg font-bold tracking-tight">
+                    {t('Регуляризованный Инвариант Комплексного Изменения Систем III', 'Regularized Invariant of Complex System Changes III')}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {t(
+                      'Интерактивный научно-вычислительный комплекс, реализующий математический аппарат теории RICIS III для регуляризации физических, математических и семантических сингулярностей.',
+                      'Interactive scientific computing suite implementing the mathematical framework of RICIS III theory to regularize physical, mathematical, and semantic singularities.'
+                    )}
+                  </p>
+                </div>
+
+                {/* Citation */}
+                <div className="bg-cyan-950/20 border border-cyan-500/25 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-400 uppercase tracking-wider font-semibold">
+                    <BookOpen className="w-4 h-4" />
+                    <span>{t('Научная публикация & Идентификатор', 'Scientific Publication & Identifier')}</span>
+                  </div>
+                  <div className="text-xs text-slate-300">
+                    {t(
+                      'Основные положения парадигмы и методы регуляризации задокументированы в официальном реестре:',
+                      'The key paradigm concepts and regularization methods are registered in the official repository:'
+                    )}
+                  </div>
+                  <a 
+                    href="https://doi.org/10.5281/zenodo.17872755" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="flex items-center gap-2 text-xs font-mono text-white hover:text-cyan-400 bg-black/60 p-2.5 rounded border border-white/5 transition break-all"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span>DOI: 10.5281/zenodo.17872755</span>
+                  </a>
+                </div>
+
+                {/* Fundamental Logical Foundations */}
+                <div className="space-y-4">
+                  <div className="font-mono text-xs text-slate-400 uppercase tracking-wider font-bold border-b border-white/5 pb-1">
+                    {t('Фундаментальные логические основы (RICIS III)', 'Fundamental Logical Foundations (RICIS III)')}
+                  </div>
+
+                  {/* L0 & L1 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-zinc-900/40 p-3.5 rounded-lg border border-white/5 space-y-1">
+                      <div className="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider">L0_ABSOLUTE_CONTINUITY</div>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        {t(
+                          'Никакой уровень рекурсии не допускает разрывов непрерывности или потери идентичности.',
+                          'No level of recursion permits discontinuity or identity loss.'
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="bg-zinc-900/40 p-3.5 rounded-lg border border-white/5 space-y-1">
+                      <div className="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider">L1_IDENTITY</div>
+                      <div className="text-xs font-mono text-white">
+                        <Latex math="X = X \implies X/X = 1" />
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        {t(
+                          'Абсолютный онтологический корень. Операции не могут изменять типы без соответствующего морфизма.',
+                          'The absolute ontological root. Operations cannot mutate types without explicit morphism.'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Safety Protocols */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-mono text-slate-500 uppercase tracking-wider font-semibold">
+                      {t('Протоколы безопасности (Safety Protocols)', 'Safety Protocols')}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="bg-[#09090B] p-3 rounded border border-white/5 text-xs space-y-1">
+                        <div className="font-semibold text-white">SP1: No Total Amnesia ({t('Локальность', 'Locality')})</div>
+                        <p className="text-slate-400">
+                          {t(
+                            'При делении 0/0 замена на 1 применяется исключительно к идентичным нуль-факторам.',
+                            'When 0/0 occurs, identity applies only to identical zero-factors, keeping the rest active.'
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="bg-[#09090B] p-3 rounded border border-white/5 text-xs space-y-1">
+                        <div className="font-semibold text-white">SP2: Clean First ({t('Редукция приоритета', 'Reduction Priority')})</div>
+                        <p className="text-slate-400">
+                          {t(
+                            'Алгебраическое сокращение идентичных членов выполняется строго ДО применения аксиом сингулярности RICIS.',
+                            'Algebraic simplification must be performed BEFORE applying RICIS singularity axioms.'
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="bg-[#09090B] p-3 rounded border border-white/5 text-xs space-y-1">
+                        <div className="font-semibold text-white">SP3: Weight of Zero ({t('Индексы сингулярности', 'Index Law')})</div>
+                        <p className="text-slate-400">
+                          <Latex math="0_F / 0_G = F / G" />. {t('Запрещено трактовать индексированные нули как обычные скалярные нули.', 'Indexed zeros must not be treated as generic scalar zeros.')}
+                        </p>
+                      </div>
+
+                      <div className="bg-[#09090B] p-3 rounded border border-white/5 text-xs space-y-1">
+                        <div className="font-semibold text-white">SP4: Semantic Priority ({t('Индексирование по выражению', 'Index by Expression')})</div>
+                        <p className="text-slate-400">
+                          {t(
+                            'Индексация сингулярностей происходит по исходной форме выражения, а не по его конечному вычисленному значению. Это гарантирует сходимость всех вычислительных путей.',
+                            'Singularities are indexed by their expression structure, not by their numerical evaluation value. This guarantees path invariance.'
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Axioms of Indeterminate Forms */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-mono text-slate-500 uppercase tracking-wider font-semibold">
+                      {t('Ключевые аксиомы неопределенностей', 'Key Indeterminate Axioms')}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                      <div className="bg-zinc-950 p-2.5 rounded border border-white/5 text-center flex flex-col justify-center">
+                        <span className="text-slate-500 text-[10px]">A1_INDEXING</span>
+                        <div className="text-cyan-300 mt-1"><Latex math="F / 0 \to \infty_F" /></div>
+                      </div>
+                      <div className="bg-zinc-950 p-2.5 rounded border border-white/5 text-center flex flex-col justify-center">
+                        <span className="text-slate-500 text-[10px]">A4_0DIV0</span>
+                        <div className="text-cyan-300 mt-1"><Latex math="0_F / 0_G = F/G" /></div>
+                      </div>
+                      <div className="bg-zinc-950 p-2.5 rounded border border-white/5 text-center flex flex-col justify-center">
+                        <span className="text-slate-500 text-[10px]">A5_INFDIVINF</span>
+                        <div className="text-cyan-300 mt-1"><Latex math="\infty_F / \infty_G = F/G" /></div>
+                      </div>
+                      <div className="bg-zinc-950 p-2.5 rounded border border-white/5 text-center flex flex-col justify-center">
+                        <span className="text-slate-500 text-[10px]">A6_GENERAL</span>
+                        <div className="text-cyan-300 mt-1"><Latex math="0_F \times \infty_G = F \cdot G" /></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary / Mission */}
+                <div className="text-xs text-slate-500 border-t border-white/5 pt-4">
+                  {t(
+                    'Данный программный комплекс служит практическим подтверждением логической полноты парадигмы RICIS III, демонстрируя визуальные, кинематические и алгебраические решения там, где классические теории терпят разрыв.',
+                    'This software suite serves as a practical validation of the logical completeness of the RICIS III paradigm, demonstrating visual, kinematic, and algebraic solutions where classical theories experience breakdown.'
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-white/10 flex justify-end bg-zinc-950 gap-2">
+                <button 
+                  onClick={() => setShowAboutModal(false)}
+                  className="px-4 py-2 bg-cyan-950/40 border border-cyan-500/30 hover:bg-cyan-500/20 text-cyan-300 text-xs font-mono font-bold tracking-wider rounded uppercase transition cursor-pointer"
+                >
+                  {t('Понятно', 'Understood')}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ import {
   HelpCircle, ShieldAlert, CheckCircle2, Play, Info, ArrowRight, BookOpen, Terminal, Scale, ShieldCheck, Globe, Waves,
   Infinity, ExternalLink
 } from 'lucide-react';
+import Latex from './Latex';
 
 interface CaseStudy {
   id: string;
@@ -1010,8 +1011,8 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                   <p className="text-xs text-slate-300 leading-relaxed min-h-[60px]">
                     {language === 'en' && currentCase.classicalFailEn ? currentCase.classicalFailEn : currentCase.classicalFail}
                   </p>
-                  <div className="bg-[#09090B] p-2.5 rounded font-mono text-[11px] text-white text-center border border-white/5 whitespace-pre-wrap">
-                    {currentCase.classicalFormula}
+                  <div className="bg-[#09090B] p-2.5 rounded font-mono text-[11px] text-white text-center border border-white/5 min-h-[52px] flex items-center justify-center">
+                    <Latex math={currentCase.classicalFormula} block={true} />
                   </div>
                 </div>
 
@@ -1024,8 +1025,8 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                   <p className="text-xs text-slate-300 leading-relaxed min-h-[60px]">
                     {language === 'en' && currentCase.ricisSolutionEn ? currentCase.ricisSolutionEn : currentCase.ricisSolution}
                   </p>
-                  <div className="bg-[#09090B] p-2.5 rounded font-mono text-[11px] text-cyan-300 text-center border border-cyan-950/60 whitespace-pre-wrap">
-                    {currentCase.ricisFormula}
+                  <div className="bg-[#09090B] p-2.5 rounded font-mono text-[11px] text-cyan-300 text-center border border-cyan-950/60 min-h-[52px] flex items-center justify-center">
+                    <Latex math={currentCase.ricisFormula} block={true} />
                   </div>
                 </div>
               </div>
@@ -1141,8 +1142,9 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                 {/* Classical Representation */}
                 <div className="bg-red-950/10 border border-red-500/15 rounded-lg p-4 space-y-2">
                   <span className="text-[10px] font-mono text-red-400 uppercase tracking-wider block">{t('Классическое выражение', 'Classical Expression')}</span>
-                  <div className="font-mono text-[11px] text-slate-300 bg-[#09090B] p-2 rounded text-center border border-white/5">
-                    {currentTest.input}
+                  <div className="font-mono text-[11px] text-slate-300 bg-[#09090B] p-2 rounded text-center border border-white/5 min-h-[52px] flex flex-col items-center justify-center gap-1">
+                    <span className="text-[9px] text-slate-500">{currentTest.input}</span>
+                    <Latex math={currentTest.classicalFormula} block={true} />
                   </div>
                   <div className="text-[10px] text-slate-500 font-mono mt-1">
                     {t('Сингулярная точка:', 'Singular Point:')} <span className="text-red-400">{currentTest.pointLabel}</span>
@@ -1152,8 +1154,8 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                 {/* RICIS Regularized Analytical Representation */}
                 <div className="bg-cyan-950/10 border border-cyan-500/15 rounded-lg p-4 space-y-2">
                   <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider block">{t('Регуляризованная аналитика RICIS', 'RICIS Regularized Analytics')}</span>
-                  <div className="font-mono text-[11px] text-cyan-300 bg-[#09090B] p-2 rounded text-center border border-cyan-950/50">
-                    {currentTest.ricisFormula}
+                  <div className="font-mono text-[11px] text-cyan-300 bg-[#09090B] p-2 rounded text-center border border-cyan-950/50 min-h-[52px] flex items-center justify-center">
+                    <Latex math={currentTest.ricisFormula} block={true} />
                   </div>
                   <div className="text-[10px] text-slate-500 font-mono mt-1">
                     {t('Квантовый регуляризатор:', 'Quantum Regularizer:')} <span className="text-cyan-400">θ (theta)</span>

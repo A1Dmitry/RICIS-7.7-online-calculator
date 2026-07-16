@@ -8,6 +8,7 @@ import { CDCCState } from '../types';
 import { useLanguage } from '../lib/i18n';
 import { Sparkles, Shield, Infinity, HelpCircle, Activity, Play, Zap, ArrowRight, CheckCircle2, RotateCcw, Eye, Lock, RefreshCw, AlertTriangle, Cpu } from 'lucide-react';
 import ExportToSheetsButton from './ExportToSheetsButton';
+import Latex from './Latex';
 
 interface CDCCSingularityProps {
   preset?: CDCCState;
@@ -266,12 +267,18 @@ export default function CDCCSingularity({ preset, onChangeState }: CDCCSingulari
 
   useEffect(() => {
     if (preset) {
-      setState(preset);
+      setState(prev => ({ ...prev, ...preset }));
     }
   }, [preset]);
 
+  const lastSentStateRef = useRef<string>('');
+
   useEffect(() => {
-    onChangeState?.(state);
+    const serialized = JSON.stringify(state);
+    if (serialized !== lastSentStateRef.current) {
+      lastSentStateRef.current = serialized;
+      onChangeState?.(state);
+    }
   }, [state, onChangeState]);
 
   const topologicalCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -1116,8 +1123,8 @@ export default function CDCCSingularity({ preset, onChangeState }: CDCCSingulari
                       <div className="p-2.5 bg-zinc-900/40 border border-white/5 rounded flex items-center justify-between text-xs">
                         <div>
                           <div className="text-[10px] text-slate-500 uppercase">{t('Математическая формулировка:', 'Mathematical formulation:')}</div>
-                          <div className="text-cyan-400 font-bold mt-1 text-[13px]">
-                            {language === 'ru' ? activePack.latexRu : activePack.latexEn}
+                          <div className="text-cyan-400 font-bold mt-1 text-[13px] flex items-center min-h-[30px]">
+                            <Latex math={language === 'ru' ? activePack.latexRu : activePack.latexEn} />
                           </div>
                         </div>
                         <div className="text-right">

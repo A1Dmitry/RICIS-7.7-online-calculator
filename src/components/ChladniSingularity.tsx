@@ -12,6 +12,7 @@ import {
   Copy, Check, Bookmark, Trash2, Plus, Download, Cpu,
   Maximize2, Minimize2, Move, ZoomIn, ZoomOut, RefreshCw
 } from 'lucide-react';
+import Latex from './Latex';
 
 interface Particle {
   x: number;
@@ -226,8 +227,15 @@ export default function ChladniSingularity({ preset, onChangeState, isActive = t
     }
   }, [preset]);
 
+  const lastSentStateRef = useRef<string>('');
+
   useEffect(() => {
-    onChangeState?.({ ...state, activePackage });
+    const payload = { ...state, activePackage };
+    const serialized = JSON.stringify(payload);
+    if (serialized !== lastSentStateRef.current) {
+      lastSentStateRef.current = serialized;
+      onChangeState?.(payload);
+    }
   }, [state, activePackage, onChangeState]);
 
   // Accurate Bessel roots
@@ -1920,6 +1928,10 @@ export default function ChladniSingularity({ preset, onChangeState, isActive = t
 
             {/* Copyable Formula Block */}
             <div className="pt-3.5 border-t border-white/5 space-y-2">
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Визуализация волнового уравнения:</span>
+              <div className="bg-[#09090B] border border-cyan-500/20 rounded p-4 flex items-center justify-center text-cyan-300 min-h-[50px] overflow-x-auto text-center">
+                <Latex math={getFormulaLaTeX()} block={true} />
+              </div>
               <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Текущая волновая функция (со всеми параметрами):</span>
               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                 <div className="flex-1 bg-cyan-950/20 border border-cyan-500/10 rounded px-2.5 py-2 font-mono text-[10px] text-cyan-400 overflow-x-auto select-all whitespace-pre leading-relaxed">

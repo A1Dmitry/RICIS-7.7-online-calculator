@@ -23,12 +23,18 @@ export default function YangMillsSingularity({ preset, onChangeState }: YangMill
 
   useEffect(() => {
     if (preset) {
-      setState(preset);
+      setState(prev => ({ ...prev, ...preset }));
     }
   }, [preset]);
 
+  const lastSentStateRef = useRef<string>('');
+
   useEffect(() => {
-    onChangeState?.(state);
+    const serialized = JSON.stringify(state);
+    if (serialized !== lastSentStateRef.current) {
+      lastSentStateRef.current = serialized;
+      onChangeState?.(state);
+    }
   }, [state, onChangeState]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);

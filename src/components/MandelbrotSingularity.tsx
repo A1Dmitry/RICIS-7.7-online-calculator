@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Infinity as InfinityIcon
 } from 'lucide-react';
+import Latex from './Latex';
 
 interface MandelbrotSingularityProps {
   preset?: any;
@@ -468,8 +469,10 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
   }, [preset]);
 
   // Report state changes to parent for link sharing
+  const lastSentStateRef = useRef<string>('');
+
   useEffect(() => {
-    onChangeState?.({
+    const payload = {
       centerX,
       centerY,
       zoom,
@@ -481,7 +484,12 @@ export default function MandelbrotSingularity({ preset, onChangeState, isActive 
       juliaY,
       ricisTheta,
       formulaType
-    });
+    };
+    const serialized = JSON.stringify(payload);
+    if (serialized !== lastSentStateRef.current) {
+      lastSentStateRef.current = serialized;
+      onChangeState?.(payload);
+    }
   }, [centerX, centerY, zoom, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, formulaType, onChangeState]);
 
   // Pre-configured coordinate bookmarks (RICIS singularities)
@@ -2782,27 +2790,30 @@ ${pathElements}</svg>`;
               
               <div className="py-4 px-3 bg-[#070709] border border-white/5 rounded font-mono text-xs text-center text-white/90 select-all overflow-x-auto min-h-[56px] flex items-center justify-center">
                 {(() => {
-                  let baseExpr: React.ReactNode = <span>z<sub>n</sub>²</span>;
-                  if (formulaType === 'cubic') {
-                    baseExpr = <span>z<sub>n</sub>³</span>;
-                  } else if (formulaType === 'quartic') {
-                    baseExpr = <span>z<sub>n</sub>⁴</span>;
-                  } else if (formulaType === 'burning_ship') {
-                    baseExpr = <span>(|Re(z<sub>n</sub>)| + i|Im(z<sub>n</sub>)|)²</span>;
-                  } else if (formulaType === 'tricorn') {
-                    baseExpr = <span>_z<sub>n</sub>²</span>; // using complex conjugate representation
-                  }
-
-                  const cTerm = juliaMode 
+                  const cTermLaTeX = juliaMode 
                     ? ` + (${juliaX >= 0 ? '+' : ''}${juliaX.toFixed(5)} ${juliaY >= 0 ? '+' : ''}${juliaY.toFixed(5)}i)`
                     : ' + c';
 
+                  let latexExpr = "";
+                  if (formulaType === 'standard') {
+                    latexExpr = `z_{n+1} = z_n^2${cTermLaTeX}`;
+                  } else if (formulaType === 'cubic') {
+                    latexExpr = `z_{n+1} = z_n^3${cTermLaTeX}`;
+                  } else if (formulaType === 'quartic') {
+                    latexExpr = `z_{n+1} = z_n^4${cTermLaTeX}`;
+                  } else if (formulaType === 'burning_ship') {
+                    latexExpr = `z_{n+1} = (|\\text{Re}(z_n)| + i|\\text{Im}(z_n)|)^2${cTermLaTeX}`;
+                  } else if (formulaType === 'tricorn') {
+                    latexExpr = `z_{n+1} = \\bar{z}_n^2${cTermLaTeX}`;
+                  }
+
+                  if (ricisTheta > 0) {
+                    latexExpr += ` + ${ricisTheta.toFixed(3)} \\cdot 0.08 \\cdot (\\sin(2\\text{Re}(z_n)) + i\\cos(2\\text{Im}(z_n)))`;
+                  }
+
                   return (
-                    <div>
-                      <span>z<sub>n+1</sub> = {baseExpr}{cTerm}</span>
-                      {ricisTheta > 0 && (
-                        <span className="text-cyan-400 block mt-1 text-[10px]">+ {ricisTheta.toFixed(3)} · 0.08 · (sin(2·Re(z<sub>n</sub>)) + i·cos(2·Im(z<sub>n</sub>)))</span>
-                      )}
+                    <div className="text-[13px] text-cyan-300">
+                      <Latex math={latexExpr} block={true} />
                     </div>
                   );
                 })()}

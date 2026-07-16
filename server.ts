@@ -355,33 +355,6 @@ STEP 3: Execute Regional Commercial Strategy:
   Instruct them to contact dima.aley@gmail.com with the subject line "RICIS III Коммерческий запрос - [Организация]" to draft formal agreements and technical specifications.
 `;
 
-app.get('/robots.txt', (req, res) => {
-  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-  const host = req.get('host');
-  res.type('text/plain');
-  res.send(`User-agent: *
-Allow: /
-Disallow: /api/
-
-Sitemap: ${protocol}://${host}/sitemap.xml
-`);
-});
-
-app.get('/sitemap.xml', (req, res) => {
-  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-  const host = req.get('host');
-  res.type('application/xml');
-  res.send(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${protocol}://${host}/</loc>
-    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>`);
-});
-
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, history, language } = req.body;

@@ -6,6 +6,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Cpu, Sparkles, Terminal, Bot, User, RefreshCw, MessageSquare, BookOpen, AlertCircle, FileText, Mail, MapPin, Award, ExternalLink, Check, Archive, CheckSquare, Square, Lock, Unlock, Key } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
+import { FormattedMessage } from './Latex';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -1303,10 +1304,8 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                     ? 'bg-emerald-950/20 border border-emerald-500/20 text-slate-100'
                     : 'bg-cyan-950/10 border border-cyan-500/10 text-slate-200'
                 }`}>
-                  {/* Handle markdown block styling slightly */}
-                  <div className="whitespace-pre-line">
-                    {msg.content}
-                  </div>
+                  {/* Handle markdown block styling with Latex support */}
+                  <FormattedMessage content={msg.content} />
                 </div>
               </div>
             ))}
