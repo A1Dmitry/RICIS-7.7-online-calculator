@@ -181,6 +181,21 @@ export default function App() {
       }
       return updated;
     });
+
+    // Synchronize active mode with URL query parameter for SEO and direct links
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('mode')?.toUpperCase() !== activeMode) {
+        params.set('mode', activeMode);
+        // Clean up state parameter if moving to a different tab, to avoid mixing states
+        if (params.has('state')) {
+          params.delete('state');
+        }
+        window.history.pushState(null, '', `?${params.toString()}`);
+      }
+    } catch (err) {
+      console.error('Error updating URL with mode:', err);
+    }
   }, [activeMode]);
 
   useEffect(() => {

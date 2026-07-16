@@ -9,6 +9,7 @@ import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import { SEO_DATA } from './src/seoData';
 
 dotenv.config();
 
@@ -645,6 +646,65 @@ ${JSON.stringify(wishes, null, 2)}
   }
 });
 
+// --- SEO SITEMAP & ROBOTS.TXT ROUTING ---
+
+// Dynamic sitemap.xml generator
+app.get('/sitemap.xml', (req, res) => {
+  try {
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.get('host') || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+    
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n';
+    xml += '        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n';
+    xml += '        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">\n';
+    
+    // Core main index
+    xml += '  <url>\n';
+    xml += `    <loc>${baseUrl}/</loc>\n`;
+    xml += `    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n`;
+    xml += '    <changefreq>daily</changefreq>\n';
+    xml += '    <priority>1.0</priority>\n';
+    xml += '  </url>\n';
+
+    // All specific applets and modes from SEO_DATA
+    for (const mode of Object.keys(SEO_DATA)) {
+      xml += '  <url>\n';
+      xml += `    <loc>${baseUrl}/?mode=${encodeURIComponent(mode)}</loc>\n`;
+      xml += `    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n`;
+      xml += '    <changefreq>weekly</changefreq>\n';
+      xml += '    <priority>0.8</priority>\n';
+      xml += '  </url>\n';
+    }
+    
+    xml += '</urlset>';
+    
+    res.header('Content-Type', 'application/xml');
+    res.send(xml);
+  } catch (e: any) {
+    res.status(500).send('Error generating sitemap');
+  }
+});
+
+// Dynamic robots.txt pointing to the sitemap
+app.get('/robots.txt', (req, res) => {
+  try {
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.get('host') || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+    
+    let txt = 'User-agent: *\n';
+    txt += 'Allow: /\n';
+    txt += `Sitemap: ${baseUrl}/sitemap.xml\n`;
+    
+    res.header('Content-Type', 'text/plain');
+    res.send(txt);
+  } catch (e) {
+    res.status(500).send('Error generating robots.txt');
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -656,7 +716,52 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        try {
+          let html = fs.readFileSync(indexPath, 'utf8');
+          const mode = req.query.mode as string;
+          if (mode && SEO_DATA[mode.toUpperCase()]) {
+            const seo = SEO_DATA[mode.toUpperCase()];
+            
+            // Replace title
+            html = html.replace(
+              /<title>[^<]*<\/title>/i,
+              `<title>${seo.title}</title>`
+            );
+            
+            // Replace meta description
+            html = html.replace(
+              /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i,
+              `<meta name="description" content="${seo.description}" />`
+            );
+            
+            // Replace meta keywords
+            html = html.replace(
+              /<meta\s+name="keywords"\s+content="[^"]*"\s*\/?>/i,
+              `<meta name="keywords" content="${seo.keywords}" />`
+            );
+
+            // Replace Open Graph title
+            html = html.replace(
+              /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/i,
+              `<meta property="og:title" content="${seo.title}" />`
+            );
+
+            // Replace Open Graph description
+            html = html.replace(
+              /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/i,
+              `<meta property="og:description" content="${seo.description}" />`
+            );
+          }
+          res.send(html);
+        } catch (err) {
+          console.error('Error serving index.html with SEO:', err);
+          res.sendFile(indexPath);
+        }
+      } else {
+        res.sendFile(indexPath);
+      }
     });
   }
 
