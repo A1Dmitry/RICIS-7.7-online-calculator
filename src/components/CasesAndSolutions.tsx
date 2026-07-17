@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SingularityMode } from '../types';
 import { useLanguage } from '../lib/i18n';
 import { 
@@ -51,7 +51,7 @@ interface StressTest {
   explanationEn?: string;
   derivationSteps: string[];
   derivationStepsEn?: string[];
-  compute: (x: number, theta: number) => { classical: string | number; regularized: number };
+  compute: (x: number, theta: number) => { classical: string | number; regularized: string | number };
   sliderMin: number;
   sliderMax: number;
   sliderStep: number;
@@ -60,13 +60,26 @@ interface StressTest {
 
 interface CasesAndSolutionsProps {
   onLoadPreset: (mode: SingularityMode, params: any) => void;
+  initialSelectedTestId?: string | null;
+  onClearSelectedTest?: () => void;
 }
 
-export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsProps) {
+export default function CasesAndSolutions({ onLoadPreset, initialSelectedTestId, onClearSelectedTest }: CasesAndSolutionsProps) {
   const { language, t } = useLanguage();
   const [activeSubTab, setActiveSubTab] = useState<'library' | 'stressTests'>('library');
   const [selectedCase, setSelectedCase] = useState<string>('gravitational');
   const [selectedTest, setSelectedTest] = useState<string>('L0');
+  
+  // Update selected test externally if needed
+  useEffect(() => {
+    if (initialSelectedTestId) {
+      setSelectedTest(initialSelectedTestId);
+      setActiveSubTab('stressTests');
+      if (onClearSelectedTest) {
+        onClearSelectedTest();
+      }
+    }
+  }, [initialSelectedTestId, onClearSelectedTest]);
   
   // Interactive test states
   const [interactiveX, setInteractiveX] = useState<number>(2.0);
@@ -444,8 +457,10 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       compute: (x, t) => {
         const dx = x - 2;
         const classical = Math.abs(dx) < 1e-9 ? '∞' : 10 / dx;
-        const regularized = (10 * dx) / (dx * dx + t * t);
-        return { classical, regularized };
+        if (Math.abs(dx) < 1e-9) {
+          return { classical, regularized: t === 0 ? '∞_{10}' : 0 };
+        }
+        return { classical, regularized: (10 * dx) / (dx * dx + t * t) };
       },
       sliderMin: 1.0,
       sliderMax: 3.0,
@@ -517,8 +532,10 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       compute: (x, t) => {
         const den = x*x - 4;
         const classical = Math.abs(den) < 1e-9 ? '∞' : 1 / den;
-        const regularized = den / (den * den + t * t);
-        return { classical, regularized };
+        if (Math.abs(den) < 1e-9) {
+          return { classical, regularized: t === 0 ? '∞_{1/4}' : 0 };
+        }
+        return { classical, regularized: den / (den * den + t * t) };
       },
       sliderMin: 1.0,
       sliderMax: 3.0,
@@ -657,8 +674,10 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? 'Неопределено (Пикар)' : Math.exp(1 / x);
-        const regularized = Math.exp(x / (x * x + t * t));
-        return { classical, regularized };
+        if (Math.abs(x) < 1e-9) {
+          return { classical, regularized: t === 0 ? 'e^{\u221E_1}' : 1.0 };
+        }
+        return { classical, regularized: Math.exp(x / (x * x + t * t)) };
       },
       sliderMin: -0.5,
       sliderMax: 0.5,
@@ -692,8 +711,10 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '∞' : 1 / (x * x);
-        const regularized = 1 / (x * x + t * t);
-        return { classical, regularized };
+        if (Math.abs(x) < 1e-9) {
+          return { classical, regularized: t === 0 ? '∞_1' : 1 / (t * t) };
+        }
+        return { classical, regularized: 1 / (x * x + t * t) };
       },
       sliderMin: -1.0,
       sliderMax: 1.0,
@@ -727,8 +748,10 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '0/0 (Неопределено)' : x / (x * x);
-        const regularized = x / (x * x + t * t);
-        return { classical, regularized };
+        if (Math.abs(x) < 1e-9) {
+          return { classical, regularized: t === 0 ? '∞_1' : 0 };
+        }
+        return { classical, regularized: x / (x * x + t * t) };
       },
       sliderMin: -1.0,
       sliderMax: 1.0,
@@ -868,8 +891,10 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
       ],
       compute: (x, t) => {
         const classical = Math.abs(x) < 1e-9 ? '∞ - ∞ (Неопределено)' : (5 / x) - (3 / x);
-        const regularized = (2 * x) / (x * x + t * t);
-        return { classical, regularized };
+        if (Math.abs(x) < 1e-9) {
+          return { classical, regularized: t === 0 ? '∞_2' : 0 };
+        }
+        return { classical, regularized: (2 * x) / (x * x + t * t) };
       },
       sliderMin: -1.0,
       sliderMax: 1.0,
@@ -885,6 +910,123 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
 
   // Run computation for interactive stress test
   const { classical: calcClassical, regularized: calcRegularized } = currentTest.compute(interactiveX, interactiveTheta);
+
+  const getTestYRange = (id: string, theta: number) => {
+    switch (id) {
+      case 'L0': return { yMin: -15, yMax: 15 };
+      case 'L1': return { yMin: 6, yMax: 14 };
+      case 'L3': return { yMin: -3, yMax: 3 };
+      case 'L6': return { yMin: -0.5, yMax: 1.5 };
+      case 'L10': return { yMin: 0, yMax: 2.5 };
+      case 'L11': return { yMin: -0.1, yMax: 0.8 };
+      case 'L15': return { yMin: -1, yMax: 10 };
+      case 'L17': {
+        const cap = theta > 0 ? Math.min(25, 1 / (theta * theta) + 2) : 15;
+        return { yMin: -1, yMax: cap };
+      }
+      case 'L24': return { yMin: -5, yMax: 5 };
+      case 'A4': return { yMin: 0, yMax: 8 };
+      case 'A5': return { yMin: 0, yMax: 6 };
+      case 'A6': return { yMin: 0, yMax: 25 };
+      case 'A7': return { yMin: -6, yMax: 6 };
+      default: return { yMin: -10, yMax: 10 };
+    }
+  };
+
+  const getSingularityCenterY = (id: string): number => {
+    switch (id) {
+      case 'L1': return 10;
+      case 'L6': return 1.0;
+      case 'L10': return 1.0;
+      case 'L11': return 0.5;
+      case 'L15': return 1.0;
+      case 'A4': return 4.0;
+      case 'A5': return 3.0;
+      case 'A6': return 15.0;
+      default: return 0.0;
+    }
+  };
+
+  const parseVal = (v: any): number | null => {
+    if (typeof v === 'number') {
+      if (isNaN(v) || !isFinite(v)) return null;
+      return v;
+    }
+    if (typeof v === 'string') {
+      if (v.includes('∞') || v.includes('Неопределено') || v.includes('Indeterminate')) {
+        return null;
+      }
+      const p = parseFloat(v);
+      if (!isNaN(p) && isFinite(p)) return p;
+    }
+    return null;
+  };
+
+  const buildSvgPath = (pts: [number, number][], toSvgXFn: (x: number) => number, toSvgYFn: (y: number) => number) => {
+    if (pts.length === 0) return '';
+    return pts.map((p, idx) => {
+      const px = toSvgXFn(p[0]);
+      const py = toSvgYFn(p[1]);
+      const clampedPy = Math.max(-500, Math.min(1000, py));
+      return `${idx === 0 ? 'M' : 'L'} ${px} ${clampedPy}`;
+    }).join(' ');
+  };
+
+  const xMin = currentTest.sliderMin;
+  const xMax = currentTest.sliderMax;
+  const { yMin, yMax } = getTestYRange(currentTest.id, interactiveTheta);
+
+  const toSvgX = (xValue: number) => {
+    return 45 + ((xValue - xMin) / (xMax - xMin)) * 435;
+  };
+
+  const toSvgY = (yValue: number) => {
+    return 20 + (1 - (yValue - yMin) / (yMax - yMin)) * 165;
+  };
+
+  const yAxisX = (xMin <= 0 && xMax >= 0) ? toSvgX(0) : null;
+  const xAxisY = (yMin <= 0 && yMax >= 0) ? toSvgY(0) : null;
+
+  const poleX = currentTest.point;
+  const centerX = toSvgX(poleX);
+  const centerY = toSvgY(getSingularityCenterY(currentTest.id));
+
+  const steps = 150;
+  const regularizedPoints: [number, number][] = [];
+  const classicalPointsLeft: [number, number][] = [];
+  const classicalPointsRight: [number, number][] = [];
+
+  for (let i = 0; i <= steps; i++) {
+    const xVal = xMin + (i / steps) * (xMax - xMin);
+    
+    const res = currentTest.compute(xVal, interactiveTheta);
+    const regVal = parseVal(res.regularized);
+    if (regVal !== null) {
+      regularizedPoints.push([xVal, regVal]);
+    }
+    
+    const classVal = parseVal(res.classical);
+    if (classVal !== null) {
+      if (xVal < poleX - 1e-4) {
+        classicalPointsLeft.push([xVal, classVal]);
+      } else if (xVal > poleX + 1e-4) {
+        classicalPointsRight.push([xVal, classVal]);
+      }
+    }
+  }
+
+  const regularizedPath = buildSvgPath(regularizedPoints, toSvgX, toSvgY);
+  const classicalPathLeft = buildSvgPath(classicalPointsLeft, toSvgX, toSvgY);
+  const classicalPathRight = buildSvgPath(classicalPointsRight, toSvgX, toSvgY);
+
+  const interactiveXMarker = toSvgX(interactiveX);
+  const currentRes = currentTest.compute(interactiveX, interactiveTheta);
+  
+  const parsedClass = parseVal(currentRes.classical);
+  const interactiveYClassMarker = parsedClass !== null ? toSvgY(parsedClass) : null;
+
+  const parsedReg = parseVal(currentRes.regularized);
+  const interactiveYRegMarker = parsedReg !== null ? toSvgY(parsedReg) : null;
 
   const handleTestSelection = (testId: string) => {
     setSelectedTest(testId);
@@ -1178,90 +1320,271 @@ export default function CasesAndSolutions({ onLoadPreset }: CasesAndSolutionsPro
                   <span className="text-[9px] font-mono text-slate-500">{t('РЕАЛЬНОЕ ВРЕМЯ', 'REAL-TIME')}</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Sliders */}
-                  <div className="space-y-4">
-                    {/* Slider X */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-400 font-medium">{t('Переменная x:', 'Variable x:')}</span>
-                        <span className="text-white font-mono bg-[#09090B] px-1.5 py-0.5 rounded border border-white/5 font-semibold">
-                          {interactiveX.toFixed(3)}
-                        </span>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                  {/* Left Column: Sliders and calculated Results Card */}
+                  <div className="md:col-span-5 space-y-4">
+                    {/* Sliders */}
+                    <div className="space-y-4">
+                      {/* Slider X */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-400 font-medium">{t('Переменная x:', 'Variable x:')}</span>
+                          <span className="text-white font-mono bg-[#09090B] px-1.5 py-0.5 rounded border border-white/5 font-semibold">
+                            {interactiveX.toFixed(3)}
+                          </span>
+                        </div>
+                        <input 
+                          type="range"
+                          min={currentTest.sliderMin}
+                          max={currentTest.sliderMax}
+                          step={currentTest.sliderStep}
+                          value={interactiveX}
+                          onChange={(e) => setInteractiveX(parseFloat(e.target.value))}
+                          className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono">
+                          <span>{currentTest.sliderMin}</span>
+                          <span className="text-cyan-500/50">{t('Полюс', 'Pole')} ({currentTest.pointLabel})</span>
+                          <span>{currentTest.sliderMax}</span>
+                        </div>
                       </div>
-                      <input 
-                        type="range"
-                        min={currentTest.sliderMin}
-                        max={currentTest.sliderMax}
-                        step={currentTest.sliderStep}
-                        value={interactiveX}
-                        onChange={(e) => setInteractiveX(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                      />
-                      <div className="flex justify-between text-[9px] text-slate-600 font-mono">
-                        <span>{currentTest.sliderMin}</span>
-                        <span className="text-cyan-500/50">{t('Полюс', 'Pole')} ({currentTest.pointLabel})</span>
-                        <span>{currentTest.sliderMax}</span>
+
+                      {/* Slider Theta */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-400 font-medium">{t('Регуляризатор θ:', 'Regularizer θ:')}</span>
+                          <span className="text-cyan-400 font-mono bg-cyan-950/20 px-1.5 py-0.5 rounded border border-cyan-950/60 font-semibold">
+                            {interactiveTheta.toFixed(3)}
+                          </span>
+                        </div>
+                        <input 
+                          type="range"
+                          min="0.00"
+                          max="1.50"
+                          step="0.01"
+                          value={interactiveTheta}
+                          onChange={(e) => setInteractiveTheta(parseFloat(e.target.value))}
+                          className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-600 font-mono">
+                          <span>{t('0.00 (Сингулярность)', '0.00 (Singularity)')}</span>
+                          <span>0.75</span>
+                          <span>{t('1.50 (Сглажено)', '1.50 (Smoothed)')}</span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Slider Theta */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-400 font-medium">{t('Регуляризатор θ:', 'Regularizer θ:')}</span>
-                        <span className="text-cyan-400 font-mono bg-cyan-950/20 px-1.5 py-0.5 rounded border border-cyan-950/60 font-semibold">
-                          {interactiveTheta.toFixed(3)}
-                        </span>
+                    {/* Real-time calculated Results Card */}
+                    <div className="bg-[#09090B] border border-white/5 rounded-lg p-4 space-y-3">
+                      <div className="space-y-2">
+                        {/* Classical calculated result */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-mono text-slate-500 uppercase">{t('Классическое вычисление f(x):', 'Classical calculation f(x):')}</span>
+                          <span className={`text-xs font-mono font-bold ${calcClassical === '∞' || String(calcClassical).includes('Неопределено') || String(calcClassical).includes('Indeterminate') ? 'text-red-400' : 'text-slate-300'}`}>
+                            {typeof calcClassical === 'number' ? calcClassical.toFixed(5) : calcClassical}
+                          </span>
+                        </div>
+
+                        {/* RICIS calculated result */}
+                        <div className="flex justify-between items-center border-t border-white/5 pt-2">
+                          <span className="text-[10px] font-mono text-slate-500 uppercase">{t('RICIS III Регуляризованное f_reg(x):', 'RICIS III Regularized f_reg(x):')}</span>
+                          <span className="text-xs font-mono font-bold text-cyan-400">
+                            {typeof calcRegularized === 'number' ? calcRegularized.toFixed(5) : calcRegularized}
+                          </span>
+                        </div>
                       </div>
-                      <input 
-                        type="range"
-                        min="0.00"
-                        max="1.50"
-                        step="0.01"
-                        value={interactiveTheta}
-                        onChange={(e) => setInteractiveTheta(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                      />
-                      <div className="flex justify-between text-[9px] text-slate-600 font-mono">
-                        <span>{t('0.00 (Сингулярность)', '0.00 (Singularity)')}</span>
-                        <span>0.75</span>
-                        <span>{t('1.50 (Сглажено)', '1.50 (Smoothed)')}</span>
+
+                      {/* Safety Status indicators */}
+                      <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                        <span className="text-[9px] font-mono text-slate-600 uppercase">{t('Защита ядра:', 'Core Protection:')}</span>
+                        {interactiveTheta > 0 ? (
+                          <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 px-2 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse">
+                            SECURE / REGULARIZED
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-mono text-red-400 bg-red-950/30 border border-red-800/40 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                            SINGULAR / COLLAPSE
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Real-time calculated Results Card */}
-                  <div className="bg-[#09090B] border border-white/5 rounded-lg p-4 flex flex-col justify-between">
-                    <div className="space-y-3">
-                      {/* Classical calculated result */}
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-mono text-slate-500 uppercase">{t('Классическое вычисление f(x):', 'Classical calculation f(x):')}</span>
-                        <span className={`text-xs font-mono font-bold ${calcClassical === '∞' || String(calcClassical).includes('Неопределено') || String(calcClassical).includes('Indeterminate') ? 'text-red-400' : 'text-slate-300'}`}>
-                          {typeof calcClassical === 'number' ? calcClassical.toFixed(5) : calcClassical}
+                  {/* Right Column: Interactive Plot & Singularity Zones */}
+                  <div className="md:col-span-7 bg-[#09090B] border border-white/5 rounded-lg p-4 flex flex-col justify-between min-h-[260px]">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-mono text-cyan-400 uppercase font-semibold">
+                        {t('Регуляризация и сингулярные зоны', 'Regularization & Singularity Zones')}
+                      </span>
+                      <div className="flex items-center space-x-2 text-[9px] font-mono text-slate-500">
+                        <span className="flex items-center space-x-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block"></span>
+                          <span>{t('Классика', 'Classical')}</span>
                         </span>
-                      </div>
-
-                      {/* RICIS calculated result */}
-                      <div className="flex justify-between items-center border-t border-white/5 pt-2">
-                        <span className="text-[10px] font-mono text-slate-500 uppercase">{t('RICIS III Регуляризованное f_reg(x):', 'RICIS III Regularized f_reg(x):')}</span>
-                        <span className="text-xs font-mono font-bold text-cyan-400">
-                          {calcRegularized.toFixed(5)}
+                        <span className="flex items-center space-x-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block"></span>
+                          <span>{t('Рикис', 'RICIS')}</span>
                         </span>
                       </div>
                     </div>
 
-                    {/* Safety Status indicators */}
-                    <div className="mt-4 pt-2 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-[9px] font-mono text-slate-600 uppercase">{t('Статус защиты ядра:', 'Core Protection Status:')}</span>
-                      {interactiveTheta > 0 ? (
-                        <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 px-2 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse">
-                          SECURE / REGULARIZED
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-mono text-red-400 bg-red-950/30 border border-red-800/40 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                          SINGULAR / NO REGU
-                        </span>
-                      )}
+                    <div className="relative w-full h-[180px] bg-black/50 rounded border border-white/5 overflow-hidden flex items-center justify-center">
+                      <svg className="w-full h-full text-slate-600" viewBox="0 0 500 220" preserveAspectRatio="none">
+                        <defs>
+                          <pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse">
+                            <path d="M 25 0 L 0 0 0 25" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                          </pattern>
+                          <filter id="cyanGlow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="3" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                          </filter>
+                          <filter id="redGlow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="3" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                          </filter>
+                        </defs>
+
+                        {/* Grid Background */}
+                        <rect width="100%" height="100%" fill="url(#grid)" />
+
+                        {/* Coordinate Axes */}
+                        {xAxisY !== null && (
+                          <line x1="45" y1={xAxisY} x2="480" y2={xAxisY} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                        )}
+                        {yAxisX !== null && (
+                          <line x1={yAxisX} y1="20" x2={yAxisX} y2="185" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                        )}
+
+                        {/* Singularity Axis Asymptote */}
+                        <line
+                          x1={centerX}
+                          y1="20"
+                          x2={centerX}
+                          y2="185"
+                          stroke="rgba(239, 68, 68, 0.25)"
+                          strokeWidth="1.5"
+                          strokeDasharray="4 4"
+                        />
+
+                        {/* CLASSICAL SINGULARITY ZONE (Red Circle) */}
+                        <circle
+                          cx={centerX}
+                          cy={centerY}
+                          r={Math.max(12, interactiveTheta * 50)}
+                          fill="rgba(239, 68, 68, 0.03)"
+                          stroke="rgba(239, 68, 68, 0.35)"
+                          strokeWidth="1.5"
+                          strokeDasharray="3 3"
+                          filter="url(#redGlow)"
+                        />
+                        <circle
+                          cx={centerX}
+                          cy={centerY}
+                          r="3"
+                          fill="#ef4444"
+                        />
+
+                        {/* RICIS REGULARIZATION SHIELD (Cyan Circle) */}
+                        {interactiveTheta > 0 ? (
+                          <g>
+                            <circle
+                              cx={centerX}
+                              cy={centerY}
+                              r={interactiveTheta * 50}
+                              fill="rgba(34, 211, 238, 0.06)"
+                              stroke="#22d3ee"
+                              strokeWidth="1.5"
+                              filter="url(#cyanGlow)"
+                              opacity="0.8"
+                            />
+                            <circle
+                              cx={centerX}
+                              cy={centerY}
+                              r={Math.max(2, interactiveTheta * 15)}
+                              fill="none"
+                              stroke="#22d3ee"
+                              strokeWidth="1"
+                              strokeDasharray="2 1"
+                              opacity="0.5"
+                            />
+                          </g>
+                        ) : (
+                          <g>
+                            <circle
+                              cx={centerX}
+                              cy={centerY}
+                              r="8"
+                              fill="none"
+                              stroke="#ef4444"
+                              strokeWidth="1.5"
+                              className="animate-pulse"
+                            />
+                          </g>
+                        )}
+
+                        {/* Function Curves */}
+                        {classicalPathLeft && (
+                          <path d={classicalPathLeft} fill="none" stroke="#f87171" strokeWidth="1.5" strokeOpacity="0.6" />
+                        )}
+                        {classicalPathRight && (
+                          <path d={classicalPathRight} fill="none" stroke="#f87171" strokeWidth="1.5" strokeOpacity="0.6" />
+                        )}
+
+                        {regularizedPath && (
+                          <path d={regularizedPath} fill="none" stroke="#22d3ee" strokeWidth="2" filter="url(#cyanGlow)" />
+                        )}
+
+                        {/* Active Tracking Markers */}
+                        {interactiveXMarker !== null && (
+                          <g>
+                            <line
+                              x1={interactiveXMarker}
+                              y1="20"
+                              x2={interactiveXMarker}
+                              y2="185"
+                              stroke="rgba(255,255,255,0.1)"
+                              strokeWidth="1"
+                              strokeDasharray="2 2"
+                            />
+
+                            {interactiveYClassMarker !== null && (
+                              <circle
+                                cx={interactiveXMarker}
+                                cy={interactiveYClassMarker}
+                                r="4"
+                                fill="#f87171"
+                                stroke="#fff"
+                                strokeWidth="1"
+                              />
+                            )}
+
+                            {interactiveYRegMarker !== null && (
+                              <circle
+                                cx={interactiveXMarker}
+                                cy={interactiveYRegMarker}
+                                r="5"
+                                fill="#22d3ee"
+                                stroke="#fff"
+                                strokeWidth="1.5"
+                                filter="url(#cyanGlow)"
+                              />
+                            )}
+                          </g>
+                        )}
+
+                        {/* Axis Labels */}
+                        <text x="5" y="180" fill="#64748b" className="text-[8px] font-mono">{yMin.toFixed(1)}</text>
+                        <text x="5" y="25" fill="#64748b" className="text-[8px] font-mono">{yMax.toFixed(1)}</text>
+                        <text x="45" y="200" fill="#64748b" className="text-[8px] font-mono">{xMin.toFixed(1)}</text>
+                        <text x="445" y="200" fill="#64748b" className="text-[8px] font-mono">{xMax.toFixed(1)}</text>
+                        <text x={centerX} y="212" fill="#ef4444" className="text-[8px] font-mono text-center font-bold" textAnchor="middle">
+                          {currentTest.pointLabel}
+                        </text>
+                      </svg>
+
+                      <div className="absolute bottom-2 right-2 bg-[#09090B]/80 px-2 py-0.5 rounded border border-white/5 text-[8px] font-mono text-slate-400">
+                        θ = {interactiveTheta.toFixed(2)}
+                      </div>
                     </div>
                   </div>
                 </div>

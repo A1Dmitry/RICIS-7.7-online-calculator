@@ -22,7 +22,7 @@ import RicisAgent from './components/RicisAgent';
 import ChladniSingularity from './components/ChladniSingularity';
 import MandelbrotSingularity from './components/MandelbrotSingularity';
 import CDCCSingularity from './components/CDCCSingularity';
-import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown, ChevronUp, Share2, Check, Menu, X, HelpCircle, Info, ExternalLink } from 'lucide-react';
+import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown, ChevronUp, Share2, Check, Menu, X, HelpCircle, Info, ExternalLink, Award, MapPin, Mail, User } from 'lucide-react';
 import Latex from './components/Latex';
 
 const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.ComponentType<any>, colorClass?: string }> = {
@@ -110,6 +110,18 @@ const ALL_PRESETS = [
   }
 ];
 
+const SIMPLE_EXAMPLES = [
+  { id: 'L0', name: 'Базовая сингулярность', nameEn: 'Base Singularity', formula: '10 / (x - 2)' },
+  { id: 'L1', name: 'Устранимый разрыв', nameEn: 'Removable Discontinuity', formula: '(x² - 25) / (x - 5)' },
+  { id: 'L3', name: 'Квадратичный знаменатель', nameEn: 'Quadratic Denominator', formula: '1 / (x² - 4)' },
+  { id: 'L6', name: 'Замечательный предел', nameEn: 'Notable Limit (Sinc)', formula: 'sin(x) / x' },
+  { id: 'L10', name: 'Экспоненциальный разрыв', nameEn: 'Exponential Discontinuity', formula: '(e^x - 1) / x' },
+  { id: 'A4', name: 'Неопределенность 0/0', nameEn: 'Indeterminacy 0/0', formula: '0_F / 0_G = F/G' },
+  { id: 'A5', name: 'Неопределенность ∞/∞', nameEn: 'Indeterminacy ∞/∞', formula: '∞_F / ∞_G = F/G' },
+  { id: 'A6', name: 'Произведение 0 × ∞', nameEn: 'Product of 0 and ∞', formula: '0_F × ∞_G = F·G' },
+  { id: 'A7', name: 'Разность бесконечностей', nameEn: 'Difference of Infinities', formula: '∞_F - ∞_G = ∞_{F-G}' },
+];
+
 export default function App() {
   const { language, setLanguage, t } = useLanguage();
   const [activeMode, setActiveMode] = useState<SingularityMode>(SingularityMode.CASES_AND_SOLUTIONS);
@@ -159,6 +171,8 @@ export default function App() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
+  const [showAuthorModal, setShowAuthorModal] = useState<boolean>(false);
+  const [selectedStressTest, setSelectedStressTest] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const toggleDropdown = (menuId: string) => {
@@ -500,7 +514,7 @@ export default function App() {
                   <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
                 {activeDropdown === 'singularities' && (
-                  <div className="absolute left-0 mt-2.5 w-72 bg-[#09090b] border border-white/10 rounded-lg shadow-2xl py-1.5 z-50 max-h-[380px] overflow-y-auto custom-scrollbar animate-fade-in">
+                  <div className="absolute left-0 mt-2.5 w-72 bg-[#09090b] border border-white/10 rounded-lg shadow-2xl py-1.5 z-50 max-h-[420px] overflow-y-auto custom-scrollbar animate-fade-in">
                     <div className="px-4 py-1 text-[9px] text-slate-500 uppercase tracking-widest border-b border-white/5 mb-1.5">
                       {t('Регуляризация RICIS III:', 'RICIS III Regularization:')}
                     </div>
@@ -511,6 +525,9 @@ export default function App() {
                       { mode: SingularityMode.NAVIER_STOKES, label: 'Уравнения Навье-Стокса', icon: Droplet },
                       { mode: SingularityMode.RIEMANN, label: 'Дзета Римана (Полюс s=1)', icon: LineChart },
                       { mode: SingularityMode.YANG_MILLS, label: 'Существование Янга-Миллса', icon: Flame },
+                      { mode: SingularityMode.CHLADNI, label: 'Фигуры Хладни', icon: Waves, colorClass: 'text-amber-400' },
+                      { mode: SingularityMode.MANDELBROT, label: 'Множество Мандельброта', icon: Infinity, colorClass: 'text-cyan-400' },
+                      { mode: SingularityMode.CDCC, label: 'Континуум-гипотеза (CDCC)', icon: Infinity, colorClass: 'text-emerald-400' },
                       { mode: SingularityMode.POINCARE, label: 'Сфера Пуанкаре', icon: Globe },
                       { mode: SingularityMode.HODGE, label: 'Гипотеза Ходжа', icon: Globe },
                       { mode: SingularityMode.BSD, label: 'Гипотеза BSD', icon: LineChart }
@@ -524,7 +541,7 @@ export default function App() {
                           className={`w-full text-left px-4 py-2 hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between ${isActive ? 'bg-cyan-950/20 text-cyan-300 font-semibold border-l-2 border-cyan-500' : ''}`}
                         >
                           <div className="flex items-center gap-2.5 truncate">
-                            <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-500'}`} />
+                            <Icon className={`w-3.5 h-3.5 shrink-0 ${item.colorClass ? item.colorClass : (isActive ? 'text-cyan-400' : 'text-slate-500')}`} />
                             <span className="truncate">{t(item.label)}</span>
                           </div>
                         </button>
@@ -534,80 +551,32 @@ export default function App() {
                 )}
               </div>
 
-              {/* Visualizers Menu */}
+              {/* Model Examples (Типовые примеры) Menu */}
               <div className="relative">
                 <button 
-                  onClick={() => toggleDropdown('visualizers')}
-                  className={`px-3 py-1.5 rounded flex items-center gap-1 font-bold transition cursor-pointer select-none ${activeDropdown === 'visualizers' ? 'bg-cyan-950/60 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'}`}
+                  onClick={() => toggleDropdown('simpleExamples')}
+                  className={`px-3 py-1.5 rounded flex items-center gap-1 font-bold transition cursor-pointer select-none ${activeDropdown === 'simpleExamples' ? 'bg-cyan-950/60 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'}`}
                 >
-                  <span>{t('ОТРИСОВКИ', 'VISUALIZERS')}</span>
+                  <span>{t('ТИПОВЫЕ ПРИМЕРЫ', 'MODEL EXAMPLES')}</span>
                   <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
-                {activeDropdown === 'visualizers' && (
-                  <div className="absolute left-0 mt-2.5 w-64 bg-[#09090b] border border-white/10 rounded-lg shadow-2xl py-1 z-50 animate-fade-in">
-                    <button 
-                      onClick={() => { setActiveMode(SingularityMode.CHLADNI); closeAllDropdowns(); }}
-                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 ${activeMode === SingularityMode.CHLADNI ? 'bg-amber-950/20 text-amber-300 font-semibold border-l-2 border-amber-500' : ''}`}
-                    >
-                      <Waves className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>{t('Фигуры Хладни', 'Chladni Figures')}</span>
-                    </button>
-                    <button 
-                      onClick={() => { setActiveMode(SingularityMode.MANDELBROT); closeAllDropdowns(); }}
-                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 ${activeMode === SingularityMode.MANDELBROT ? 'bg-cyan-950/20 text-cyan-300 font-semibold border-l-2 border-cyan-500' : ''}`}
-                    >
-                      <Infinity className="w-4 h-4 text-cyan-400 shrink-0" />
-                      <span>{t('Множество Мандельброта', 'Mandelbrot Set')}</span>
-                    </button>
-                    <button 
-                      onClick={() => { setActiveMode(SingularityMode.CDCC); closeAllDropdowns(); }}
-                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 ${activeMode === SingularityMode.CDCC ? 'bg-emerald-950/20 text-emerald-300 font-semibold border-l-2 border-emerald-500' : ''}`}
-                    >
-                      <Infinity className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>{t('Континуум-гипотеза (CDCC)', 'Continuum Conjecture (CDCC)')}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Presets Menu */}
-              <div className="relative">
-                <button 
-                  onClick={() => toggleDropdown('presets')}
-                  className={`px-3 py-1.5 rounded flex items-center gap-1 font-bold transition cursor-pointer select-none ${activeDropdown === 'presets' ? 'bg-cyan-950/60 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'}`}
-                >
-                  <span>{t('ПРЕСЕТЫ', 'PRESETS')}</span>
-                  <ChevronDown className="w-3 h-3 opacity-60" />
-                </button>
-                {activeDropdown === 'presets' && (
-                  <div className="absolute left-0 mt-2.5 w-80 bg-[#09090b] border border-white/10 rounded-lg shadow-2xl py-1.5 z-50 max-h-96 overflow-y-auto custom-scrollbar animate-fade-in">
+                {activeDropdown === 'simpleExamples' && (
+                  <div className="absolute left-0 mt-2.5 w-80 bg-[#09090b] border border-white/10 rounded-lg shadow-2xl py-1.5 z-50 max-h-[380px] overflow-y-auto custom-scrollbar animate-fade-in">
                     <div className="px-4 py-1 text-[9px] text-slate-500 uppercase tracking-widest border-b border-white/5 mb-1.5">
-                      {t('Запустить мгновенную конфигурацию:', 'Launch instant configuration:')}
+                      {t('Простые аналитические сингулярности:', 'Simple analytical singularities:')}
                     </div>
-                    {ALL_PRESETS.map((preset) => (
+                    {SIMPLE_EXAMPLES.map((item) => (
                       <button 
-                        key={preset.id}
-                        onClick={() => { handleLoadPreset(preset.mode, preset.params); closeAllDropdowns(); }}
+                        key={item.id}
+                        onClick={() => { setSelectedStressTest(item.id); setActiveMode(SingularityMode.CASES_AND_SOLUTIONS); closeAllDropdowns(); }}
                         className="w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex flex-col gap-0.5 border-b border-white/5 last:border-0 transition"
                       >
-                        <span className="font-bold text-xs text-cyan-400">{language === 'ru' ? preset.name : preset.nameEn}</span>
-                        <span className="text-[9px] text-slate-500 uppercase font-semibold">{t(MODE_METADATA[preset.mode].label)}</span>
+                        <span className="font-bold text-xs text-cyan-400">{language === 'ru' ? item.name : item.nameEn}</span>
+                        <span className="text-[10px] text-slate-500 font-mono font-semibold">{item.formula}</span>
                       </button>
                     ))}
                   </div>
                 )}
-              </div>
-
-              {/* AI Service Menu */}
-              <div className="relative">
-                <button 
-                  onClick={() => { setActiveMode(SingularityMode.RICIS_AGENT); closeAllDropdowns(); }}
-                  className={`px-3 py-1.5 rounded flex items-center gap-1.5 font-bold transition cursor-pointer select-none border ${activeMode === SingularityMode.RICIS_AGENT ? 'bg-cyan-950/60 text-cyan-400 border-cyan-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5 border-transparent'}`}
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>{t('ИИ СЕРВИС', 'AI ASSISTANT')}</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                </button>
               </div>
 
               {/* Help Menu */}
@@ -630,15 +599,22 @@ export default function App() {
                       <span>{t('О проекте', 'About')}</span>
                     </button>
                     <button 
+                      onClick={() => { setShowAuthorModal(true); closeAllDropdowns(); }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 border-b border-white/5"
+                    >
+                      <Award className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span>{t('Об авторе', 'About Author')}</span>
+                    </button>
+                    <button 
                       onClick={() => { setActiveMode(SingularityMode.RICIS_AGENT); closeAllDropdowns(); }}
-                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 ${activeMode === SingularityMode.RICIS_AGENT ? 'bg-cyan-950/20 text-cyan-300 font-semibold' : ''}`}
+                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 border-b border-white/5 ${activeMode === SingularityMode.RICIS_AGENT ? 'bg-cyan-950/20 text-cyan-300 font-semibold' : ''}`}
                     >
                       <MessageSquare className="w-4 h-4 text-cyan-400 shrink-0" />
                       <span>{t('ИИ сервис', 'AI Service')}</span>
                     </button>
                     <button 
                       onClick={() => { setActiveMode(SingularityMode.THEORY); closeAllDropdowns(); }}
-                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 ${activeMode === SingularityMode.THEORY ? 'bg-cyan-950/20 text-cyan-300 font-semibold' : ''}`}
+                      className={`w-full text-left px-4 py-2.5 hover:bg-white/5 text-slate-300 hover:text-white flex items-center gap-2.5 border-b border-white/5 ${activeMode === SingularityMode.THEORY ? 'bg-cyan-950/20 text-cyan-300 font-semibold' : ''}`}
                     >
                       <BookOpen className="w-4 h-4 text-cyan-400 shrink-0" />
                       <span>{t('Описание концепта', 'Concept Description')}</span>
@@ -743,6 +719,9 @@ export default function App() {
                     { mode: SingularityMode.NAVIER_STOKES, label: 'Навье-Стокс', icon: Droplet },
                     { mode: SingularityMode.RIEMANN, label: 'Дзета Римана', icon: LineChart },
                     { mode: SingularityMode.YANG_MILLS, label: 'Существование Янга-Миллса', icon: Flame },
+                    { mode: SingularityMode.CHLADNI, label: 'Фигуры Хладни', icon: Waves },
+                    { mode: SingularityMode.MANDELBROT, label: 'Множество Мандельброта', icon: Infinity },
+                    { mode: SingularityMode.CDCC, label: 'Континуум-гипотеза (CDCC)', icon: Infinity },
                     { mode: SingularityMode.POINCARE, label: 'Сфера Пуанкаре', icon: Globe },
                     { mode: SingularityMode.HODGE, label: 'Гипотеза Ходжа', icon: Globe },
                     { mode: SingularityMode.BSD, label: 'Гипотеза BSD', icon: LineChart }
@@ -758,57 +737,19 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Visualizers */}
+                {/* Model Examples */}
                 <div className="space-y-1">
-                  <div className="px-2 py-0.5 text-[9px] text-slate-500 uppercase tracking-widest font-bold border-b border-white/5">{t('Отрисовки', 'Visualizers')}</div>
-                  <button 
-                    onClick={() => { setActiveMode(SingularityMode.CHLADNI); closeAllDropdowns(); }}
-                    className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 flex items-center gap-2 ${activeMode === SingularityMode.CHLADNI ? 'text-amber-400 bg-amber-950/20' : 'text-slate-300'}`}
-                  >
-                    <Waves className="w-3.5 h-3.5" />
-                    <span>{t('Фигуры Хладни', 'Chladni Figures')}</span>
-                  </button>
-                  <button 
-                    onClick={() => { setActiveMode(SingularityMode.MANDELBROT); closeAllDropdowns(); }}
-                    className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 flex items-center gap-2 ${activeMode === SingularityMode.MANDELBROT ? 'text-cyan-400 bg-cyan-950/20' : 'text-slate-300'}`}
-                  >
-                    <Infinity className="w-3.5 h-3.5" />
-                    <span>{t('Множество Мандельброта', 'Mandelbrot Set')}</span>
-                  </button>
-                  <button 
-                    onClick={() => { setActiveMode(SingularityMode.CDCC); closeAllDropdowns(); }}
-                    className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 flex items-center gap-2 ${activeMode === SingularityMode.CDCC ? 'text-emerald-400 bg-emerald-950/20' : 'text-slate-300'}`}
-                  >
-                    <Infinity className="w-3.5 h-3.5" />
-                    <span>{t('Континуум-гипотеза (CDCC)', 'Continuum Conjecture (CDCC)')}</span>
-                  </button>
-                </div>
-
-                {/* Presets */}
-                <div className="space-y-1">
-                  <div className="px-2 py-0.5 text-[9px] text-slate-500 uppercase tracking-widest font-bold border-b border-white/5">{t('Пресеты', 'Presets')}</div>
-                  {ALL_PRESETS.map((preset) => (
+                  <div className="px-2 py-0.5 text-[9px] text-slate-500 uppercase tracking-widest font-bold border-b border-white/5">{t('Типовые примеры', 'Model Examples')}</div>
+                  {SIMPLE_EXAMPLES.map((item) => (
                     <button 
-                      key={preset.id}
-                      onClick={() => { handleLoadPreset(preset.mode, preset.params); closeAllDropdowns(); }}
+                      key={item.id}
+                      onClick={() => { setSelectedStressTest(item.id); setActiveMode(SingularityMode.CASES_AND_SOLUTIONS); closeAllDropdowns(); }}
                       className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 text-slate-300 flex flex-col items-start gap-0.5"
                     >
-                      <span className="font-bold text-cyan-400 text-[11px]">{language === 'ru' ? preset.name : preset.nameEn}</span>
-                      <span className="text-[9px] text-slate-500 uppercase font-mono">{t(MODE_METADATA[preset.mode].label)}</span>
+                      <span className="font-bold text-cyan-400 text-[11px]">{language === 'ru' ? item.name : item.nameEn}</span>
+                      <span className="text-[9px] text-slate-500 font-mono">{item.formula}</span>
                     </button>
                   ))}
-                </div>
-
-                 {/* AI Service */}
-                <div className="space-y-1">
-                  <div className="px-2 py-0.5 text-[9px] text-slate-500 uppercase tracking-widest font-bold border-b border-white/5">{t('ИИ Ассистент', 'AI Assistant')}</div>
-                  <button 
-                    onClick={() => { setActiveMode(SingularityMode.RICIS_AGENT); closeAllDropdowns(); }}
-                    className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 flex items-center gap-2 ${activeMode === SingularityMode.RICIS_AGENT ? 'text-cyan-400 bg-cyan-950/20' : 'text-slate-300'}`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 animate-pulse" />
-                    <span>{t('ИИ Ассистент RICIS', 'AI Assistant RICIS')}</span>
-                  </button>
                 </div>
 
                 {/* Help Section */}
@@ -820,6 +761,13 @@ export default function App() {
                   >
                     <Info className="w-3.5 h-3.5 text-cyan-400" />
                     <span>{t('О проекте', 'About')}</span>
+                  </button>
+                  <button 
+                    onClick={() => { setShowAuthorModal(true); closeAllDropdowns(); }}
+                    className="w-full text-left px-2 py-1.5 rounded text-xs hover:bg-white/5 text-slate-300 flex items-center gap-2"
+                  >
+                    <Award className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{t('Об авторе', 'About Author')}</span>
                   </button>
                   <button 
                     onClick={() => { setActiveMode(SingularityMode.RICIS_AGENT); closeAllDropdowns(); }}
@@ -884,7 +832,11 @@ export default function App() {
             <RicisTheory />
           </div>
           <div className={activeMode === SingularityMode.CASES_AND_SOLUTIONS ? "" : "hidden"}>
-            <CasesAndSolutions onLoadPreset={handleLoadPreset} />
+            <CasesAndSolutions 
+              onLoadPreset={handleLoadPreset} 
+              initialSelectedTestId={selectedStressTest}
+              onClearSelectedTest={() => setSelectedStressTest(null)}
+            />
           </div>
           <div className={activeMode === SingularityMode.RICIS_AGENT ? "" : "hidden"}>
             <RicisAgent />
@@ -1091,6 +1043,155 @@ export default function App() {
                   className="px-4 py-2 bg-cyan-950/40 border border-cyan-500/30 hover:bg-cyan-500/20 text-cyan-300 text-xs font-mono font-bold tracking-wider rounded uppercase transition cursor-pointer"
                 >
                   {t('Понятно', 'Understood')}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* About Author Modal */}
+        {showAuthorModal && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999] overflow-y-auto animate-fade-in">
+            <div className="bg-[#09090B] border border-cyan-500/20 max-w-xl w-full rounded-xl overflow-hidden shadow-2xl relative my-8 flex flex-col max-h-[90vh]">
+              
+              {/* Modal Header */}
+              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-zinc-950">
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-cyan-400" />
+                  <span className="font-mono text-xs text-cyan-400 font-bold tracking-widest uppercase">
+                    {t('RICIS III PARADIGM — ОБ АВТОРЕ', 'RICIS III PARADIGM — ABOUT AUTHOR')}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => setShowAuthorModal(false)}
+                  className="text-slate-400 hover:text-white p-1 hover:bg-white/5 rounded transition cursor-pointer"
+                  title={t('Закрыть', 'Close')}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto space-y-6 text-sm text-slate-300 leading-relaxed custom-scrollbar">
+                
+                {/* Author Info */}
+                <div className="border-b border-white/5 pb-4 space-y-2">
+                  <div className="text-white text-lg font-bold tracking-tight">
+                    {t('Алейников Дмитрий Владимирович', 'Aleynikov Dmitry Vladimirovich')}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+                    <MapPin className="w-4 h-4 text-cyan-400" />
+                    <span>{t('г. Минск, Республика Беларусь', 'Minsk, Republic of Belarus')}</span>
+                  </div>
+                </div>
+
+                {/* Focus / Specialization */}
+                <div className="space-y-2">
+                  <div className="text-xs font-mono text-slate-500 uppercase tracking-wider font-semibold">
+                    {t('Специализация и научные интересы', 'Specialization & Scientific Interests')}
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed font-mono">
+                    {t(
+                      'Абсолютно непрерывная логика, регуляризация гравитационных и квантовых особенностей, решение неопределенностей без классических предельных переходов. Разработчик и исследователь теоретического концепта RICIS III (Regularized Indeterminate Forms and Singularities).',
+                      'Absolutely continuous logic, regularization of gravitational and quantum singularities, resolution of uncertainties without classical limit transitions. Developer and researcher of the RICIS III (Regularized Indeterminate Forms and Singularities) theoretical concept.'
+                    )}
+                  </p>
+                </div>
+
+                {/* Publications */}
+                <div className="space-y-3">
+                  <div className="text-xs font-mono text-slate-500 uppercase tracking-wider font-semibold">
+                    {t('Научные публикации & Ресурсы', 'Scientific Publications & Resources')}
+                  </div>
+                  
+                  <div className="space-y-2 font-mono text-xs">
+                    <a 
+                      href="https://doi.org/10.5281/zenodo.21309650" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2 p-2.5 bg-zinc-900/60 border border-white/5 rounded hover:border-cyan-500/30 text-slate-300 hover:text-white transition"
+                    >
+                      <ExternalLink className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <div>
+                        <div className="font-semibold text-white">DOI: 10.5281/zenodo.21309650</div>
+                        <div className="text-[10px] text-slate-500">RICIS III Core Theory</div>
+                      </div>
+                    </a>
+
+                    <a 
+                      href="https://doi.org/10.5281/zenodo.18116204" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2 p-2.5 bg-zinc-900/60 border border-white/5 rounded hover:border-cyan-500/30 text-slate-300 hover:text-white transition"
+                    >
+                      <ExternalLink className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <div>
+                        <div className="font-semibold text-white">DOI: 10.5281/zenodo.18116204</div>
+                        <div className="text-[10px] text-slate-500">RICIS Analytical Work</div>
+                      </div>
+                    </a>
+
+                    <a 
+                      href="https://zenodo.org/records/17872755" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2 p-2.5 bg-zinc-900/60 border border-white/5 rounded hover:border-cyan-500/30 text-slate-300 hover:text-white transition"
+                    >
+                      <ExternalLink className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <div>
+                        <div className="font-semibold text-white">Zenodo: records/17872755</div>
+                        <div className="text-[10px] text-slate-500">RICIS Paradigm Registry</div>
+                      </div>
+                    </a>
+
+                    <a 
+                      href="https://dzen.ru/a/aJYMMYwpLDzBCcQN" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2 p-2.5 bg-zinc-900/60 border border-white/5 rounded hover:border-cyan-500/30 text-slate-300 hover:text-white transition"
+                    >
+                      <ExternalLink className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <div>
+                        <div className="font-semibold text-white">{t('Статья на Дзен', 'Dzen Article')}</div>
+                        <div className="text-[10px] text-slate-500">Popular Science Overview</div>
+                      </div>
+                    </a>
+
+                    <a 
+                      href="https://www.linkedin.com/in/dmitry-aleinikov" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2 p-2.5 bg-zinc-900/60 border border-white/5 rounded hover:border-cyan-500/30 text-slate-300 hover:text-white transition"
+                    >
+                      <ExternalLink className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <div>
+                        <div className="font-semibold text-white">LinkedIn: Dmitry Aleinikov</div>
+                        <div className="text-[10px] text-slate-500">Professional Profile</div>
+                      </div>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Contact Email */}
+                <div className="bg-cyan-950/20 border border-cyan-500/25 rounded-lg p-4 flex items-center gap-3">
+                  <Mail className="w-5 h-5 text-cyan-400 shrink-0" />
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-mono text-slate-400">{t('Электронная почта для связи:', 'Contact Email:')}</div>
+                    <a href="mailto:dima.aley@gmail.com" className="text-sm font-mono text-white hover:text-cyan-400 transition font-bold">
+                      dima.aley@gmail.com
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-white/10 flex justify-end bg-zinc-950 gap-2">
+                <button 
+                  onClick={() => setShowAuthorModal(false)}
+                  className="px-4 py-2 bg-cyan-950/40 border border-cyan-500/30 hover:bg-cyan-500/20 text-cyan-300 text-xs font-mono font-bold tracking-wider rounded uppercase transition cursor-pointer"
+                >
+                  {t('Закрыть', 'Close')}
                 </button>
               </div>
 

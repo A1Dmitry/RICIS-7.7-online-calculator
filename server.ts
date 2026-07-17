@@ -20,6 +20,8 @@ app.use(express.json());
 
 // --- GLOBAL REVIEWS DATABASE & ADMIN SECURITY ---
 const REVIEWS_FILE = path.join(process.cwd(), 'reviews_db.json');
+const VISITORS_FILE = path.join(process.cwd(), 'visitors_db.json');
+
 const activeAdminTokens = new Set<string>();
 const pendingAdminCodes = new Map<string, { code: string; expiresAt: number }>();
 
@@ -41,14 +43,16 @@ function loadReviews() {
       text: 'Замечательный симулятор! Визуализация волновых функций на пластине Хладни очень наглядная, особенно пакеты Риччи-Кэлера.',
       author: 'Алексей С.',
       timestamp: Date.now() - 3600000 * 24 * 3,
-      isCompleted: false
+      isCompleted: false,
+      isHidden: false
     },
     {
       id: 'rev-2',
       text: 'Добавьте, пожалуйста, возможность выгрузки графиков в векторном формате (SVG) для научных публикаций.',
       author: 'Мария Петрова',
       timestamp: Date.now() - 3600000 * 5,
-      isCompleted: true
+      isCompleted: true,
+      isHidden: false
     }
   ];
   saveReviews(initialReviews);
@@ -61,6 +65,28 @@ function saveReviews(reviews: any[]) {
     fs.writeFileSync(REVIEWS_FILE, JSON.stringify(reviews, null, 2), 'utf8');
   } catch (e) {
     console.error('Error writing reviews file:', e);
+  }
+}
+
+// Helper to load visitors
+function loadVisitors() {
+  try {
+    if (fs.existsSync(VISITORS_FILE)) {
+      const data = fs.readFileSync(VISITORS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('Error reading visitors file:', e);
+  }
+  return [];
+}
+
+// Helper to save visitors
+function saveVisitors(visitors: any[]) {
+  try {
+    fs.writeFileSync(VISITORS_FILE, JSON.stringify(visitors, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error writing visitors file:', e);
   }
 }
 
@@ -77,15 +103,22 @@ function verifyAdmin(req: any, res: any, next: any) {
   next();
 }
 
-// Global reviews GET
+// Global reviews GET - returns only non-hidden reviews for visitors
 app.get('/api/reviews', (req, res) => {
+  const reviews = loadReviews();
+  const visible = reviews.filter((r: any) => !r.isHidden);
+  res.json(visible);
+});
+
+// Admin reviews GET - returns all reviews, including hidden ones
+app.get('/api/admin/reviews', verifyAdmin, (req, res) => {
   res.json(loadReviews());
 });
 
 // Global reviews POST
 app.post('/api/reviews', (req, res) => {
   try {
-    const { text, author } = req.body;
+    const { text, author, userKey } = req.body;
     if (!text || !text.trim()) {
       return res.status(400).json({ error: 'Text is required' });
     }
@@ -95,11 +128,115 @@ app.post('/api/reviews', (req, res) => {
       text: text.trim(),
       author: author ? author.trim() : 'Исследователь',
       timestamp: Date.now(),
-      isCompleted: false
+      isCompleted: false,
+      isHidden: false,
+      userKey: userKey || undefined
     };
     reviews.unshift(newReview);
     saveReviews(reviews);
     res.json(newReview);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Visitor registration and tracking ping
+app.post('/api/visit', (req, res) => {
+  try {
+    const { userKey, username } = req.body;
+    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+    if (Array.isArray(ip)) ip = ip[0];
+    if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
+      ip = ip.substring(7);
+    }
+    const ipStr = String(ip || '127.0.0.1');
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    const visitors = loadVisitors();
+    let visitor = null;
+    let isNew = false;
+
+    if (userKey) {
+      visitor = visitors.find((v: any) => v.key === userKey);
+    }
+
+    if (!visitor) {
+      const newKey = 'user_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+      visitor = {
+        key: newKey,
+        username: username && username.trim() ? username.trim() : 'Анонимный исследователь',
+        ips: [],
+        lastSeen: Date.now(),
+        visitsCount: 0,
+        history: []
+      };
+      visitors.push(visitor);
+      isNew = true;
+    }
+
+    // Update statistics
+    visitor.visitsCount = (visitor.visitsCount || 0) + 1;
+    visitor.lastSeen = Date.now();
+
+    if (!visitor.ips.includes(ipStr)) {
+      visitor.ips.push(ipStr);
+    }
+
+    if (username && username.trim() && username.trim() !== 'Анонимный исследователь') {
+      visitor.username = username.trim();
+    }
+
+    // Append to history (keep max 30)
+    if (!visitor.history) visitor.history = [];
+    visitor.history.unshift({
+      timestamp: Date.now(),
+      ip: ipStr,
+      userAgent: String(userAgent)
+    });
+    if (visitor.history.length > 30) {
+      visitor.history = visitor.history.slice(0, 30);
+    }
+
+    saveVisitors(visitors);
+
+    res.json({
+      success: true,
+      userKey: visitor.key,
+      username: visitor.username,
+      ip: ipStr,
+      isNew
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Admin visitors and IP grouping - ADMIN ONLY
+app.get('/api/admin/visitors', verifyAdmin, (req, res) => {
+  try {
+    const visitors = loadVisitors();
+    
+    // Group visitors by IP address
+    const ipGroups: Record<string, any[]> = {};
+    visitors.forEach((v: any) => {
+      v.ips.forEach((ip: string) => {
+        if (!ipGroups[ip]) {
+          ipGroups[ip] = [];
+        }
+        ipGroups[ip].push({
+          key: v.key,
+          username: v.username,
+          lastSeen: v.lastSeen,
+          visitsCount: v.visitsCount
+        });
+      });
+    });
+
+    res.json({
+      success: true,
+      visitors,
+      ipGroups
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -150,11 +287,11 @@ app.post('/api/admin/verify-code', (req, res) => {
   res.json({ success: true, token });
 });
 
-// PUT review (Toggle completed or Edit) - ADMIN ONLY
+// PUT review (Toggle completed, Edit, Hide) - ADMIN ONLY
 app.put('/api/reviews/:id', verifyAdmin, (req, res) => {
   try {
     const { id } = req.params;
-    const { text, isCompleted } = req.body;
+    const { text, isCompleted, isHidden, author } = req.body;
     const reviews = loadReviews();
     const idx = reviews.findIndex((r: any) => r.id === id);
     if (idx === -1) {
@@ -163,6 +300,8 @@ app.put('/api/reviews/:id', verifyAdmin, (req, res) => {
 
     if (text !== undefined) reviews[idx].text = text.trim();
     if (isCompleted !== undefined) reviews[idx].isCompleted = isCompleted;
+    if (isHidden !== undefined) reviews[idx].isHidden = isHidden;
+    if (author !== undefined) reviews[idx].author = author.trim();
 
     saveReviews(reviews);
     res.json(reviews[idx]);
