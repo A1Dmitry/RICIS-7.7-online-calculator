@@ -57,6 +57,87 @@ export default function RicisAgent() {
   const [simulatedCode, setSimulatedCode] = useState<string>('');
   const [pendingAdminAction, setPendingAdminAction] = useState<{ type: 'delete' | 'toggle', id: string } | null>(null);
 
+  const [googleUser, setGoogleUser] = useState<{
+    email: string;
+    name: string;
+    picture: string;
+  } | null>(() => {
+    try {
+      const stored = localStorage.getItem('ricis_google_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const isAuthor = googleUser?.email?.trim().toLowerCase() === 'dima.aley@gmail.com';
+
+  const handleGoogleLogin = async () => {
+    setAdminError('');
+    try {
+      const redirectUri = `${window.location.origin}/auth/google/callback`;
+      const res = await fetch(`/api/auth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch Google auth url');
+      }
+      const data = await res.json();
+      
+      const authWindow = window.open(
+        data.url,
+        'google_oauth_popup',
+        'width=500,height=600,left=100,top=100'
+      );
+      
+      if (!authWindow) {
+        setAdminError(t(
+          'Всплывающее окно заблокировано. Пожалуйста, разрешите всплывающие окна для входа.',
+          'Popup was blocked. Please allow popups for Google Sign-In.'
+        ));
+      }
+    } catch (e: any) {
+      setAdminError(e.message || 'Ошибка запуска Google OAuth');
+    }
+  };
+
+  const handleYandexLogin = async () => {
+    setAdminError('');
+    try {
+      const redirectUri = `${window.location.origin}/auth/yandex/callback`;
+      const res = await fetch(`/api/auth/yandex/url?redirect_uri=${encodeURIComponent(redirectUri)}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch Yandex auth url');
+      }
+      const data = await res.json();
+      
+      const authWindow = window.open(
+        data.url,
+        'yandex_oauth_popup',
+        'width=500,height=600,left=100,top=100'
+      );
+      
+      if (!authWindow) {
+        setAdminError(t(
+          'Всплывающее окно заблокировано. Пожалуйста, разрешите всплывающие окна для входа.',
+          'Popup was blocked. Please allow popups for Yandex Sign-In.'
+        ));
+      }
+    } catch (e: any) {
+      setAdminError(e.message || 'Ошибка запуска Yandex OAuth');
+    }
+  };
+
+  const handleGoogleLogout = () => {
+    localStorage.removeItem('ricis_google_user');
+    setGoogleUser(null);
+    localStorage.removeItem('ricis_admin_token');
+    setAdminToken(null);
+    localStorage.removeItem('ricis_username');
+    setUserName('');
+    setNameInput('');
+    pingVisit('Анонимный исследователь');
+    fetchReviews();
+  };
+
   const [isReviewMode, setIsReviewMode] = useState<boolean>(false);
   const [directReviewInput, setDirectReviewInput] = useState<string>('');
   
@@ -202,15 +283,63 @@ export default function RicisAgent() {
 
   useEffect(() => {
     pingVisit();
-  }, []);
+
+    const handleOAuthMessage = (event: MessageEvent) => {
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+        return;
+      }
+      
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        const { token, email, name, picture, isAdmin } = event.data;
+        if (token) {
+          if (isAdmin || email === 'dima.aley@gmail.com') {
+            localStorage.setItem('ricis_admin_token', token);
+            setAdminToken(token);
+            setShowAdminModal(false);
+            
+            const gUser = { email, name, picture };
+            localStorage.setItem('ricis_google_user', JSON.stringify(gUser));
+            setGoogleUser(gUser);
+
+            if (pendingAdminAction) {
+              const { type, id } = pendingAdminAction;
+              setPendingAdminAction(null);
+              if (type === 'delete') {
+                setTimeout(() => deleteReview(id, true), 100);
+              } else if (type === 'toggle') {
+                setTimeout(() => toggleCompleteReview(id, true), 100);
+              }
+            }
+          } else {
+            const gUser = { email, name, picture };
+            localStorage.setItem('ricis_google_user', JSON.stringify(gUser));
+            setGoogleUser(gUser);
+            
+            localStorage.setItem('ricis_username', name);
+            setUserName(name);
+            pingVisit(name);
+          }
+          fetchReviews();
+        }
+      } else if (event.data?.type === 'OAUTH_AUTH_FAILURE') {
+        setAdminError(event.data.error || 'OAuth verification failed');
+      }
+    };
+
+    window.addEventListener('message', handleOAuthMessage);
+    return () => {
+      window.removeEventListener('message', handleOAuthMessage);
+    };
+  }, [pendingAdminAction]);
 
   // Fetch reviews (visitors load only public non-hidden, admin gets all)
   const fetchReviews = async () => {
     try {
       const token = adminToken || localStorage.getItem('ricis_admin_token');
-      const url = token ? '/api/admin/reviews' : '/api/reviews';
+      const url = (token && isAuthor) ? '/api/admin/reviews' : '/api/reviews';
       const headers: Record<string, string> = {};
-      if (token) {
+      if (token && isAuthor) {
         headers['Authorization'] = `Bearer ${token}`;
       }
       const res = await fetch(url, { headers });
@@ -218,6 +347,19 @@ export default function RicisAgent() {
         const data = await res.json();
         setReviews(data);
       } else {
+        if (res.status === 401 && token) {
+          // Token is invalid/expired. Clear it and retry as a regular user!
+          localStorage.removeItem('ricis_admin_token');
+          setAdminToken(null);
+          localStorage.removeItem('ricis_google_user');
+          setGoogleUser(null);
+          const publicRes = await fetch('/api/reviews');
+          if (publicRes.ok) {
+            const publicData = await publicRes.json();
+            setReviews(publicData);
+            return;
+          }
+        }
         throw new Error('Non-ok response from server');
       }
     } catch (e) {
@@ -277,6 +419,13 @@ export default function RicisAgent() {
         const visData = await visRes.json();
         setVisitors(visData.visitors || []);
         setIpGroups(visData.ipGroups || {});
+      } else if (visRes.status === 401) {
+        localStorage.removeItem('ricis_admin_token');
+        setAdminToken(null);
+        localStorage.removeItem('ricis_google_user');
+        setGoogleUser(null);
+        fetchReviews();
+        return;
       }
       
       const revRes = await fetch('/api/admin/reviews', {
@@ -285,6 +434,13 @@ export default function RicisAgent() {
       if (revRes.ok) {
         const revData = await revRes.json();
         setAdminReviews(revData);
+      } else if (revRes.status === 401) {
+        localStorage.removeItem('ricis_admin_token');
+        setAdminToken(null);
+        localStorage.removeItem('ricis_google_user');
+        setGoogleUser(null);
+        fetchReviews();
+        return;
       }
     } catch (e) {
       console.error('Failed to fetch admin data:', e);
@@ -295,10 +451,10 @@ export default function RicisAgent() {
 
   useEffect(() => {
     fetchReviews();
-    if (adminToken) {
+    if (adminToken && isAuthor) {
       fetchAdminData();
     }
-  }, [adminToken]);
+  }, [adminToken, isAuthor]);
 
   const groupWishesFallback = (allWishes: ReviewWish[]): WishGroup[] => {
     const categories = [
@@ -1040,9 +1196,9 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            {t('Админ', 'Admin')}
+            {adminToken ? (isAuthor ? t('Панель', 'Panel') : t('Кабинет', 'Cabinet')) : t('Вход', 'Sign In')}
             {adminToken && (
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+              <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${isAuthor ? 'bg-cyan-400' : 'bg-emerald-400'}`}></span>
             )}
           </button>
         </div>
@@ -1079,12 +1235,19 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                     onClick={() => {
                       localStorage.removeItem('ricis_admin_token');
                       setAdminToken(null);
+                      localStorage.removeItem('ricis_google_user');
+                      setGoogleUser(null);
+                      localStorage.removeItem('ricis_username');
+                      setUserName('');
+                      setNameInput('');
+                      pingVisit('Анонимный исследователь');
+                      fetchReviews();
                     }}
                     className="ml-auto flex items-center gap-1 text-[8px] bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-400 px-1.5 py-0.5 rounded cursor-pointer transition font-mono uppercase tracking-wider"
-                    title={t("Выйти из режима администратора", "Logout from admin mode")}
+                    title={isAuthor ? t("Выйти из режима автора", "Logout from author mode") : t("Выйти из системы", "Logout")}
                   >
                     <Unlock className="w-2.5 h-2.5" />
-                    <span>ADMIN</span>
+                    <span>{isAuthor ? 'AUTHOR' : 'RESEARCHER'}</span>
                   </button>
                 ) : (
                   <button 
@@ -1099,10 +1262,10 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                       setShowAdminModal(true);
                     }}
                     className="ml-auto flex items-center gap-1 text-[8px] bg-black/60 hover:bg-cyan-950/40 border border-white/5 hover:border-cyan-500/20 text-slate-500 hover:text-cyan-400 px-1.5 py-0.5 rounded cursor-pointer transition font-mono uppercase tracking-wider"
-                    title={t("Войти как администратор", "Login as admin")}
+                    title={t("Войти в систему", "Sign In")}
                   >
                     <Lock className="w-2.5 h-2.5" />
-                    <span>USER</span>
+                    <span>{t("Вход", "LOGIN")}</span>
                   </button>
                 )}
               </div>
@@ -1123,7 +1286,21 @@ Phase 6 & Верификация L1 & Проверка на непротивор
               >
                 <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 uppercase tracking-wider">
                   <span>{t('Оставить отзыв напрямую:', 'Leave feedback directly:')}</span>
-                  {userName && (
+                  {googleUser ? (
+                    <span className="text-cyan-400 flex items-center gap-1.5">
+                      {googleUser.picture && (
+                        <img src={googleUser.picture} alt="Google Profile" className="w-3.5 h-3.5 rounded-full border border-cyan-500/30" referrerPolicy="no-referrer" />
+                      )}
+                      <span className="font-bold text-white max-w-[85px] truncate" title={googleUser.email}>{googleUser.name}</span>
+                      <button 
+                        type="button" 
+                        onClick={handleGoogleLogout}
+                        className="ml-1 text-[8px] underline text-rose-400 hover:text-rose-300 cursor-pointer"
+                      >
+                        [{t('выйти', 'logout')}]
+                      </button>
+                    </span>
+                  ) : userName ? (
                     <span className="text-cyan-400">
                       {t('Автор:', 'Author:')} <span className="font-bold text-white">{userName}</span>
                       <button 
@@ -1138,7 +1315,7 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                         [{t('изменить', 'change')}]
                       </button>
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <div className="flex gap-1.5">
                   <input
@@ -1269,7 +1446,7 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                                     </div>
                                     <p className={`break-words pr-8 text-slate-200 ${isCompleted ? 'line-through text-slate-500 italic' : ''}`}>{item.text}</p>
                                     
-                                    {adminToken && (
+                                    {adminToken && isAuthor && (
                                       <>
                                         <button
                                           type="button"
@@ -1329,7 +1506,7 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                             {rev.text}
                           </p>
                           
-                          {adminToken && (
+                          {adminToken && isAuthor && (
                             <>
                               <button
                                 type="button"
@@ -1470,21 +1647,21 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                   <div className="flex items-center gap-2 text-cyan-400 border-b border-white/5 pb-2">
                     <Lock className="w-4 h-4 text-cyan-400 animate-pulse" />
                     <span className="text-[11px] font-bold uppercase tracking-wider font-mono">
-                      {t('Вход для автора', 'Author Access')}
+                      {t('Авторизация', 'Authorization')}
                     </span>
                   </div>
 
                   <p className="text-[10px] text-slate-400 font-mono leading-normal">
                     {t(
-                      'Для управления пожеланиями и просмотра логов посетителей введите email dima.aley@gmail.com. В демонстрационной среде проверочный код отобразится в терминале.',
-                      'To moderate feedback and view visitor history, login with dima.aley@gmail.com. Verification code is logged in the console.'
+                      'Введите ваш email для авторизации. Авторский доступ под dima.aley@gmail.com предоставит права модерации. Другие email получат статус исследователя.',
+                      'Enter your email to authorize. Author access as dima.aley@gmail.com grants moderation rights. Other emails receive researcher status.'
                     )}
                   </p>
 
                   <div className="space-y-3 font-mono">
                     {adminVerificationStep === 'email' ? (
-                      <div className="space-y-2">
-                        <label className="text-[9px] text-slate-500 uppercase tracking-wider">
+                      <div className="space-y-2.5">
+                        <label className="text-[9px] text-slate-500 uppercase tracking-wider block">
                           {t('Адрес электронной почты', 'Email address')}
                         </label>
                         <input
@@ -1504,7 +1681,7 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                             setAdminLoading(true);
                             setAdminError('');
                             try {
-                              const res = await fetch('/api/admin/verify-email', {
+                              const res = await fetch('/api/admin/request-code', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ email: adminEmail.trim() })
@@ -1512,8 +1689,8 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                               if (res.ok) {
                                 const data = await res.json();
                                 setAdminVerificationStep('code');
-                                if (data.code) {
-                                  setSimulatedCode(data.code);
+                                if (data.testCode) {
+                                  setSimulatedCode(data.testCode);
                                 }
                               } else {
                                 const data = await res.json();
@@ -1528,6 +1705,38 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                           className="w-full py-1.5 bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/30 hover:border-cyan-400 text-cyan-300 rounded text-[10px] font-bold cursor-pointer transition disabled:opacity-40"
                         >
                           {adminLoading ? t('Отправка...', 'Sending...') : t('Получить код доступа', 'Get Access Code')}
+                        </button>
+
+                        <div className="flex items-center gap-2 my-2">
+                          <hr className="flex-1 border-white/10" />
+                          <span className="text-[8px] text-slate-500 uppercase tracking-widest">{t('или', 'or')}</span>
+                          <hr className="flex-1 border-white/10" />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleGoogleLogin}
+                          className="w-full flex items-center justify-center gap-2 py-1.5 bg-white text-black hover:bg-slate-100 rounded text-[10px] font-bold cursor-pointer transition font-sans shadow"
+                        >
+                          <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                            <path
+                              fill="#EA4335"
+                              d="M12 5.04c1.62 0 3.08.56 4.22 1.64l3.15-3.15C17.45 1.74 14.93 1 12 1 7.37 1 3.42 3.66 1.49 7.56l3.82 2.96c.92-2.75 3.49-4.48 6.69-4.48z"
+                            />
+                            <path
+                              fill="#4285F4"
+                              d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.45h6.46c-.28 1.47-1.11 2.72-2.36 3.56l3.66 2.84c2.14-1.97 3.38-4.87 3.38-8.5z"
+                            />
+                            <path
+                              fill="#FBBC05"
+                              d="M5.31 14.48c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28L1.49 7.56C.54 9.47 0 11.61 0 13.84c0 2.23.54 4.37 1.49 6.28l3.82-2.96-.51-.68z"
+                            />
+                            <path
+                              fill="#34A853"
+                              d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.66-2.84c-1.1.74-2.52 1.18-4.3 1.18-3.2 0-5.77-1.73-6.69-4.48L1.49 16.9C3.42 20.8 7.37 23 12 23z"
+                            />
+                          </svg>
+                          <span>{t('Войти через Google', 'Sign in with Google')}</span>
                         </button>
                       </div>
                     ) : (
@@ -1596,30 +1805,111 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                     )}
                   </div>
                 </div>
+              ) : !isAuthor ? (
+                // Registered Researcher State (Cabinet)
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2 border-b border-white/5 pb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-emerald-400">
+                        <Award className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider font-mono">
+                          {t('Кабинет исследователя', 'Researcher Cabinet')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          localStorage.removeItem('ricis_admin_token');
+                          setAdminToken(null);
+                          localStorage.removeItem('ricis_google_user');
+                          setGoogleUser(null);
+                          localStorage.removeItem('ricis_username');
+                          setUserName('');
+                          setNameInput('');
+                          pingVisit('Анонимный исследователь');
+                          fetchReviews();
+                        }}
+                        className="px-2 py-0.5 border border-rose-500/30 hover:border-rose-400 text-rose-400 hover:text-rose-300 text-[9px] font-mono rounded cursor-pointer transition"
+                      >
+                        {t('Выйти', 'Logout')}
+                      </button>
+                    </div>
+
+                    {googleUser && (
+                      <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/5">
+                        {googleUser.picture && (
+                          <img src={googleUser.picture} alt="Avatar" className="w-6 h-6 rounded-full border border-emerald-500/30" referrerPolicy="no-referrer" />
+                        )}
+                        <div className="flex-1 min-w-0 font-mono text-[9px]">
+                          <div className="font-bold text-white truncate">{googleUser.name}</div>
+                          <div className="text-slate-500 truncate">{googleUser.email}</div>
+                        </div>
+                        <span className="text-[8px] bg-emerald-950 text-emerald-400 font-bold px-1 py-0.5 rounded border border-emerald-500/20 uppercase">
+                          {t('ИССЛЕДОВАТЕЛЬ', 'RESEARCHER')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3 font-mono text-[10px] text-slate-300 leading-relaxed">
+                    <p>
+                      {t('Добро пожаловать в вычислительное пространство RICIS III! Ваш профиль успешно авторизован.', 'Welcome to the RICIS III computing space! Your profile has been successfully authorized.')}
+                    </p>
+                    <p>
+                      {t('Теперь вы можете оставлять предложения по развитию теории от своего верифицированного имени. Все ваши записи в ленте предложений будут отмечены специальным статусом верифицированного исследователя.', 'You can now submit proposals for theoretical development under your verified name. All your entries in the wishes feed will be highlighted with a verified researcher status.')}
+                    </p>
+                    <div className="p-3 bg-emerald-950/15 border border-emerald-500/10 rounded-lg space-y-2">
+                      <div className="text-emerald-400 font-bold text-[9px] uppercase tracking-wider">
+                        {t('Ваш вклад в теорию:', 'Your Contribution:')}
+                      </div>
+                      <p className="text-[9px] text-slate-400">
+                        {t('Каждая запись, идея или критика приближает нас к абсолютно непрерывной квантовой гравитационной модели. Регуляризируйте неопределенности вместе с нами!', 'Every log, idea, or critique brings us closer to an absolutely continuous quantum gravitational model. Regularize uncertainties with us!')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 // Authenticated State
                 <div className="space-y-4">
                   {/* Panel Header */}
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <div className="flex items-center gap-1.5 text-cyan-400">
-                      <Unlock className="w-4 h-4 text-cyan-400" />
-                      <span className="text-[11px] font-bold uppercase tracking-wider font-mono">
-                        {t('Панель автора', 'Admin Panel')}
-                      </span>
+                  <div className="flex flex-col gap-2 border-b border-white/5 pb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-cyan-400">
+                        <Unlock className="w-4 h-4 text-cyan-400" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider font-mono">
+                          {t('Панель автора', 'Admin Panel')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          localStorage.removeItem('ricis_admin_token');
+                          setAdminToken(null);
+                          localStorage.removeItem('ricis_google_user');
+                          setGoogleUser(null);
+                          setAdminReviews([]);
+                          setVisitors([]);
+                          setIpGroups({});
+                        }}
+                        className="px-2 py-0.5 border border-rose-500/30 hover:border-rose-400 text-rose-400 hover:text-rose-300 text-[9px] font-mono rounded cursor-pointer transition"
+                      >
+                        {t('Выйти', 'Logout')}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        localStorage.removeItem('ricis_admin_token');
-                        setAdminToken(null);
-                        setAdminReviews([]);
-                        setVisitors([]);
-                        setIpGroups({});
-                      }}
-                      className="px-2 py-0.5 border border-rose-500/30 hover:border-rose-400 text-rose-400 hover:text-rose-300 text-[9px] font-mono rounded cursor-pointer transition"
-                    >
-                      {t('Выйти', 'Logout')}
-                    </button>
+                    {googleUser && (
+                      <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/5">
+                        {googleUser.picture && (
+                          <img src={googleUser.picture} alt="Avatar" className="w-6 h-6 rounded-full border border-cyan-500/30" referrerPolicy="no-referrer" />
+                        )}
+                        <div className="flex-1 min-w-0 font-mono text-[9px]">
+                          <div className="font-bold text-white truncate">{googleUser.name}</div>
+                          <div className="text-slate-500 truncate">{googleUser.email}</div>
+                        </div>
+                        <span className="text-[8px] bg-cyan-950 text-cyan-400 font-bold px-1 py-0.5 rounded border border-cyan-500/20 uppercase">
+                          ADMIN
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Subsection Toggle */}
@@ -2101,11 +2391,11 @@ Phase 6 & Верификация L1 & Проверка на непротивор
           <div className="bg-[#0b0c10] border border-cyan-500/50 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-[0_0_50px_rgba(34,211,238,0.25)] font-mono text-xs">
             <div className="flex items-center gap-2.5 text-cyan-400 border-b border-white/10 pb-2">
               <Lock className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider">{t('Верификация администратора', 'Admin Verification')}</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider">{t('Вход в систему RICIS III', 'RICIS III Authorization')}</h3>
             </div>
             
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              {t('Для редактирования или удаления отзывов требуется подтвердить права доступа. Код будет отправлен на адрес разработчика.', 'Modifying or deleting feedback requires administrative authorization. A code will be transmitted to the developer email.')}
+              {t('Вы можете авторизоваться с помощью Google, Яндекс или временного кода подтверждения.', 'You can authorize using Google, Yandex, or a temporary verification code.')}
             </p>
 
             {adminError && (
@@ -2117,10 +2407,10 @@ Phase 6 & Верификация L1 & Проверка на непротивор
             {adminVerificationStep === 'email' ? (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] text-slate-500 uppercase tracking-wider block">{t('Адрес электронной почты администратора:', 'Admin Email Address:')}</label>
+                  <label className="text-[9px] text-slate-500 uppercase tracking-wider block">{t('Адрес электронной почты:', 'Email Address:')}</label>
                   <input
                     type="email"
-                    placeholder="dima.aley@gmail.com"
+                    placeholder="your.email@example.com"
                     value={adminEmail}
                     onChange={(e) => setAdminEmail(e.target.value)}
                     className="w-full bg-black/60 border border-white/20 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-700 focus:outline-none focus:border-cyan-500"
@@ -2140,7 +2430,7 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                   </button>
                   <button
                     type="button"
-                    disabled={adminLoading || adminEmail.trim().toLowerCase() !== 'dima.aley@gmail.com'}
+                    disabled={adminLoading || !adminEmail.includes('@')}
                     onClick={async () => {
                       setAdminLoading(true);
                       setAdminError('');
@@ -2171,6 +2461,52 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                     {adminLoading ? t('Отправка...', 'Sending...') : t('Получить код', 'Send Code')}
                   </button>
                 </div>
+
+                <div className="flex items-center gap-2 my-1">
+                  <hr className="flex-1 border-white/10" />
+                  <span className="text-[8px] text-slate-500 uppercase tracking-widest">{t('или', 'or')}</span>
+                  <hr className="flex-1 border-white/10" />
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 bg-white text-black hover:bg-slate-100 rounded text-[10px] font-bold cursor-pointer transition font-sans shadow"
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.04c1.62 0 3.08.56 4.22 1.64l3.15-3.15C17.45 1.74 14.93 1 12 1 7.37 1 3.42 3.66 1.49 7.56l3.82 2.96c.92-2.75 3.49-4.48 6.69-4.48z"
+                      />
+                      <path
+                        fill="#4285F4"
+                        d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.45h6.46c-.28 1.47-1.11 2.72-2.36 3.56l3.66 2.84c2.14-1.97 3.38-4.87 3.38-8.5z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.31 14.48c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28L1.49 7.56C.54 9.47 0 11.61 0 13.84c0 2.23.54 4.37 1.49 6.28l3.82-2.96-.51-.68z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.66-2.84c-1.1.74-2.52 1.18-4.3 1.18-3.2 0-5.77-1.73-6.69-4.48L1.49 16.9C3.42 20.8 7.37 23 12 23z"
+                      />
+                    </svg>
+                    <span>{t('Войти через Google', 'Sign in with Google')}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleYandexLogin}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 bg-[#fc3f1d] text-white hover:bg-[#e23516] rounded text-[10px] font-bold cursor-pointer transition font-sans shadow"
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 48 48">
+                      <circle cx="24" cy="24" r="24" fill="white"/>
+                      <path d="M18.5 12H24L31 29H26.5L25 25.5H19.5L18.5 29H14L18.5 12ZM20 22.5H23.5L21.75 18L20 22.5Z" fill="#fc3f1d"/>
+                    </svg>
+                    <span>{t('Войти через Яндекс', 'Sign in with Yandex')}</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -2188,9 +2524,21 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                 </div>
 
                 {simulatedCode && (
-                  <div className="p-2 bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 rounded text-[10px] leading-normal font-sans">
-                    💡 <strong>{t('Для тестирования:', 'For Sandbox Testing:')}</strong> {t('Поскольку это демо-окружение, код подтверждения также напечатан ниже:', 'Since this is a demo sandbox, the verification code is printed below:')}{' '}
-                    <span className="bg-black/60 px-1.5 py-0.5 rounded text-white font-mono font-bold select-all">{simulatedCode}</span>
+                  <div className="space-y-2">
+                    <div className="p-2 bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 rounded text-[10px] leading-normal font-sans">
+                      💡 <strong>{t('Для тестирования:', 'For Sandbox Testing:')}</strong> {t('Поскольку это демо-окружение, код подтверждения также напечатан ниже:', 'Since this is a demo sandbox, the verification code is printed below:')}{' '}
+                      <span className="bg-black/60 px-1.5 py-0.5 rounded text-white font-mono font-bold select-all">{simulatedCode}</span>
+                    </div>
+
+                    <div className="p-2 bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 rounded text-[10px] leading-normal font-sans">
+                      🔗 <strong>{t('Волшебная ссылка:', 'Magic Link:')}</strong><br />
+                      <a 
+                        href={`/auth/verify?token=${simulatedCode}&email=${encodeURIComponent(adminEmail.trim().toLowerCase())}`}
+                        className="underline text-emerald-400 hover:text-emerald-300 break-all"
+                      >
+                        {window.location.origin}/auth/verify?token={simulatedCode}&email={encodeURIComponent(adminEmail.trim().toLowerCase())}
+                      </a>
+                    </div>
                   </div>
                 )}
 
@@ -2220,6 +2568,19 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                           setAdminToken(data.token);
                           setShowAdminModal(false);
                           
+                          if (data.isAdmin) {
+                            const gUser = { email: data.email, name: data.name, picture: 'https://lh3.googleusercontent.com/a/default-user' };
+                            localStorage.setItem('ricis_google_user', JSON.stringify(gUser));
+                            setGoogleUser(gUser);
+                          } else {
+                            const gUser = { email: data.email, name: data.name, picture: 'https://lh3.googleusercontent.com/a/default-user' };
+                            localStorage.setItem('ricis_google_user', JSON.stringify(gUser));
+                            setGoogleUser(gUser);
+                            localStorage.setItem('ricis_username', data.name);
+                            setUserName(data.name);
+                            pingVisit(data.name);
+                          }
+
                           // Execute pending action
                           if (pendingAdminAction) {
                             const { type, id } = pendingAdminAction;
@@ -2230,6 +2591,7 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                               setTimeout(() => toggleCompleteReview(id, true), 100);
                             }
                           }
+                          fetchReviews();
                         } else {
                           const data = await res.json();
                           setAdminError(data.error || 'Неверный код');
