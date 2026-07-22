@@ -243,6 +243,46 @@ export default function CasesAndSolutions({ onLoadPreset, initialSelectedTestId,
       bgGlow: 'from-cyan-500/10'
     },
     {
+      id: 'llm_gradient',
+      title: 'Градиентный Взрыв в Глубоких Нейросетях (LLM)',
+      titleEn: 'Gradient Explosion in Deep Neural Networks (LLM)',
+      category: 'Искусственный Интеллект и LLM',
+      categoryEn: 'Artificial Intelligence & LLMs',
+      icon: ShieldCheck,
+      mode: SingularityMode.LLM_GRADIENT,
+      classicalFail: 'При $L \\ge 1000$ слоях цепное правило обратно распространения порождает скачки градиента $\|\nabla_w L\| \\to \\infty$ и неопределенности $0/0$ в критических точках функций активации (SwiGLU, GELU, RMSNorm), вызывая вылет в NaN/Inf.',
+      classicalFailEn: 'At $L \\ge 1000$ layers, backpropagation chain rule causes gradient spikes $\|\nabla_w L\| \\to \\infty$ and $0/0$ uncertainties at critical activation inflection points (SwiGLU, GELU, RMSNorm), triggering NaN/Inf crashes.',
+      classicalFormula: '\\nabla_w L = \\prod_{k=1}^L J_k \\cdot \\frac{\\partial L}{\\partial y} \\to \\infty',
+      ricisSolution: 'Применение гладкого непрерывного оператора RICIS III $R_\\theta(g) = \\frac{g}{1 + (g \\cdot \\theta)^2}$ с раскрытием неопределенностей $0/0 \\equiv 1$ по аксиомам L1_IDENTITY и A4.',
+      ricisSolutionEn: 'Application of smooth continuous RICIS III operator $R_\\theta(g) = \\frac{g}{1 + (g \\cdot \\theta)^2}$ with resolution of $0/0 \\equiv 1$ uncertainties via L1_IDENTITY and A4 axioms.',
+      ricisFormula: 'R_\\theta(g) = \\frac{g}{1 + (g \\cdot \\theta)^2} \\le \\frac{1}{2\\theta}',
+      explanation: 'Гарантирует абсолютную математическую верхнюю грань градиентной нормы $\|R_\\theta(g)\| \\le \\frac{1}{2\\theta}$ без изломов и искажений геометрического поля, свойственных эвристическому Gradient Clipping.',
+      explanationEn: 'Guarantees an absolute mathematical upper bound for the gradient norm $\|R_\\theta(g)\| \\le \\frac{1}{2\\theta}$ without kinks and distortions inherent to heuristic Gradient Clipping.',
+      steps: [
+        'Замена потенциально несингулярной цепи обратно распространения на гладкий оператор R_θ',
+        'Разрешение неявных неопределенностей 0/0 в точках перегиба SwiGLU и RMSNorm по принципу L1_IDENTITY',
+        'Ограничение нормы градиента сверху строго конечной величиной 1/(2θ)',
+        'Обеспечение 100% стабильности сходимости при обучении сверхглубоких трансформеров'
+      ],
+      stepsEn: [
+        'Replace potentially singular backpropagation chain with smooth continuous R_θ operator',
+        'Resolve implicit 0/0 uncertainties at SwiGLU and RMSNorm inflection points via L1_IDENTITY principle',
+        'Cap gradient norm strictly from above by a finite constant 1/(2θ)',
+        'Ensure 100% convergence stability during deep Transformer optimization'
+      ],
+      presetParams: {
+        networkDepth: 128,
+        learningRate: 0.01,
+        weightVariance: 1.8,
+        activationType: 'swiglu',
+        theta: 0.05,
+        trainingStep: 0,
+        optMethod: 'ricis_iii'
+      },
+      colorClass: 'text-emerald-400 border-emerald-500/30',
+      bgGlow: 'from-emerald-500/10'
+    },
+    {
       id: 'riemann',
       title: 'Полюс Дзета-функции Римана при s = 1',
       titleEn: 'Riemann Zeta Function Pole at s = 1',

@@ -22,6 +22,7 @@ import RicisAgent from './components/RicisAgent';
 import ChladniSingularity from './components/ChladniSingularity';
 import MandelbrotSingularity from './components/MandelbrotSingularity';
 import CDCCSingularity from './components/CDCCSingularity';
+import LLMGradientSingularity from './components/LLMGradientSingularity';
 import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown, ChevronUp, Share2, Check, Menu, X, HelpCircle, Info, ExternalLink, Award, MapPin, Mail, User } from 'lucide-react';
 import Latex from './components/Latex';
 
@@ -33,6 +34,7 @@ const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.Compon
   [SingularityMode.RIEMANN]: { label: 'Дзета Римана (Полюс s=1)', icon: LineChart, colorClass: 'text-cyan-400' },
   [SingularityMode.YANG_MILLS]: { label: 'Существование Янга-Миллса', icon: Flame, colorClass: 'text-purple-400' },
   [SingularityMode.P_VS_NP]: { label: 'P vs NP (Сложность)', icon: Target, colorClass: 'text-cyan-400' },
+  [SingularityMode.LLM_GRADIENT]: { label: 'Градиентный Взрыв в LLM', icon: ShieldCheck, colorClass: 'text-emerald-400' },
   [SingularityMode.HODGE]: { label: 'Гипотеза Ходжа', icon: Globe, colorClass: 'text-cyan-400' },
   [SingularityMode.BSD]: { label: 'Гипотеза BSD', icon: LineChart, colorClass: 'text-cyan-400' },
   [SingularityMode.POINCARE]: { label: 'Сфера Пуанкаре', icon: Globe, colorClass: 'text-cyan-400' },
@@ -142,6 +144,7 @@ export default function App() {
   const [chladniPreset, setChladniPreset] = useState<any>(undefined);
   const [mandelbrotPreset, setMandelbrotPreset] = useState<any>(undefined);
   const [cdccPreset, setCdccPreset] = useState<any>(undefined);
+  const [llmGradientPreset, setLlmGradientPreset] = useState<any>(undefined);
 
   // Dynamic navigation optimization: track section visit counts
   const [visits, setVisits] = useState<Record<SingularityMode, number>>(() => {
@@ -525,6 +528,8 @@ export default function App() {
                       { mode: SingularityMode.NAVIER_STOKES, label: 'Уравнения Навье-Стокса', icon: Droplet },
                       { mode: SingularityMode.RIEMANN, label: 'Дзета Римана (Полюс s=1)', icon: LineChart },
                       { mode: SingularityMode.YANG_MILLS, label: 'Существование Янга-Миллса', icon: Flame },
+                      { mode: SingularityMode.P_VS_NP, label: 'P vs NP (Сложность)', icon: Target },
+                      { mode: SingularityMode.LLM_GRADIENT, label: 'Градиентный Взрыв в LLM', icon: ShieldCheck, colorClass: 'text-emerald-400' },
                       { mode: SingularityMode.CHLADNI, label: 'Фигуры Хладни', icon: Waves, colorClass: 'text-amber-400' },
                       { mode: SingularityMode.MANDELBROT, label: 'Множество Мандельброта', icon: Infinity, colorClass: 'text-cyan-400' },
                       { mode: SingularityMode.CDCC, label: 'Континуум-гипотеза (CDCC)', icon: Infinity, colorClass: 'text-emerald-400' },
@@ -719,6 +724,8 @@ export default function App() {
                     { mode: SingularityMode.NAVIER_STOKES, label: 'Навье-Стокс', icon: Droplet },
                     { mode: SingularityMode.RIEMANN, label: 'Дзета Римана', icon: LineChart },
                     { mode: SingularityMode.YANG_MILLS, label: 'Существование Янга-Миллса', icon: Flame },
+                    { mode: SingularityMode.P_VS_NP, label: 'P vs NP (Сложность)', icon: Target },
+                    { mode: SingularityMode.LLM_GRADIENT, label: 'Градиентный Взрыв в LLM', icon: ShieldCheck },
                     { mode: SingularityMode.CHLADNI, label: 'Фигуры Хладни', icon: Waves },
                     { mode: SingularityMode.MANDELBROT, label: 'Множество Мандельброта', icon: Infinity },
                     { mode: SingularityMode.CDCC, label: 'Континуум-гипотеза (CDCC)', icon: Infinity },
@@ -818,6 +825,9 @@ export default function App() {
           </div>
           <div className={activeMode === SingularityMode.P_VS_NP ? "" : "hidden"}>
             <PVsNPSingularity preset={pVsNPPreset} onChangeState={activeMode === SingularityMode.P_VS_NP ? setActiveState : undefined} />
+          </div>
+          <div className={activeMode === SingularityMode.LLM_GRADIENT ? "" : "hidden"}>
+            <LLMGradientSingularity preset={llmGradientPreset} onChangeState={activeMode === SingularityMode.LLM_GRADIENT ? setActiveState : undefined} isActive={activeMode === SingularityMode.LLM_GRADIENT} />
           </div>
           <div className={activeMode === SingularityMode.HODGE ? "" : "hidden"}>
             <HodgeSingularity preset={hodgePreset} onChangeState={activeMode === SingularityMode.HODGE ? setActiveState : undefined} />

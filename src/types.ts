@@ -19,7 +19,8 @@ export enum SingularityMode {
   RICIS_AGENT = 'RICIS_AGENT',
   CHLADNI = 'CHLADNI',
   MANDELBROT = 'MANDELBROT',
-  CDCC = 'CDCC'
+  CDCC = 'CDCC',
+  LLM_GRADIENT = 'LLM_GRADIENT'
 }
 
 export interface MandelbrotState {
@@ -140,5 +141,16 @@ export interface CDCCState {
   animationSpeed: number;
   showMissingNumber: boolean;
 }
+
+export interface LLMGradientState {
+  networkDepth: number;      // Layer count L (10 to 1000)
+  learningRate: number;      // eta (0.001 to 0.1)
+  weightVariance: number;    // sigma_w (0.5 to 3.0)
+  activationType: 'swiglu' | 'gelu' | 'softmax_attention' | 'rmsnorm';
+  theta: number;             // RICIS regularization parameter (0.001 to 0.5)
+  trainingStep: number;      // Current optimization step
+  optMethod: 'classical_raw' | 'classical_clipped' | 'ricis_iii';
+}
+
 
 
