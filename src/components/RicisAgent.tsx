@@ -363,45 +363,24 @@ export default function RicisAgent() {
         throw new Error('Non-ok response from server');
       }
     } catch (e) {
-      console.error('Failed to fetch reviews from API, using fallback:', e);
-      // Fallback load from localStorage
+      console.error('Failed to fetch reviews from API:', e);
+      // Fallback load from localStorage if offline
       try {
         const stored = localStorage.getItem('ricis_reviews_wishes');
         if (stored) {
           const parsed = JSON.parse(stored);
-          const mapped = parsed.map((r: any) => {
-            const isSvgWish = r.id === 'rev-2' || (r.text && r.text.includes('SVG'));
-            return {
-              ...r,
-              author: r.author || 'Исследователь',
-              isCompleted: r.isCompleted !== undefined ? r.isCompleted : (isSvgWish ? true : false)
-            };
-          });
+          const mapped = parsed.map((r: any) => ({
+            ...r,
+            author: r.author || 'Исследователь',
+            isCompleted: !!r.isCompleted
+          }));
           setReviews(mapped);
         } else {
-          const initialReviews: ReviewWish[] = [
-            {
-              id: 'rev-1',
-              text: 'Замечательный симулятор! Визуализация волновых функций на пластине Хладни очень наглядная, особенно пакеты Риччи-Кэлера.',
-              author: 'Алексей С.',
-              timestamp: Date.now() - 3600000 * 24 * 3,
-              isCompleted: false,
-              isHidden: false
-            },
-            {
-              id: 'rev-2',
-              text: 'Добавьте, пожалуйста, возможность выгрузки графиков в векторном формате (SVG) для научных публикаций.',
-              author: 'Мария Петрова',
-              timestamp: Date.now() - 3600000 * 5,
-              isCompleted: true,
-              isHidden: false
-            }
-          ];
-          setReviews(initialReviews);
-          localStorage.setItem('ricis_reviews_wishes', JSON.stringify(initialReviews));
+          setReviews([]);
         }
       } catch (err) {
         console.error(err);
+        setReviews([]);
       }
     }
   };

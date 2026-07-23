@@ -10,6 +10,17 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { SEO_DATA } from './src/seoData';
+import {
+  dbGetReviews,
+  dbAddReview,
+  dbUpdateReview,
+  dbDeleteReview,
+  dbGetGeoVisitors,
+  dbGetAppletVisits,
+  dbGetVisitors,
+  dbRecordVisitSession,
+  scanServerLogsAndSeedDatabase
+} from './src/db/database';
 
 dotenv.config();
 
@@ -21,74 +32,138 @@ app.use(express.json());
 // --- GLOBAL REVIEWS DATABASE & ADMIN SECURITY ---
 const REVIEWS_FILE = path.join(process.cwd(), 'reviews_db.json');
 const VISITORS_FILE = path.join(process.cwd(), 'visitors_db.json');
+const GEO_VISITORS_FILE = path.join(process.cwd(), 'geo_visitors_db.json');
+const APPLET_VISITS_FILE = path.join(process.cwd(), 'applet_visits_db.json');
+
+const SERVER_ACADEMIC_KEYWORDS = [
+  { keyword: 'cern', name: 'CERN - European Organization for Nuclear Research', type: 'Research Center' },
+  { keyword: 'mit', name: 'Massachusetts Institute of Technology (MIT)', type: 'University' },
+  { keyword: 'stanford', name: 'Stanford University (SLAC / AI Lab)', type: 'University' },
+  { keyword: 'harvard', name: 'Harvard University', type: 'University' },
+  { keyword: 'msu', name: 'Московский Государственный Университет (МГУ им. М.В. Ломоносова)', type: 'University' },
+  { keyword: 'lomonosov', name: 'МГУ им. М.В. Ломоносова (Суперкомпьютер СКИФ)', type: 'University' },
+  { keyword: 'ras.ru', name: 'Российская Академия Наук (РАН)', type: 'Academy of Sciences' },
+  { keyword: 'академия наук', name: 'Российская Академия Наук (РАН)', type: 'Academy of Sciences' },
+  { keyword: 'миан', name: 'Математический институт им. В.А. Стеклова РАН (МИАН)', type: 'Research Center' },
+  { keyword: 'фиан', name: 'Физический институт им. П.Н. Лебедева РАН (ФИАН)', type: 'Research Center' },
+  { keyword: 'ипм', name: 'Институт прикладной математики им. М.В. Келдыша РАН', type: 'Research Center' },
+  { keyword: 'eth', name: 'ETH Zürich (Swiss Federal Institute of Technology)', type: 'University' },
+  { keyword: 'max planck', name: 'Max Planck Society for the Advancement of Science', type: 'Research Center' },
+  { keyword: 'max-planck', name: 'Max Planck Institute for Mathematics & Physics', type: 'Research Center' },
+  { keyword: 'cambridge', name: 'University of Cambridge (Cavendish Laboratory)', type: 'University' },
+  { keyword: 'oxford', name: 'University of Oxford (Mathematical Institute)', type: 'University' },
+  { keyword: 'caltech', name: 'California Institute of Technology (Caltech)', type: 'University' },
+  { keyword: 'cnrs', name: 'CNRS - Centre National de la Recherche Scientifique', type: 'Research Center' },
+  { keyword: 'inria', name: 'INRIA - National Institute for Research in Digital Science', type: 'Research Center' },
+  { keyword: 'tokyo', name: 'University of Tokyo (Dept. of Mathematical Sciences)', type: 'University' },
+  { keyword: 'geant', name: 'GÉANT Pan-European Research & Education Network', type: 'Research Center' },
+  { keyword: 'internet2', name: 'Internet2 Higher Education & Research Network', type: 'University' },
+  { keyword: 'runnet', name: 'Федеральная университетская сеть RUNNet', type: 'University' },
+  { keyword: 'janet', name: 'JANET UK Education & Research Network', type: 'University' },
+  { keyword: 'tsinghua', name: 'Tsinghua University (Institute for Advanced Study)', type: 'University' },
+  { keyword: 'mipt', name: 'Московский Физико-Технический Институт (МФТИ / Физтех)', type: 'University' },
+  { keyword: 'мехмат', name: 'Механико-математический факультет МГУ', type: 'University' },
+  { keyword: 'spbu', name: 'Санкт-Петербургский Государственный Университет (СПбГУ)', type: 'University' },
+  { keyword: 'nsu.ru', name: 'Новосибирский Государственный Университет (НГУ / СО РАН)', type: 'University' },
+];
+
+function loadGeoVisitors(): any[] {
+  try {
+    if (fs.existsSync(GEO_VISITORS_FILE)) {
+      const data = fs.readFileSync(GEO_VISITORS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('Error reading geo_visitors_db.json:', e);
+  }
+  return [];
+}
+
+function saveGeoVisitors(visitors: any[]) {
+  try {
+    fs.writeFileSync(GEO_VISITORS_FILE, JSON.stringify(visitors, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error writing geo_visitors_db.json:', e);
+  }
+}
+
+function classifyInstitutionServer(isp: string, org: string) {
+  const text = `${isp || ''} ${org || ''}`.toLowerCase();
+  for (const item of SERVER_ACADEMIC_KEYWORDS) {
+    if (text.includes(item.keyword.toLowerCase())) {
+      return {
+        isAcademic: true,
+        name: item.name,
+        type: item.type
+      };
+    }
+  }
+  if (
+    text.includes('.edu') ||
+    text.includes('.ac.') ||
+    text.includes('university') ||
+    text.includes('университет') ||
+    text.includes('институт') ||
+    text.includes('академия наук') ||
+    text.includes('research center') ||
+    text.includes('polytechnic') ||
+    text.includes('college')
+  ) {
+    const rawName = org || isp;
+    return {
+      isAcademic: true,
+      name: rawName && rawName.length > 3 ? rawName : 'Educational & Scientific Institute',
+      type: 'University'
+    };
+  }
+  return { isAcademic: false };
+}
 
 const activeAdminTokens = new Set<string>();
 const pendingAdminCodes = new Map<string, { code: string; expiresAt: number }>();
 const AUTHOR_EMAIL = (process.env.AUTHOR_EMAIL || 'dima.aley@gmail.com').trim().toLowerCase();
 
-// Helper to load reviews
-function loadReviews() {
-  try {
-    if (fs.existsSync(REVIEWS_FILE)) {
-      const data = fs.readFileSync(REVIEWS_FILE, 'utf8');
-      return JSON.parse(data);
+// --- SMART VISITOR RECOGNITION UTILITIES ---
+function parseCookies(cookieHeader?: string): Record<string, string> {
+  const list: Record<string, string> = {};
+  if (!cookieHeader) return list;
+  cookieHeader.split(';').forEach((cookie) => {
+    const parts = cookie.split('=');
+    if (parts.length >= 2) {
+      list[parts[0].trim()] = decodeURIComponent(parts.slice(1).join('=').trim());
     }
-  } catch (e) {
-    console.error('Error reading reviews file:', e);
-  }
+  });
+  return list;
+}
+
+function resolveVisitorToken(req: any, res: any): { userKey: string; ip: string; isNew: boolean } {
+  const cookies = parseCookies(req.headers.cookie);
   
-  // Default initial reviews if file doesn't exist
-  const initialReviews = [
-    {
-      id: 'rev-1',
-      text: 'Замечательный симулятор! Визуализация волновых функций на пластине Хладни очень наглядная, особенно пакеты Риччи-Кэлера.',
-      author: 'Алексей С.',
-      timestamp: Date.now() - 3600000 * 24 * 3,
-      isCompleted: false,
-      isHidden: false
-    },
-    {
-      id: 'rev-2',
-      text: 'Добавьте, пожалуйста, возможность выгрузки графиков в векторном формате (SVG) для научных публикаций.',
-      author: 'Мария Петрова',
-      timestamp: Date.now() - 3600000 * 5,
-      isCompleted: true,
-      isHidden: false
-    }
-  ];
-  saveReviews(initialReviews);
-  return initialReviews;
-}
+  // Look for token in header X-Visitor-Token, cookie ricis_visitor_token, or body userKey / visitorId
+  let token = req.headers['x-visitor-token'] || cookies['ricis_visitor_token'] || req.body?.userKey || req.body?.visitorId;
+  if (Array.isArray(token)) token = token[0];
 
-// Helper to save reviews
-function saveReviews(reviews: any[]) {
-  try {
-    fs.writeFileSync(REVIEWS_FILE, JSON.stringify(reviews, null, 2), 'utf8');
-  } catch (e) {
-    console.error('Error writing reviews file:', e);
+  let isNew = false;
+  if (!token || typeof token !== 'string' || !token.trim() || token.trim().length < 5) {
+    token = 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+    isNew = true;
+  } else {
+    token = token.trim();
   }
-}
 
-// Helper to load visitors
-function loadVisitors() {
-  try {
-    if (fs.existsSync(VISITORS_FILE)) {
-      const data = fs.readFileSync(VISITORS_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (e) {
-    console.error('Error reading visitors file:', e);
-  }
-  return [];
-}
+  // Set HTTP Response Header & Cookie
+  res.setHeader('X-Visitor-Token', token);
+  res.setHeader('Set-Cookie', `ricis_visitor_token=${token}; Path=/; Max-Age=31536000; SameSite=Lax`);
 
-// Helper to save visitors
-function saveVisitors(visitors: any[]) {
-  try {
-    fs.writeFileSync(VISITORS_FILE, JSON.stringify(visitors, null, 2), 'utf8');
-  } catch (e) {
-    console.error('Error writing visitors file:', e);
+  // IP extraction
+  let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+  if (Array.isArray(clientIp)) clientIp = clientIp[0];
+  if (typeof clientIp === 'string' && clientIp.startsWith('::ffff:')) {
+    clientIp = clientIp.substring(7);
   }
+  const ip = String(clientIp || '127.0.0.1');
+
+  return { userKey: token, ip, isNew };
 }
 
 // Middleware to verify admin token
@@ -106,35 +181,33 @@ function verifyAdmin(req: any, res: any, next: any) {
 
 // Global reviews GET - returns only non-hidden reviews for visitors
 app.get('/api/reviews', (req, res) => {
-  const reviews = loadReviews();
-  const visible = reviews.filter((r: any) => !r.isHidden);
-  res.json(visible);
+  try {
+    const reviews = dbGetReviews(false);
+    res.json(reviews);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Admin reviews GET - returns all reviews, including hidden ones
 app.get('/api/admin/reviews', verifyAdmin, (req, res) => {
-  res.json(loadReviews());
+  try {
+    const reviews = dbGetReviews(true);
+    res.json(reviews);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Global reviews POST
 app.post('/api/reviews', (req, res) => {
   try {
-    const { text, author, userKey } = req.body;
+    const { userKey } = resolveVisitorToken(req, res);
+    const { text, author } = req.body;
     if (!text || !text.trim()) {
       return res.status(400).json({ error: 'Text is required' });
     }
-    const reviews = loadReviews();
-    const newReview = {
-      id: 'rev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-      text: text.trim(),
-      author: author ? author.trim() : 'Исследователь',
-      timestamp: Date.now(),
-      isCompleted: false,
-      isHidden: false,
-      userKey: userKey || undefined
-    };
-    reviews.unshift(newReview);
-    saveReviews(reviews);
+    const newReview = dbAddReview({ text, author, userKey });
     res.json(newReview);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -144,68 +217,129 @@ app.post('/api/reviews', (req, res) => {
 // Visitor registration and tracking ping
 app.post('/api/visit', (req, res) => {
   try {
-    const { userKey, username } = req.body;
-    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
-    if (Array.isArray(ip)) ip = ip[0];
-    if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
-      ip = ip.substring(7);
-    }
-    const ipStr = String(ip || '127.0.0.1');
-    const userAgent = req.headers['user-agent'] || 'unknown';
+    const { userKey, ip } = resolveVisitorToken(req, res);
+    const { username } = req.body || {};
+    const userAgent = String(req.headers['user-agent'] || 'unknown');
 
-    const visitors = loadVisitors();
-    let visitor = null;
-    let isNew = false;
-
-    if (userKey) {
-      visitor = visitors.find((v: any) => v.key === userKey);
-    }
-
-    if (!visitor) {
-      const newKey = 'user_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-      visitor = {
-        key: newKey,
-        username: username && username.trim() ? username.trim() : 'Анонимный исследователь',
-        ips: [],
-        lastSeen: Date.now(),
-        visitsCount: 0,
-        history: []
-      };
-      visitors.push(visitor);
-      isNew = true;
-    }
-
-    // Update statistics
-    visitor.visitsCount = (visitor.visitsCount || 0) + 1;
-    visitor.lastSeen = Date.now();
-
-    if (!visitor.ips.includes(ipStr)) {
-      visitor.ips.push(ipStr);
-    }
-
-    if (username && username.trim() && username.trim() !== 'Анонимный исследователь') {
-      visitor.username = username.trim();
-    }
-
-    // Append to history (keep max 30)
-    if (!visitor.history) visitor.history = [];
-    visitor.history.unshift({
-      timestamp: Date.now(),
-      ip: ipStr,
-      userAgent: String(userAgent)
+    const result = dbRecordVisitSession({
+      userKey,
+      ip,
+      username,
+      mode: 'general',
+      userAgent
     });
-    if (visitor.history.length > 30) {
-      visitor.history = visitor.history.slice(0, 30);
-    }
-
-    saveVisitors(visitors);
 
     res.json({
       success: true,
-      userKey: visitor.key,
-      username: visitor.username,
-      ip: ipStr,
-      isNew
+      userKey: result.userKey,
+      ip: result.ip,
+      username: result.username
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET Global Live Applet Visit Stats
+app.get('/api/visit-stats', (req, res) => {
+  try {
+    const stats = dbGetAppletVisits();
+    res.json(stats);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST Record Live Applet Visit
+app.post('/api/applet-visit', (req, res) => {
+  try {
+    const { mode } = req.body || {};
+    if (!mode) {
+      return res.status(400).json({ error: 'Mode parameter is required' });
+    }
+
+    const { userKey, ip } = resolveVisitorToken(req, res);
+    const userAgent = String(req.headers['user-agent'] || 'unknown');
+
+    dbRecordVisitSession({
+      userKey,
+      ip,
+      mode,
+      userAgent
+    });
+
+    const stats = dbGetAppletVisits();
+
+    res.json({
+      success: true,
+      userKey,
+      ...stats
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET Global GEO Visitor Records
+app.get('/api/geo-visitors', (req, res) => {
+  try {
+    const data = dbGetGeoVisitors();
+    res.json({
+      success: true,
+      ...data
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST Register / Update Global GEO Visit
+app.post('/api/geo-visit', async (req, res) => {
+  try {
+    const { userKey, ip } = resolveVisitorToken(req, res);
+    const { 
+      country, 
+      countryCode, 
+      region, 
+      city, 
+      isp, 
+      org, 
+      appletName,
+      username
+    } = req.body || {};
+
+    const finalIsp = isp || 'Direct Network Connection';
+    const finalOrg = org || 'Client Gateway';
+    const classification = classifyInstitutionServer(finalIsp, finalOrg);
+    const userAgent = String(req.headers['user-agent'] || 'unknown');
+
+    dbRecordVisitSession({
+      userKey,
+      ip,
+      username,
+      mode: appletName || 'RICIS Agent',
+      userAgent,
+      geoInfo: {
+        country,
+        countryCode,
+        region,
+        city,
+        isp: finalIsp,
+        org: finalOrg,
+        isAcademic: classification.isAcademic,
+        institutionName: classification.name,
+        institutionType: classification.type,
+        appletName
+      }
+    });
+
+    const allData = dbGetGeoVisitors();
+
+    res.json({
+      success: true,
+      userKey,
+      ip,
+      ...allData
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -215,28 +349,20 @@ app.post('/api/visit', (req, res) => {
 // Admin visitors and IP grouping - ADMIN ONLY
 app.get('/api/admin/visitors', verifyAdmin, (req, res) => {
   try {
-    const visitors = loadVisitors();
-    
-    // Group visitors by IP address
-    const ipGroups: Record<string, any[]> = {};
-    visitors.forEach((v: any) => {
-      v.ips.forEach((ip: string) => {
-        if (!ipGroups[ip]) {
-          ipGroups[ip] = [];
-        }
-        ipGroups[ip].push({
-          key: v.key,
-          username: v.username,
-          lastSeen: v.lastSeen,
-          visitsCount: v.visitsCount
-        });
-      });
-    });
+    const visitors = dbGetVisitors();
+    res.json(visitors);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
+// Admin trigger scan server logs & seed database
+app.post('/api/admin/scan-logs', verifyAdmin, (req, res) => {
+  try {
+    const result = scanServerLogsAndSeedDatabase();
     res.json({
       success: true,
-      visitors,
-      ipGroups
+      ...result
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -1026,19 +1152,11 @@ app.put('/api/reviews/:id', verifyAdmin, (req, res) => {
   try {
     const { id } = req.params;
     const { text, isCompleted, isHidden, author } = req.body;
-    const reviews = loadReviews();
-    const idx = reviews.findIndex((r: any) => r.id === id);
-    if (idx === -1) {
+    const updated = dbUpdateReview(id, { text, isCompleted, isHidden, author });
+    if (!updated) {
       return res.status(404).json({ error: 'Review not found' });
     }
-
-    if (text !== undefined) reviews[idx].text = text.trim();
-    if (isCompleted !== undefined) reviews[idx].isCompleted = isCompleted;
-    if (isHidden !== undefined) reviews[idx].isHidden = isHidden;
-    if (author !== undefined) reviews[idx].author = author.trim();
-
-    saveReviews(reviews);
-    res.json(reviews[idx]);
+    res.json(updated);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -1048,12 +1166,10 @@ app.put('/api/reviews/:id', verifyAdmin, (req, res) => {
 app.delete('/api/reviews/:id', verifyAdmin, (req, res) => {
   try {
     const { id } = req.params;
-    const reviews = loadReviews();
-    const filtered = reviews.filter((r: any) => r.id !== id);
-    if (reviews.length === filtered.length) {
+    const success = dbDeleteReview(id);
+    if (!success) {
       return res.status(404).json({ error: 'Review not found' });
     }
-    saveReviews(filtered);
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

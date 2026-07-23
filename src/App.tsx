@@ -23,8 +23,10 @@ import ChladniSingularity from './components/ChladniSingularity';
 import MandelbrotSingularity from './components/MandelbrotSingularity';
 import CDCCSingularity from './components/CDCCSingularity';
 import LLMGradientSingularity from './components/LLMGradientSingularity';
-import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown, ChevronUp, Share2, Check, Menu, X, HelpCircle, Info, ExternalLink, Award, MapPin, Mail, User } from 'lucide-react';
+import { Orbit, Sparkles, Cpu, BookOpen, Infinity, ShieldCheck, Droplet, LineChart, Flame, Target, Globe, MessageSquare, Waves, MoreHorizontal, ChevronDown, ChevronUp, Share2, Check, Menu, X, HelpCircle, Info, ExternalLink, Award, MapPin, Mail, User, Users, BarChart3, Eye } from 'lucide-react';
 import Latex from './components/Latex';
+import { getVisitStats, fetchGlobalVisitStats, recordAppletVisit, VisitStatsData } from './utils/visitTracker';
+import VisitStatsModal from './components/VisitStatsModal';
 
 const MODE_METADATA: Record<SingularityMode, { label: string, icon: React.ComponentType<any>, colorClass?: string }> = {
   [SingularityMode.GRAVITATIONAL]: { label: 'Гравитационные сингулярности', icon: Orbit, colorClass: 'text-cyan-400' },
@@ -175,8 +177,16 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
   const [showAuthorModal, setShowAuthorModal] = useState<boolean>(false);
+  const [visitStats, setVisitStats] = useState<VisitStatsData>(() => getVisitStats());
+  const [showVisitStatsModal, setShowVisitStatsModal] = useState<boolean>(false);
+  const [modalInitialTab, setModalInitialTab] = useState<'applets' | 'geo_report'>('applets');
   const [selectedStressTest, setSelectedStressTest] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const openAnalyticsModal = (tab: 'applets' | 'geo_report' = 'applets') => {
+    setModalInitialTab(tab);
+    setShowVisitStatsModal(true);
+  };
 
   const toggleDropdown = (menuId: string) => {
     setActiveDropdown(prev => prev === menuId ? null : menuId);
@@ -188,17 +198,30 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Initial fetch of live global visit stats
+    fetchGlobalVisitStats().then(data => {
+      if (data) setVisitStats(data);
+    });
+  }, []);
+
+  useEffect(() => {
+    // Record live applet visit in visitTracker
+    recordAppletVisit(activeMode).then(updated => {
+      if (updated) setVisitStats(updated);
+    });
+
+    // Keep tab visits sync for priority tab ranking
     setVisits(prev => {
-      const updated = {
+      const updatedTabVisits = {
         ...prev,
         [activeMode]: (prev[activeMode] || 0) + 1
       };
       try {
-        localStorage.setItem('ricis_tab_visits', JSON.stringify(updated));
+        localStorage.setItem('ricis_tab_visits', JSON.stringify(updatedTabVisits));
       } catch (e) {
         console.error(e);
       }
-      return updated;
+      return updatedTabVisits;
     });
 
     // Synchronize active mode with URL query parameter for SEO and direct links
@@ -371,16 +394,20 @@ export default function App() {
               </span>
             </div>
             
-            <div className="flex items-center gap-4">
-              <div className="text-slate-500 hidden md:flex items-center gap-1">
-                <span>{t('ENTROPY:')}</span>
-                <span className="text-slate-300 font-semibold">0.000214%</span>
-              </div>
-              <div className="w-px h-3 bg-white/10 hidden md:block" />
-              <div className="text-slate-500 hidden md:flex items-center gap-1">
-                <span>{t('UPTIME:')}</span>
-                <span className="text-slate-300 font-semibold">128:44:02</span>
-              </div>
+            <div className="flex items-center gap-3 sm:gap-4">
+              <button
+                onClick={() => setShowVisitStatsModal(true)}
+                className="flex items-center gap-2 bg-cyan-950/50 hover:bg-cyan-900/80 text-cyan-300 px-2.5 py-1 rounded border border-cyan-500/30 text-[9px] font-mono font-bold tracking-wider cursor-pointer transition"
+                title={t('Открыть аналитику посещений', 'Open visit analytics')}
+              >
+                <Users className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-slate-400 hidden sm:inline">{t('Уникальных:', 'Unique:')}</span>
+                <span className="text-emerald-300 font-bold">{visitStats.uniqueGlobalVisits.toLocaleString()}</span>
+                <span className="text-slate-600">|</span>
+                <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-slate-400 hidden sm:inline">{t('Всего:', 'Total:')}</span>
+                <span className="text-cyan-300 font-bold">{visitStats.totalGlobalVisits.toLocaleString()}</span>
+              </button>
               <div className="w-px h-3 bg-white/10 hidden md:block" />
               <button 
                 onClick={() => setHeaderExpanded(true)}
@@ -423,7 +450,7 @@ export default function App() {
             </div>
 
             {/* Telemetry Metrics */}
-            <div className="flex flex-wrap gap-6 text-[10px] font-mono bg-black/40 border border-white/5 p-3 rounded-lg md:self-stretch items-center">
+            <div className="flex flex-wrap gap-4 sm:gap-6 text-[10px] font-mono bg-black/40 border border-white/5 p-3 rounded-lg md:self-stretch items-center">
               <div className="flex flex-col items-start md:items-end">
                 <span className="text-slate-500 text-[9px] tracking-wider uppercase">{t('SYSTEM STATUS')}</span>
                 <span className="text-emerald-400 font-bold flex items-center gap-1 select-none">
@@ -433,13 +460,24 @@ export default function App() {
               </div>
               <div className="w-px h-6 bg-white/10 hidden sm:block" />
               <div className="flex flex-col items-start md:items-end">
-                <span className="text-slate-500 text-[9px] tracking-wider uppercase">{t('ENTROPY BIAS')}</span>
-                <span className="text-white font-semibold">0.000214%</span>
+                <span className="text-slate-500 text-[9px] tracking-wider uppercase">{t('УНИКАЛЬНЫХ ВИЗИТОВ', 'UNIQUE VISITORS')}</span>
+                <span className="text-emerald-400 font-bold">{visitStats.uniqueGlobalVisits.toLocaleString()}</span>
               </div>
               <div className="w-px h-6 bg-white/10 hidden sm:block" />
               <div className="flex flex-col items-start md:items-end">
-                <span className="text-slate-500 text-[9px] tracking-wider uppercase">{t('UPTIME HOURS')}</span>
-                <span className="text-white font-semibold">128:44:02</span>
+                <span className="text-slate-500 text-[9px] tracking-wider uppercase">{t('ВСЕГО ПОСЕЩЕНИЙ', 'TOTAL VISITS')}</span>
+                <span className="text-cyan-300 font-bold">{visitStats.totalGlobalVisits.toLocaleString()}</span>
+              </div>
+              <div className="w-px h-6 bg-white/10 hidden sm:block" />
+              <div className="flex flex-col items-start md:items-end">
+                <span className="text-slate-500 text-[9px] tracking-wider uppercase">{t('АНАЛИТИКА', 'ANALYTICS')}</span>
+                <button
+                  onClick={() => setShowVisitStatsModal(true)}
+                  className="mt-1 px-2.5 py-0.5 rounded text-[9px] font-bold tracking-wider transition bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-900/80 flex items-center gap-1 cursor-pointer select-none"
+                >
+                  <BarChart3 className="w-3 h-3 text-cyan-400" />
+                  <span>{t('ДЕТАЛИЗАЦИЯ', 'FULL STATS')}</span>
+                </button>
               </div>
               <div className="w-px h-6 bg-white/10 hidden sm:block" />
               <div className="flex flex-col items-start md:items-end">
@@ -539,15 +577,21 @@ export default function App() {
                     ].map((item) => {
                       const Icon = item.icon;
                       const isActive = activeMode === item.mode;
+                      const appletStat = visitStats.appletStats[item.mode] || { total: 0, unique: 0 };
                       return (
                         <button 
                           key={item.mode}
                           onClick={() => { setActiveMode(item.mode); closeAllDropdowns(); }}
-                          className={`w-full text-left px-4 py-2 hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between ${isActive ? 'bg-cyan-950/20 text-cyan-300 font-semibold border-l-2 border-cyan-500' : ''}`}
+                          className={`w-full text-left px-4 py-2 hover:bg-white/5 text-slate-300 hover:text-white flex items-center justify-between gap-2 ${isActive ? 'bg-cyan-950/20 text-cyan-300 font-semibold border-l-2 border-cyan-500' : ''}`}
                         >
                           <div className="flex items-center gap-2.5 truncate">
                             <Icon className={`w-3.5 h-3.5 shrink-0 ${item.colorClass ? item.colorClass : (isActive ? 'text-cyan-400' : 'text-slate-500')}`} />
                             <span className="truncate">{t(item.label)}</span>
+                          </div>
+                          <div className="flex items-center gap-1 font-mono text-[9px] text-slate-500 shrink-0 bg-white/5 px-1.5 py-0.5 rounded">
+                            <span title={t('Всего / Уникальных', 'Total / Unique')}>
+                              {appletStat.total} / {appletStat.unique}
+                            </span>
                           </div>
                         </button>
                       );
@@ -583,6 +627,16 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              {/* Direct Geo & Academic Report Button */}
+              <button
+                onClick={() => { openAnalyticsModal('geo_report'); closeAllDropdowns(); }}
+                className="px-3 py-1.5 rounded flex items-center gap-1.5 font-bold transition cursor-pointer select-none bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/60 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+                title={t('Отчет по IP, провайдерам и ВУЗам (сортировка по заходам)', 'IP & Academic Institution Geo-Report')}
+              >
+                <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{t('ОТЧЕТ (ВУЗЫ / IP)', 'REPORT (GEO / IP)')}</span>
+              </button>
 
               {/* Help Menu */}
               <div className="relative">
@@ -800,6 +854,43 @@ export default function App() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Active Applet Visit Stats Banner */}
+        <div className="mb-6 bg-[#11131a]/90 border border-cyan-500/20 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-slate-300 shadow-lg backdrop-blur-md">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-slate-500 uppercase text-[10px] tracking-wider">{t('СТАТИСТИКА МОДУЛЯ:', 'MODULE STATS:')}</span>
+            <span className="font-bold text-white">
+              {MODE_METADATA[activeMode]?.label || activeMode}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 sm:gap-4 text-[11px] flex-wrap">
+            <div className="flex items-center gap-1.5 bg-black/50 px-3 py-1 rounded-lg border border-white/10">
+              <Eye className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-slate-400">{t('Всего посещений:', 'Total visits:')}</span>
+              <span className="font-bold text-cyan-300">
+                {(visitStats.appletStats[activeMode]?.total || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-black/50 px-3 py-1 rounded-lg border border-white/10">
+              <Users className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-slate-400">{t('Уникальных визитов:', 'Unique visitors:')}</span>
+              <span className="font-bold text-emerald-300">
+                {(visitStats.appletStats[activeMode]?.unique || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setShowVisitStatsModal(true)}
+              className="flex items-center gap-1.5 text-[10px] text-cyan-300 hover:text-white bg-cyan-950/60 hover:bg-cyan-900 px-3 py-1 rounded-lg border border-cyan-500/40 transition cursor-pointer font-bold"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{t('Все апплеты', 'All Applets')}</span>
+            </button>
           </div>
         </div>
 
@@ -1208,6 +1299,15 @@ export default function App() {
             </div>
           </div>
         )}
+        {/* Visit Stats Analytics Modal */}
+        <VisitStatsModal
+          isOpen={showVisitStatsModal}
+          onClose={() => setShowVisitStatsModal(false)}
+          statsData={visitStats}
+          onSelectMode={(mode) => setActiveMode(mode)}
+          onStatsUpdated={(newStats) => setVisitStats(newStats)}
+          initialTab={modalInitialTab}
+        />
       </div>
     </div>
   );
