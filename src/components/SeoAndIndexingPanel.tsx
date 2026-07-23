@@ -48,13 +48,13 @@ export const SeoAndIndexingPanel: React.FC = () => {
   const baseUrl = window.location.origin;
 
   const crawlerList = [
-    { name: 'Googlebot (Google)', type: 'Search Crawler', status: 'Allowed' },
+    { name: 'Googlebot (Google Search & Gemini RAG)', type: language === 'ru' ? 'Поиск & Gemini RAG Grounding' : 'Search & Gemini Grounding RAG', status: 'Allowed' },
+    { name: 'Google-Extended (Gemini Training)', type: language === 'ru' ? 'Контроль обучения Gemini LLM' : 'Gemini Training Dataset Control', status: 'Allowed' },
     { name: 'Bingbot (Microsoft Bing)', type: 'Search Crawler', status: 'Allowed' },
     { name: 'YandexBot (Яндекс)', type: 'Search Crawler', status: 'Allowed' },
     { name: 'GPTBot (OpenAI / ChatGPT)', type: 'LLM Indexer', status: 'Allowed' },
     { name: 'ClaudeBot (Anthropic Claude)', type: 'LLM Indexer', status: 'Allowed' },
     { name: 'PerplexityBot (Perplexity AI)', type: 'LLM Indexer', status: 'Allowed' },
-    { name: 'Google-Extended (Gemini RAG)', type: 'LLM Indexer', status: 'Allowed' },
     { name: 'Bytespider (TikTok / Bytedance)', type: 'Search Crawler', status: 'Allowed' },
     { name: 'Applebot (Apple Siri / AI)', type: 'Search Crawler', status: 'Allowed' },
     { name: 'DuckDuckBot (DuckDuckGo)', type: 'Search Crawler', status: 'Allowed' },
@@ -103,18 +103,27 @@ export const SeoAndIndexingPanel: React.FC = () => {
           <div className="mt-4 p-4 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs space-y-2">
             <div className="flex items-center gap-2 font-bold text-emerald-300 text-sm">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>{language === 'ru' ? 'Запрос отправлен успешно!' : 'Indexing ping request sent!'}</span>
+              <span>{language === 'ru' ? 'Запрос отправлен успешно!' : 'Indexing ping request processed!'}</span>
               <span className="text-slate-400 text-xs font-normal">({pingResult.submittedUrlsCount} URLs)</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1 text-slate-300">
               <div className="p-2 rounded bg-slate-900/60 border border-slate-700/50">
-                <span className="font-semibold text-cyan-400">IndexNow API:</span> {pingResult.results?.indexnow?.message || 'OK'}
+                <span className="font-semibold text-cyan-400 block mb-0.5">IndexNow API (Bing/Yandex/Naver):</span>
+                <span className="text-emerald-300 font-medium">
+                  {pingResult.results?.indexnow?.message || 'OK'}
+                </span>
               </div>
               <div className="p-2 rounded bg-slate-900/60 border border-slate-700/50">
-                <span className="font-semibold text-blue-400">Google Sitemap Ping:</span> HTTP {pingResult.results?.google?.status || '200'}
+                <span className="font-semibold text-blue-400 block mb-0.5">Google Search & RAG:</span>
+                <span className="text-slate-300 text-[11px]">
+                  {pingResult.results?.google?.message || 'sitemap.xml в robots.txt & Google Search Console'}
+                </span>
               </div>
               <div className="p-2 rounded bg-slate-900/60 border border-slate-700/50">
-                <span className="font-semibold text-red-400">Yandex Sitemap Ping:</span> HTTP {pingResult.results?.yandex?.status || '200'}
+                <span className="font-semibold text-red-400 block mb-0.5">Яндекс Поиск:</span>
+                <span className="text-slate-300 text-[11px]">
+                  {pingResult.results?.yandex?.message || 'IndexNow + sitemap.xml'}
+                </span>
               </div>
             </div>
           </div>
@@ -126,6 +135,40 @@ export const SeoAndIndexingPanel: React.FC = () => {
             <span>{pingError}</span>
           </div>
         )}
+      </div>
+
+      {/* SEO Protocol Technical Standards */}
+      <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs space-y-2">
+        <h3 className="font-bold text-slate-200 flex items-center gap-2 text-xs">
+          <ShieldCheck className="w-4 h-4 text-cyan-400" />
+          <span>{language === 'ru' ? 'Спецификации и протоколы индексации' : 'SEO Protocol Specifications'}</span>
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-300 pt-1">
+          <div className="p-2.5 rounded bg-slate-950/80 border border-slate-800/80 space-y-1">
+            <span className="font-bold text-cyan-300 block">1. IndexNow API Key</span>
+            <p className="text-slate-400 leading-snug">
+              {language === 'ru'
+                ? 'Ключ сформирован в 32-значном шестнадцатеричном формате [0-9a-f] (без спецсимволов и подчёркиваний). Доступен по адресам /indexnow.txt и /<key>.txt.'
+                : '32-character hex key [0-9a-f] without special characters or underscores. Available at /indexnow.txt and /<key>.txt.'}
+            </p>
+          </div>
+          <div className="p-2.5 rounded bg-slate-950/80 border border-slate-800/80 space-y-1">
+            <span className="font-bold text-blue-300 block">2. Google Sitemap & Crawling</span>
+            <p className="text-slate-400 leading-snug">
+              {language === 'ru'
+                ? 'Устаревший пинг-эндпоинт Google (/ping?sitemap=) отключён Google в конце 2023 г. Индексация выполняется через sitemap.xml в robots.txt и Google Search Console.'
+                : 'Deprecated /ping?sitemap= endpoint retired by Google in late 2023. Sitemap is crawled automatically via robots.txt and Google Search Console.'}
+            </p>
+          </div>
+          <div className="p-2.5 rounded bg-slate-950/80 border border-slate-800/80 space-y-1">
+            <span className="font-bold text-emerald-300 block">3. Googlebot vs Google-Extended</span>
+            <p className="text-slate-400 leading-snug">
+              {language === 'ru'
+                ? 'Googlebot выполняет индексацию Поиска и Gemini RAG Grounding в реальном времени. Google-Extended управляет согласием на обучение моделей Gemini LLM.'
+                : 'Googlebot indexes Google Search and real-time Gemini RAG Grounding. Google-Extended controls Gemini LLM training dataset inclusions.'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Grid of Standard SEO Files & Academic Citations */}
