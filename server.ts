@@ -1608,7 +1608,20 @@ ${JSON.stringify(wishes, null, 2)}
   }
 });
 
-// --- SEO SITEMAP & ROBOTS.TXT ROUTING ---
+// --- SEO SITEMAP, ROBOTS.TXT, INDEXNOW & SEARCH ENGINE PING ROUTING ---
+
+const INDEXNOW_KEY = 'ricis_indexnow_key_2026_dima_aley';
+
+// IndexNow Verification Key Endpoints
+app.get('/indexnow.txt', (req, res) => {
+  res.header('Content-Type', 'text/plain');
+  res.send(INDEXNOW_KEY);
+});
+
+app.get(`/${INDEXNOW_KEY}.txt`, (req, res) => {
+  res.header('Content-Type', 'text/plain');
+  res.send(INDEXNOW_KEY);
+});
 
 // Dynamic sitemap.xml generator
 app.get('/sitemap.xml', (req, res) => {
@@ -1619,8 +1632,7 @@ app.get('/sitemap.xml', (req, res) => {
     
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n';
-    xml += '        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n';
-    xml += '        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">\n';
+    xml += '        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n';
     
     // Core main index
     xml += '  <url>\n';
@@ -1633,10 +1645,10 @@ app.get('/sitemap.xml', (req, res) => {
     // All specific applets and modes from SEO_DATA
     for (const mode of Object.keys(SEO_DATA)) {
       xml += '  <url>\n';
-      xml += `    <loc>${baseUrl}/?mode=${encodeURIComponent(mode)}</loc>\n`;
+      xml += `    <loc>${baseUrl}/?mode=${encodeURIComponent(mode.toLowerCase())}</loc>\n`;
       xml += `    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n`;
-      xml += '    <changefreq>weekly</changefreq>\n';
-      xml += '    <priority>0.8</priority>\n';
+      xml += '    <changefreq>daily</changefreq>\n';
+      xml += '    <priority>0.9</priority>\n';
       xml += '  </url>\n';
     }
     
@@ -1649,7 +1661,7 @@ app.get('/sitemap.xml', (req, res) => {
   }
 });
 
-// Dynamic robots.txt pointing to the sitemap
+// Dynamic robots.txt with all Search Crawlers & AI Indexers explicitly allowed
 app.get('/robots.txt', (req, res) => {
   try {
     const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
@@ -1658,6 +1670,21 @@ app.get('/robots.txt', (req, res) => {
     
     let txt = 'User-agent: *\n';
     txt += 'Allow: /\n';
+    txt += 'Crawl-delay: 1\n\n';
+
+    txt += 'User-agent: Googlebot\nAllow: /\n\n';
+    txt += 'User-agent: Bingbot\nAllow: /\n\n';
+    txt += 'User-agent: Yandex\nAllow: /\n\n';
+    txt += 'User-agent: DuckDuckBot\nAllow: /\n\n';
+    txt += 'User-agent: Baiduspider\nAllow: /\n\n';
+    txt += 'User-agent: Slurp\nAllow: /\n\n';
+    txt += 'User-agent: GPTBot\nAllow: /\n\n';
+    txt += 'User-agent: ClaudeBot\nAllow: /\n\n';
+    txt += 'User-agent: PerplexityBot\nAllow: /\n\n';
+    txt += 'User-agent: Google-Extended\nAllow: /\n\n';
+    txt += 'User-agent: Bytespider\nAllow: /\n\n';
+    txt += 'User-agent: Applebot\nAllow: /\n\n';
+
     txt += `Sitemap: ${baseUrl}/sitemap.xml\n`;
     
     res.header('Content-Type', 'text/plain');
@@ -1666,6 +1693,135 @@ app.get('/robots.txt', (req, res) => {
     res.status(500).send('Error generating robots.txt');
   }
 });
+
+// API endpoint to trigger IndexNow and search engine instant indexing
+app.post('/api/admin/ping-search-engines', async (req, res) => {
+  try {
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.get('host') || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+
+    const urlList = [
+      `${baseUrl}/`,
+      ...Object.keys(SEO_DATA).map(m => `${baseUrl}/?mode=${m.toLowerCase()}`)
+    ];
+
+    const results: any = {};
+
+    // 1. IndexNow API Ping (Bing, Yandex, Naver, Seznam)
+    try {
+      const indexNowPayload = {
+        host: host.split(':')[0],
+        key: INDEXNOW_KEY,
+        keyLocation: `${baseUrl}/indexnow.txt`,
+        urlList: urlList
+      };
+
+      const response = await fetch('https://api.indexnow.org/indexnow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify(indexNowPayload)
+      });
+
+      results.indexnow = {
+        status: response.status,
+        ok: response.ok,
+        message: response.ok ? 'Successfully submitted to IndexNow (Bing/Yandex/Naver)' : await response.text()
+      };
+    } catch (err: any) {
+      results.indexnow = { status: 'error', error: err.message };
+    }
+
+    // 2. Google Sitemap Ping
+    try {
+      const googlePingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(`${baseUrl}/sitemap.xml`)}`;
+      const googleRes = await fetch(googlePingUrl);
+      results.google = { status: googleRes.status, ok: googleRes.ok };
+    } catch (err: any) {
+      results.google = { status: 'error', error: err.message };
+    }
+
+    // 3. Yandex Ping
+    try {
+      const yandexPingUrl = `https://blogs.yandex.ru/pings/?status=success&url=${encodeURIComponent(`${baseUrl}/sitemap.xml`)}`;
+      const yandexRes = await fetch(yandexPingUrl);
+      results.yandex = { status: yandexRes.status, ok: yandexRes.ok };
+    } catch (err: any) {
+      results.yandex = { status: 'error', error: err.message };
+    }
+
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      submittedUrlsCount: urlList.length,
+      baseUrl: baseUrl,
+      results: results
+    });
+  } catch (e: any) {
+    console.error('Error pinging search engines:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+function injectSeoMetadataIntoHtml(rawHtml: string, modeKey?: string, baseUrl: string = 'http://localhost:3000'): string {
+  let html = rawHtml;
+  const key = (modeKey || '').toUpperCase();
+  const seo = SEO_DATA[key] || SEO_DATA.CALCULATOR || SEO_DATA.THEORY || {
+    title: "RICIS III — Регуляризация Неопределённостей и Сингулярностей | Калькулятор",
+    description: "Интерактивный калькулятор, симулятор и экспертный агент RICIS III. Абсолютно непрерывный математический аппарат для регуляризации физических и квантовых сингулярностей.",
+    keywords: "RICIS III, калькулятор сингулярностей, деление на ноль, Алейников Дмитрий Владимирович, Минск"
+  };
+
+  const pageUrl = key ? `${baseUrl}/?mode=${key.toLowerCase()}` : `${baseUrl}/`;
+
+  // Title
+  html = html.replace(/<title>[^<]*<\/title>/i, `<title>${seo.title}</title>`);
+  
+  // Description
+  html = html.replace(
+    /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i,
+    `<meta name="description" content="${seo.description}" />`
+  );
+
+  // Keywords
+  html = html.replace(
+    /<meta\s+name="keywords"\s+content="[^"]*"\s*\/?>/i,
+    `<meta name="keywords" content="${seo.keywords}" />`
+  );
+
+  // OpenGraph
+  html = html.replace(
+    /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/i,
+    `<meta property="og:title" content="${seo.title}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/i,
+    `<meta property="og:description" content="${seo.description}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="og:url"\s+content="[^"]*"\s*\/?>/i,
+    `<meta property="og:url" content="${pageUrl}" />`
+  );
+
+  // Twitter Cards
+  html = html.replace(
+    /<meta\s+property="twitter:title"\s+content="[^"]*"\s*\/?>/i,
+    `<meta property="twitter:title" content="${seo.title}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="twitter:description"\s+content="[^"]*"\s*\/?>/i,
+    `<meta property="twitter:description" content="${seo.description}" />`
+  );
+
+  // Canonical link tag
+  if (!html.includes('<link rel="canonical"')) {
+    html = html.replace('</head>', `  <link rel="canonical" href="${pageUrl}" />\n</head>`);
+  } else {
+    html = html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, `<link rel="canonical" href="${pageUrl}" />`);
+  }
+
+  return html;
+}
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
@@ -1683,39 +1839,11 @@ async function startServer() {
         try {
           let html = fs.readFileSync(indexPath, 'utf8');
           const mode = req.query.mode as string;
-          if (mode && SEO_DATA[mode.toUpperCase()]) {
-            const seo = SEO_DATA[mode.toUpperCase()];
-            
-            // Replace title
-            html = html.replace(
-              /<title>[^<]*<\/title>/i,
-              `<title>${seo.title}</title>`
-            );
-            
-            // Replace meta description
-            html = html.replace(
-              /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i,
-              `<meta name="description" content="${seo.description}" />`
-            );
-            
-            // Replace meta keywords
-            html = html.replace(
-              /<meta\s+name="keywords"\s+content="[^"]*"\s*\/?>/i,
-              `<meta name="keywords" content="${seo.keywords}" />`
-            );
+          const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+          const host = req.get('host') || 'localhost:3000';
+          const baseUrl = `${protocol}://${host}`;
 
-            // Replace Open Graph title
-            html = html.replace(
-              /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/i,
-              `<meta property="og:title" content="${seo.title}" />`
-            );
-
-            // Replace Open Graph description
-            html = html.replace(
-              /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/i,
-              `<meta property="og:description" content="${seo.description}" />`
-            );
-          }
+          html = injectSeoMetadataIntoHtml(html, mode, baseUrl);
           res.send(html);
         } catch (err) {
           console.error('Error serving index.html with SEO:', err);

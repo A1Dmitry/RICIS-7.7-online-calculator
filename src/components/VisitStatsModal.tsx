@@ -8,11 +8,12 @@ import { SingularityMode } from '../types';
 import { VisitStatsData, fetchGlobalVisitStats, resetVisitStats } from '../utils/visitTracker';
 import { useLanguage } from '../lib/i18n';
 import GeoReportPanel from './GeoReportPanel';
+import SeoAndIndexingPanel from './SeoAndIndexingPanel';
 import { 
   Users, Eye, BarChart3, TrendingUp, X, Search, ArrowUpDown, 
   Download, RefreshCw, ShieldCheck, Orbit, Sparkles, Cpu, 
   Droplet, LineChart, Flame, Target, Globe, Infinity, Waves,
-  Check, ExternalLink, GraduationCap, Network
+  Check, ExternalLink, GraduationCap, Network, Zap
 } from 'lucide-react';
 
 interface VisitStatsModalProps {
@@ -21,7 +22,7 @@ interface VisitStatsModalProps {
   statsData: VisitStatsData;
   onSelectMode: (mode: SingularityMode) => void;
   onStatsUpdated: (newStats: VisitStatsData) => void;
-  initialTab?: 'applets' | 'geo_report';
+  initialTab?: 'applets' | 'geo_report' | 'seo_indexing';
 }
 
 const APPLET_ICONS: Record<SingularityMode, any> = {
@@ -73,7 +74,7 @@ export const VisitStatsModal: React.FC<VisitStatsModalProps> = ({
   initialTab = 'applets'
 }) => {
   const { language } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'applets' | 'geo_report'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'applets' | 'geo_report' | 'seo_indexing'>(initialTab);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'total' | 'unique' | 'name'>('total');
   const [sortAsc, setSortAsc] = useState(false);
@@ -183,7 +184,7 @@ export const VisitStatsModal: React.FC<VisitStatsModalProps> = ({
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center gap-2 bg-black/60 p-1 rounded-xl border border-white/10 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 bg-black/60 p-1 rounded-xl border border-white/10 self-start sm:self-auto">
             <button
               onClick={() => setActiveTab('applets')}
               className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium flex items-center gap-2 transition cursor-pointer ${
@@ -207,6 +208,18 @@ export const VisitStatsModal: React.FC<VisitStatsModalProps> = ({
               <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
               <span>{language === 'ru' ? 'Отчет IP & ВУЗы' : 'IP & Geo Report'}</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('seo_indexing')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium flex items-center gap-2 transition cursor-pointer ${
+                activeTab === 'seo_indexing' 
+                  ? 'bg-amber-950 text-amber-300 border border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>{language === 'ru' ? 'SEO & IndexNow' : 'SEO & Indexing'}</span>
+            </button>
           </div>
 
           <button
@@ -220,7 +233,9 @@ export const VisitStatsModal: React.FC<VisitStatsModalProps> = ({
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
           
-          {activeTab === 'geo_report' ? (
+          {activeTab === 'seo_indexing' ? (
+            <SeoAndIndexingPanel />
+          ) : activeTab === 'geo_report' ? (
             <GeoReportPanel />
           ) : (
             <>
