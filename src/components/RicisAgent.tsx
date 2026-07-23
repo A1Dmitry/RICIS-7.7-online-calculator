@@ -54,7 +54,7 @@ export default function RicisAgent() {
   const [adminVerificationStep, setAdminVerificationStep] = useState<'email' | 'code'>('email');
   const [adminError, setAdminError] = useState<string>('');
   const [adminLoading, setAdminLoading] = useState<boolean>(false);
-  const [simulatedCode, setSimulatedCode] = useState<string>('');
+  const [adminMailtoUrl, setAdminMailtoUrl] = useState<string>('');
   const [pendingAdminAction, setPendingAdminAction] = useState<{ type: 'delete' | 'toggle', id: string } | null>(null);
 
   const [googleUser, setGoogleUser] = useState<{
@@ -616,7 +616,7 @@ export default function RicisAgent() {
       setAdminCode('');
       setAdminVerificationStep('email');
       setAdminError('');
-      setSimulatedCode('');
+      setAdminMailtoUrl('');
       setShowAdminModal(true);
       return;
     }
@@ -647,7 +647,7 @@ export default function RicisAgent() {
       setAdminCode('');
       setAdminVerificationStep('email');
       setAdminError('');
-      setSimulatedCode('');
+      setAdminMailtoUrl('');
       setShowAdminModal(true);
       return;
     }
@@ -1236,7 +1236,7 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                       setAdminCode('');
                       setAdminVerificationStep('email');
                       setAdminError('');
-                      setSimulatedCode('');
+                      setAdminMailtoUrl('');
                       setPendingAdminAction(null);
                       setShowAdminModal(true);
                     }}
@@ -1668,8 +1668,9 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                               if (res.ok) {
                                 const data = await res.json();
                                 setAdminVerificationStep('code');
-                                if (data.testCode) {
-                                  setSimulatedCode(data.testCode);
+                                if (data.mailtoUrl) {
+                                  setAdminMailtoUrl(data.mailtoUrl);
+                                  try { window.location.href = data.mailtoUrl; } catch (e) {}
                                 }
                               } else {
                                 const data = await res.json();
@@ -1730,10 +1731,22 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                           onChange={(e) => setAdminCode(e.target.value)}
                           className="w-full bg-black/60 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 tracking-widest text-center font-bold"
                         />
-                        {simulatedCode && (
-                          <div className="p-2 bg-cyan-950/20 border border-cyan-500/10 rounded text-center mt-2">
-                            <span className="text-[9px] text-slate-400 block uppercase tracking-wider">{t('Локальный код (из терминала):', 'Dev environment code:')}</span>
-                            <span className="text-cyan-400 text-xs font-bold font-mono tracking-widest">{simulatedCode}</span>
+                        {adminMailtoUrl && (
+                          <div className="p-2.5 bg-cyan-950/40 border border-cyan-500/30 rounded text-[10px] space-y-1.5 my-2">
+                            <div className="flex items-center gap-1.5 font-bold text-cyan-300">
+                              <Mail className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                              <span>{t('Ссылка и код отправлены на email', 'Link & code sent to email')}</span>
+                            </div>
+                            <p className="text-[10px] text-slate-300 leading-snug">
+                              {t('Ссылка для входа и код подтверждения отправлены в ваш почтовый клиент.', 'A login link and verification code were dispatched to your mail client.')}
+                            </p>
+                            <a
+                              href={adminMailtoUrl}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-[10px] transition cursor-pointer mt-1"
+                            >
+                              <Mail className="w-3 h-3 text-black" />
+                              <span>{t('Открыть почтовый клиент', 'Open Mail Client')}</span>
+                            </a>
                           </div>
                         )}
                         {adminError && (
@@ -2422,8 +2435,9 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                         if (res.ok) {
                           const data = await res.json();
                           setAdminVerificationStep('code');
-                          if (data.testCode) {
-                            setSimulatedCode(data.testCode);
+                          if (data.mailtoUrl) {
+                            setAdminMailtoUrl(data.mailtoUrl);
+                            try { window.location.href = data.mailtoUrl; } catch (e) {}
                           }
                         } else {
                           const data = await res.json();
@@ -2502,22 +2516,25 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                   />
                 </div>
 
-                {simulatedCode && (
-                  <div className="space-y-2">
-                    <div className="p-2 bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 rounded text-[10px] leading-normal font-sans">
-                      💡 <strong>{t('Для тестирования:', 'For Sandbox Testing:')}</strong> {t('Поскольку это демо-окружение, код подтверждения также напечатан ниже:', 'Since this is a demo sandbox, the verification code is printed below:')}{' '}
-                      <span className="bg-black/60 px-1.5 py-0.5 rounded text-white font-mono font-bold select-all">{simulatedCode}</span>
+                {adminMailtoUrl && (
+                  <div className="p-3 bg-cyan-950/40 border border-cyan-500/30 text-cyan-200 rounded-lg text-xs leading-relaxed space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-cyan-300">
+                      <Mail className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span>{t('Письмо со ссылкой отправлено', 'Verification Email Dispatched')}</span>
                     </div>
-
-                    <div className="p-2 bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 rounded text-[10px] leading-normal font-sans">
-                      🔗 <strong>{t('Волшебная ссылка:', 'Magic Link:')}</strong><br />
-                      <a 
-                        href={`/auth/verify?token=${simulatedCode}&email=${encodeURIComponent(adminEmail.trim().toLowerCase())}`}
-                        className="underline text-emerald-400 hover:text-emerald-300 break-all"
-                      >
-                        {window.location.origin}/auth/verify?token={simulatedCode}&email={encodeURIComponent(adminEmail.trim().toLowerCase())}
-                      </a>
-                    </div>
+                    <p className="text-[11px] text-slate-300 leading-snug">
+                      {t(
+                        `Ссылка для входа и 6-значный код отправлены на адрес ${adminEmail.trim().toLowerCase()}. Нажмите кнопку ниже для открытия почтового клиента или введите код с письма.`,
+                        `An email with a magic login link and 6-digit verification code was sent to ${adminEmail.trim().toLowerCase()}. Click below to open your mail app or enter the code from the email.`
+                      )}
+                    </p>
+                    <a
+                      href={adminMailtoUrl}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[11px] transition cursor-pointer mt-1"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-slate-950" />
+                      <span>{t('Открыть почтовый клиент', 'Open Mail App')}</span>
+                    </a>
                   </div>
                 )}
 
