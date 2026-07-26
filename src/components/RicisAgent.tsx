@@ -1542,6 +1542,19 @@ Phase 6 & Верификация L1 & Проверка на непротивор
                 <div className="bg-black/30 p-2.5 rounded border border-white/5 space-y-1.5">
                   <div className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">{t('Научные публикации & Ресурсы:', 'Scientific Publications & Resources:')}</div>
                   
+                  {/* Executable Web App */}
+                  <div className="text-[10px] font-mono text-emerald-400 hover:text-emerald-200 break-all">
+                    <a 
+                      href="https://ricis-iii-v7-7-engine-formal-validation-runtime-501343051156.europe-west2.run.app/" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-1 inline-flex hover:underline"
+                    >
+                      <span>RICIS-III Formal Validation Runtime</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+
                   {/* Zenodo 21309650 (Main paper) */}
                   <div className="text-[10px] font-mono text-cyan-400 hover:text-cyan-200 break-all">
                     <a 

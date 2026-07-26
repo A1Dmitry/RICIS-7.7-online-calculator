@@ -239,6 +239,16 @@ export const SeoAndIndexingPanel: React.FC = () => {
           <div className="space-y-2 text-xs">
             <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800 space-y-1">
               <div className="flex items-center justify-between">
+                <span className="font-mono text-emerald-300 font-bold">RICIS-III Engine (Executable Web App)</span>
+                <a href="https://ricis-iii-v7-7-engine-formal-validation-runtime-501343051156.europe-west2.run.app/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-emerald-400">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+              <p className="text-[11px] text-slate-400">Formal Validation Runtime</p>
+            </div>
+
+            <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800 space-y-1">
+              <div className="flex items-center justify-between">
                 <span className="font-mono text-cyan-300 font-bold">DOI: 10.5281/zenodo.17872755</span>
                 <a href="https://doi.org/10.5281/zenodo.17872755" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white">
                   <ExternalLink className="w-3.5 h-3.5" />

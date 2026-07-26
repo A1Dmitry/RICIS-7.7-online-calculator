@@ -1208,6 +1208,19 @@ export default function App() {
                   
                   <div className="space-y-2 font-mono text-xs">
                     <a 
+                      href="https://ricis-iii-v7-7-engine-formal-validation-runtime-501343051156.europe-west2.run.app/" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2 p-2.5 bg-zinc-900/60 border border-white/5 rounded hover:border-emerald-500/30 text-slate-300 hover:text-white transition"
+                    >
+                      <ExternalLink className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <div>
+                        <div className="font-semibold text-emerald-300">RICIS-III Engine (Executable Web App)</div>
+                        <div className="text-[10px] text-slate-500">Formal Validation Runtime</div>
+                      </div>
+                    </a>
+
+                    <a 
                       href="https://doi.org/10.5281/zenodo.21309650" 
                       target="_blank" 
                       rel="noopener noreferrer" 
