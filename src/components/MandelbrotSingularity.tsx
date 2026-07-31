@@ -1288,6 +1288,9 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
               sCtx.drawImage(img, 0, 0, sCanvas.width, sCanvas.height);
             }
           }
+          stableCenterXRef.current = exactViewCenterXRef.current;
+          stableCenterYRef.current = exactViewCenterYRef.current;
+          stableZoomRef.current = targetZoom;
         };
         img.src = data.imageDataUrl;
       }
@@ -1597,7 +1600,10 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
         drawStaticBufferTransformed();
       });
 
-      scheduleNavRecalculate(280);
+      // Clear any pending timer during active movement
+      if (navDebounceTimerRef.current) {
+        clearTimeout(navDebounceTimerRef.current);
+      }
     }
   };
 
@@ -1607,7 +1613,8 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
         e.currentTarget.releasePointerCapture(e.pointerId);
       } catch (err) {}
       isDragging.current = false;
-      scheduleNavRecalculate(250);
+      // Movement finished: 1.0 second throttling delay
+      scheduleNavRecalculate(1000);
     }
   };
 
@@ -1680,7 +1687,9 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
         requestAnimationFrame(() => {
           drawStaticBufferTransformed();
         });
-        scheduleNavRecalculate(280);
+        if (navDebounceTimerRef.current) {
+          clearTimeout(navDebounceTimerRef.current);
+        }
       }
     } else if (e.touches.length === 2 && isPinching.current) {
       const t1 = e.touches[0];
@@ -1698,7 +1707,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
           isNavigatingRef.current = true;
           setIsNavigating(true);
           drawStaticBufferTransformed();
-          scheduleNavRecalculate(280);
+          scheduleNavRecalculate(500);
         }
 
         lastTouchDist.current = dist;
@@ -1707,9 +1716,11 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
   };
 
   const handleTouchEnd = () => {
+    const wasPinching = isPinching.current;
     isDragging.current = false;
     isPinching.current = false;
-    scheduleNavRecalculate(250);
+    // 1.0s throttling for pan move, 0.5s throttling for zoom pinch
+    scheduleNavRecalculate(wasPinching ? 500 : 1000);
   };
 
   // Direct Wheel Zoom on Canvas
@@ -1759,7 +1770,8 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
       setIsNavigating(true);
       drawStaticBufferTransformed();
 
-      scheduleNavRecalculate(280);
+      // Zooming action: 0.5 second throttling delay
+      scheduleNavRecalculate(500);
     };
 
     canvas.addEventListener('wheel', onWheel, { passive: false });

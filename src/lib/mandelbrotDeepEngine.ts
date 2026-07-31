@@ -59,12 +59,20 @@ export function feSqr(a: FE): FE {
 
 export type CFE = { re: FE; im: FE };
 
-function cfeSqrAddC(z: CFE, c: CFE): CFE {
+function cfeSqrAddC(z: CFE, c: CFE, theta = 0): CFE {
   const re2 = feSqr(z.re);
   const im2 = feSqr(z.im);
-  const re = feAdd(feSub(re2, im2), c.re);
+  let re = feAdd(feSub(re2, im2), c.re);
   const cross = feMul(z.re, z.im);
-  const im = feAdd(feAdd(cross, cross), c.im);
+  let im = feAdd(feAdd(cross, cross), c.im);
+  if (theta > 0) {
+    const zr = feToNumber(z.re);
+    const zi = feToNumber(z.im);
+    const dRe = theta * 0.08 * Math.sin(zr * 2.0);
+    const dIm = theta * 0.08 * Math.cos(zi * 2.0);
+    re = feAdd(re, feFromNumber(dRe));
+    im = feAdd(im, feFromNumber(dIm));
+  }
   return { re, im };
 }
 
@@ -78,12 +86,14 @@ export interface RefOrbit {
   saIm: Float64Array[];
   saTerms: number;
   saSkip: number;
+  ricisTheta: number;
 }
 
 export function computeRefOrbit(
   cRe: FE,
   cIm: FE,
   maxIter: number,
+  ricisTheta = 0,
   escapeR2 = 1e100
 ): RefOrbit {
   const re = new Float64Array(maxIter + 1);
@@ -94,7 +104,7 @@ export function computeRefOrbit(
   im[0] = 0;
   let len = maxIter;
   for (let n = 0; n < maxIter; n++) {
-    z = cfeSqrAddC(z, c);
+    z = cfeSqrAddC(z, c, ricisTheta);
     const zr = feToNumber(z.re);
     const zi = feToNumber(z.im);
     re[n + 1] = zr;
@@ -109,7 +119,7 @@ export function computeRefOrbit(
       break;
     }
   }
-  return { re, im, len, cRe, cIm, saRe: [], saIm: [], saTerms: 0, saSkip: 0 };
+  return { re, im, len, cRe, cIm, saRe: [], saIm: [], saTerms: 0, saSkip: 0, ricisTheta };
 }
 
 export function buildSeriesApprox(ref: RefOrbit, terms: number, skip: number): void {
@@ -185,13 +195,15 @@ export function iteratePixel(
   dcIm: number,
   maxIter: number,
   useSA: boolean,
-  ricisDeltaEscape: boolean
+  ricisDeltaEscape: boolean,
+  theta = 0
 ): PixelResult {
   let dzr = 0,
     dzi = 0;
   let iter = 0;
   let escaped = false;
   let glitch = false;
+  let finalDeltaSq = 0;
 
   if (useSA && ref.saTerms > 0) {
     const sa = evalSeries(ref, dcRe, dcIm);
@@ -202,14 +214,22 @@ export function iteratePixel(
     }
   }
 
-  const nMax = Math.min(maxIter, ref.len);
+  const nMax = Math.min(maxIter, ref.len - 1);
   while (iter < nMax) {
     const Zr = ref.re[iter];
     const Zi = ref.im[iter];
     const dzr2 = dzr * dzr - dzi * dzi;
     const dzi2 = 2 * dzr * dzi;
-    const tr = 2 * (Zr * dzr - Zi * dzi);
-    const ti = 2 * (Zr * dzi + Zi * dzr);
+    let tr = 2 * (Zr * dzr - Zi * dzi);
+    let ti = 2 * (Zr * dzi + Zi * dzr);
+
+    if (theta > 0) {
+      const zrCurr = Zr + dzr;
+      const ziCurr = Zi + dzi;
+      tr += theta * 0.08 * Math.sin(zrCurr * 2.0);
+      ti += theta * 0.08 * Math.cos(ziCurr * 2.0);
+    }
+
     dzr = tr + dzr2 + dcRe;
     dzi = ti + dzi2 + dcIm;
 
@@ -217,36 +237,45 @@ export function iteratePixel(
     const zi = ref.im[iter + 1] + dzi;
     const r2 = zr * zr + zi * zi;
     const dr2 = dzr * dzr + dzi * dzi;
+    finalDeltaSq = dr2;
 
     if (iter > 10 && dr2 > 1e-2 && r2 < 1e-6) glitch = true;
 
     if (ricisDeltaEscape) {
-      if (dr2 > 16 || r2 > 16) {
+      if (dr2 > 16.0 || r2 > 16.0) {
         escaped = true;
-        iter++;
         break;
       }
-    } else if (r2 > 4) {
+    } else if (r2 > 4.0) {
       escaped = true;
-      iter++;
       break;
     }
     iter++;
   }
 
-  if (iter >= maxIter && !escaped) {
+  if (iter >= maxIter || (!escaped && iter >= nMax)) {
     return { iter: maxIter, escaped: false, smooth: maxIter, glitch };
   }
 
   let smooth = iter;
   if (escaped) {
-    const zr = ref.re[Math.min(iter, ref.len)] + dzr;
-    const zi = ref.im[Math.min(iter, ref.len)] + dzi;
-    const r2 = zr * zr + zi * zi;
-    if (r2 > 1) {
-      const log_zn = Math.log(r2) / 2;
-      const nu = Math.log(log_zn / Math.LN2) / Math.LN2;
-      if (isFinite(nu)) smooth = iter + 1 - nu;
+    if (ricisDeltaEscape) {
+      const delta = Math.sqrt(finalDeltaSq);
+      if (delta > 0 && isFinite(delta)) {
+        const si = iter - Math.log2(Math.log2(delta));
+        if (!isNaN(si) && isFinite(si)) {
+          smooth = Math.max(0, si);
+        }
+      }
+    } else {
+      const zr = ref.re[Math.min(iter + 1, ref.len - 1)] + dzr;
+      const zi = ref.im[Math.min(iter + 1, ref.len - 1)] + dzi;
+      const r2 = zr * zr + zi * zi;
+      if (r2 > 1.0) {
+        const log_zn = Math.log(r2) / 2.0;
+        const nu = Math.log(log_zn / Math.LN2) / Math.LN2;
+        if (!isNaN(nu) && isFinite(nu)) smooth = iter + 1.0 - nu;
+      }
     }
   }
   return { iter, escaped, smooth, glitch };
@@ -263,6 +292,7 @@ export interface DeepRenderParams {
   saTerms?: number;
   saSkip?: number;
   ricisDeltaEscape?: boolean;
+  ricisTheta?: number;
   centerReFE?: FE;
   centerImFE?: FE;
 }
@@ -279,7 +309,8 @@ export function renderDeepFrame(p: DeepRenderParams): DeepRenderResult {
   const t0 = performance.now();
   const cRe = p.centerReFE ?? feFromNumber(p.centerRe);
   const cIm = p.centerImFE ?? feFromNumber(p.centerIm);
-  const ref = computeRefOrbit(cRe, cIm, p.maxIter);
+  const theta = p.ricisTheta ?? 0;
+  const ref = computeRefOrbit(cRe, cIm, p.maxIter, theta);
   if (p.useSA !== false) {
     const skip = p.saSkip ?? Math.min(200, Math.floor(p.maxIter * 0.25));
     const terms = p.saTerms ?? 8;
@@ -301,7 +332,7 @@ export function renderDeepFrame(p: DeepRenderParams): DeepRenderResult {
     for (let px = 0; px < width; px++) {
       const stX = (px + 0.5) / width;
       const dcRe = (stX - 0.5) * viewWidth * aspect;
-      const r = iteratePixel(ref, dcRe, dcIm, p.maxIter, useSA, ricis);
+      const r = iteratePixel(ref, dcRe, dcIm, p.maxIter, useSA, ricis, theta);
       buffer[i] = r.escaped ? r.smooth : p.maxIter;
       glitchMap[i] = r.glitch ? 1 : 0;
       i++;
@@ -327,6 +358,7 @@ export function fixGlitches(
   const aspect = width / height;
   let fixed = 0;
   const ricis = p.ricisDeltaEscape !== false;
+  const theta = p.ricisTheta ?? 0;
   for (let py = 0; py < height; py++) {
     const stY = (py + 0.5) / height;
     const dcIm0 = (0.5 - stY) * viewWidth;
@@ -343,8 +375,8 @@ export function fixGlitches(
         p.centerImFE ?? feFromNumber(p.centerIm),
         feFromNumber(dcIm0)
       );
-      const ref = computeRefOrbit(localRe, localIm, maxIter);
-      const r = iteratePixel(ref, 0, 0, maxIter, false, ricis);
+      const ref = computeRefOrbit(localRe, localIm, maxIter, theta);
+      const r = iteratePixel(ref, 0, 0, maxIter, false, ricis, theta);
       buffer[idx] = r.escaped ? r.smooth : maxIter;
       glitchMap[idx] = 0;
       fixed++;
