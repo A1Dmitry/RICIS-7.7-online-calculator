@@ -241,6 +241,11 @@ export function iteratePixel(
 
     if (iter > 10 && dr2 > 1e-2 && r2 < 1e-6) glitch = true;
 
+    if (!isFinite(dr2) || isNaN(dr2) || !isFinite(r2) || isNaN(r2)) {
+      escaped = true;
+      break;
+    }
+
     if (ricisDeltaEscape) {
       if (dr2 > 16.0 || r2 > 16.0) {
         escaped = true;

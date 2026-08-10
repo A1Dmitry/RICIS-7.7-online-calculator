@@ -1,0 +1,111 @@
+--- src/components/MandelbrotSingularity.tsx
++++ src/components/MandelbrotSingularity.tsx
+@@ -151,3 +151,3 @@
+   const [renderMode, setRenderMode] = useState<'cpu' | 'webgl' | 'hybrid'>('hybrid');
+-  const [hybridTool, setHybridTool] = useState<'box' | 'pan'>('box');
++  const [activeTool, setActiveTool] = useState<'box' | 'pan' | 'zoom-in' | 'zoom-out'>('pan');
+   const [serverImageDataUrl, setServerImageDataUrl] = useState<string | null>(null);
+@@ -1482,3 +1482,3 @@
+   const handleStagePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+-    if (renderMode === 'hybrid' && hybridTool === 'box') {
++    if (renderMode === 'hybrid' && activeTool === 'box') {
+       const rect = stageRef.current?.getBoundingClientRect();
+@@ -1494,3 +1494,3 @@
+   const handleStagePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+-    if (renderMode === 'hybrid' && hybridTool === 'box' && isSelectingBox) {
++    if (renderMode === 'hybrid' && activeTool === 'box' && isSelectingBox) {
+       const rect = stageRef.current?.getBoundingClientRect();
+@@ -1502,3 +1502,3 @@
+   const handleStagePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+-    if (renderMode === 'hybrid' && hybridTool === 'box' && isSelectingBox && boxStart && boxCurrent) {
++    if (renderMode === 'hybrid' && activeTool === 'box' && isSelectingBox && boxStart && boxCurrent) {
+       const x1 = Math.min(boxStart.x, boxCurrent.x);
+@@ -1565,3 +1565,22 @@
+     dragStart.current = { x: e.clientX, y: e.clientY };
+ 
++    if (activeTool === 'zoom-in' || activeTool === 'zoom-out') {
++      isInteractingRef.current = false;
++      isDragging.current = false;
++      
++      const rect = canvas.getBoundingClientRect();
++      const px = e.clientX - rect.left;
++      const py = e.clientY - rect.top;
++      const width = canvas.clientWidth || 1;
++      const height = canvas.clientHeight || 1;
++      const aspect = width / height;
++      
++      const zoomFactor = activeTool === 'zoom-in' ? 0.5 : 2.0;
++      const dxNorm = (px - width / 2) / width;
++      const dyNorm = (height / 2 - py) / height;
++      
++      const newCX = exactCenterXRef.current.plus(new Decimal(dxNorm).mul(zoomRef.current * aspect));
++      const newCY = exactCenterYRef.current.plus(new Decimal(dyNorm).mul(zoomRef.current));
++      
++      triggerNavigate(newCX, newCY, zoomRef.current * zoomFactor);
++      return;
++    }
++
+     if (!isNavigatingRef.current) {
+@@ -1578,2 +1597,4 @@
+     if (!isDragging.current) return;
++    if (activeTool === 'zoom-in' || activeTool === 'zoom-out' || activeTool === 'box') return;
++
+     const canvas = canvasRef.current;
+@@ -2020,3 +2041,3 @@
+-          {renderMode === 'hybrid' && (
+-            <div className="flex items-center gap-1 bg-cyan-950/60 p-0.5 rounded border border-cyan-500/30">
++          <div className="flex items-center gap-1 bg-cyan-950/60 p-0.5 rounded border border-cyan-500/30">
++            {renderMode === 'hybrid' && (
+               <button
+-                onClick={() => setHybridTool('box')}
++                onClick={() => setActiveTool('box')}
+                 className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
+-                  hybridTool === 'box' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
++                  activeTool === 'box' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
+                 }`}
+@@ -2027,3 +2048,4 @@
+               </button>
++            )}
+               <button
+-                onClick={() => setHybridTool('pan')}
++                onClick={() => setActiveTool('pan')}
+                 className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
+-                  hybridTool === 'pan' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
++                  activeTool === 'pan' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
+                 }`}
+@@ -2035,3 +2057,19 @@
+               </button>
+-            </div>
+-          )}
++              <button
++                onClick={() => setActiveTool('zoom-in')}
++                className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
++                  activeTool === 'zoom-in' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
++                }`}
++                title="Zoom In"
++              >
++                🔍+
++              </button>
++              <button
++                onClick={() => setActiveTool('zoom-out')}
++                className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
++                  activeTool === 'zoom-out' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
++                }`}
++                title="Zoom Out"
++              >
++                🔍-
++              </button>
++          </div>
+@@ -2107,3 +2145,11 @@
+               className={`w-full h-full block touch-none select-none ${
+-                isServerRendering ? 'cursor-wait' : (renderMode === 'hybrid' && hybridTool === 'box' ? 'cursor-crosshair' : 'cursor-zoom-in')
++                isServerRendering 
++                  ? 'cursor-wait' 
++                  : activeTool === 'box' 
++                    ? 'cursor-crosshair' 
++                    : activeTool === 'zoom-in' 
++                      ? 'cursor-zoom-in' 
++                      : activeTool === 'zoom-out'
++                        ? 'cursor-zoom-out'
++                        : 'cursor-move'
+               }`}

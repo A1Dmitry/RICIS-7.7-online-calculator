@@ -1,0 +1,353 @@
+--- src/components/MandelbrotSingularity.tsx
++++ src/components/MandelbrotSingularity.tsx
+@@ -746,7 +746,7 @@
+     return !!(gl && program);
+   };
+ 
+-  const renderFullFrameCPU = (
++  const renderFullFrameCPU = async (
+     canvas: HTMLCanvasElement,
+     width: number,
+     height: number,
+@@ -765,7 +765,8 @@
+   ) => {
+     const ctx = canvas.getContext('2d');
+     if (!ctx) return;
+ 
++    setIsServerRendering(true);
+     const tStart = performance.now();
+ 
+     const aspect = width / height;
+@@ -999,6 +1000,7 @@
+       ctx.putImageData(imgData, 0, 0);
+       const duration = performance.now() - tStart;
+       setRenderTimeMs(duration);
++      setIsServerRendering(false);
+       return;
+     }
+ 
+@@ -1024,103 +1026,112 @@
+     const dxVal = (zoomVal * aspect) / width;
+     const dyVal = zoomVal / height;
+ 
+-    for (let by = 0; by < blocksY; by++) {
++    const renderBlock = (bx: number, by: number) => {
+       const pyStart = by * blockSize;
+       const pyEnd = Math.min(pyStart + blockSize, height);
+       const blockMidY = (pyStart + pyEnd - 1) / 2;
+ 
+-      for (let bx = 0; bx < blocksX; bx++) {
+-        const pxStart = bx * blockSize;
+-        const pxEnd = Math.min(pxStart + blockSize, width);
+-        const blockMidX = (pxStart + pxEnd - 1) / 2;
+-
+-        let blockReNum = baseCXNum;
+-        let blockImNum = baseCYNum;
+-
+-        if (useBlockAnchors) {
+-          const offsetXFromCenter = (blockMidX + 0.5 - width / 2) * dxVal;
+-          const offsetYFromCenter = (0.5 + blockMidY - height / 2) * dyVal;
+-          blockReNum = baseCXNum + offsetXFromCenter;
+-          blockImNum = baseCYNum - offsetYFromCenter;
+-        } else {
+-          blockReNum = baseCXNum - 0.5 * zoomVal * aspect;
+-          blockImNum = baseCYNum + 0.5 * zoomVal;
+-        }
+-
+-        for (let py = pyStart; py < pyEnd; py++) {
+-          let im = 0;
+-          if (useBlockAnchors) {
+-            im = blockImNum - (py - blockMidY) * dyVal;
+-          } else {
+-            const stY = (py + 0.5) / height;
+-            im = blockImNum - stY * zoomVal;
+-          }
+-
+-          for (let px = pxStart; px < pxEnd; px++) {
+-            let re = 0;
+-            if (useBlockAnchors) {
+-              re = blockReNum + (px - blockMidX) * dxVal;
+-            } else {
+-              const stX = (px + 0.5) / width;
+-              re = blockReNum + stX * zoomVal * aspect;
+-            }
+-
+-            let zr = isJulia ? re : 0.0;
+-            let zi = isJulia ? im : 0.0;
+-            const cr = isJulia ? jx : re;
+-            const ci = isJulia ? jy : im;
+-
+-            let iter = 0;
+-            let escaped = false;
+-            let finalDeltaSq = 0.0;
+-
+-            while (iter < maxI) {
+-              const r2 = zr * zr;
+-              const i2 = zi * zi;
+-
+-              if (!isFinite(r2 + i2) || isNaN(r2 + i2)) {
+-                escaped = true;
+-                break;
+-              }
+-
+-              if (!ricisCriterion && (r2 + i2 > 4.0)) {
+-                escaped = true;
+-                break;
+-              }
+-
+-              let nextR = 0.0;
+-              let nextI = 0.0;
+-
+-              if (formula === 'cubic') {
+-                nextR = zr * zr * zr - 3.0 * zr * i2 + cr;
+-                nextI = 3.0 * r2 * zi - zi * i2 + ci;
+-              } else if (formula === 'quartic') {
+-                nextR = r2 * r2 - 6.0 * r2 * i2 + i2 * i2 + cr;
+-                nextI = 4.0 * zr * zr * zr * zi - 4.0 * zr * zi * i2 + ci;
+-              } else if (formula === 'burning_ship') {
+-                const abs_zr = Math.abs(zr);
+-                const abs_zi = Math.abs(zi);
+-                nextR = abs_zr * abs_zr - abs_zi * abs_zi + cr;
+-                nextI = 2.0 * abs_zr * abs_zi + ci;
+-              } else if (formula === 'tricorn') {
+-                nextR = r2 - i2 + cr;
+-                nextI = -2.0 * zr * zi + ci;
+-              } else {
+-                nextR = r2 - i2 + cr;
+-                nextI = 2.0 * zr * zi + ci;
+-              }
+-
+-              if (theta > 0.0) {
+-                nextR += theta * 0.08 * Math.sin(zr * 2.0);
+-                nextI += theta * 0.08 * Math.cos(zi * 2.0);
+-              }
+-
+-              if (ricisCriterion) {
+-                const dzr = nextR - zr;
+-                const dzi = nextI - zi;
+-                finalDeltaSq = dzr * dzr + dzi * dzi;
+-                if (finalDeltaSq > 16.0 || r2 + i2 > 16.0 || !isFinite(finalDeltaSq) || isNaN(finalDeltaSq)) {
+-                  escaped = true;
+-                  break;
+-                }
+-              }
+-
+-              zr = nextR;
+-              zi = nextI;
+-              iter++;
+-            }
+-
+-            const offset = (py * width + px) * 4;
+-            if (!escaped) {
+-              data[offset] = 4;
+-              data[offset + 1] = 4;
+-              data[offset + 2] = 10;
+-              data[offset + 3] = 255;
+-            } else {
+-              let finalT = iter;
+-              if (smooth) {
+-                if (ricisCriterion) {
+-                  const delta = Math.sqrt(finalDeltaSq);
+-                  if (delta > 0 && isFinite(delta)) {
+-                    const si = iter - Math.log2(Math.log2(delta));
+-                    if (!isNaN(si) && isFinite(si)) {
+-                      finalT = Math.max(0, si);
+-                    }
+-                  }
+-                } else {
+-                  const mag = Math.sqrt(zr * zr + zi * zi);
+-                  if (mag > 0 && isFinite(mag)) {
+-                    const si = iter + 1 - Math.log(Math.log(mag)) / Math.log(2.0);
+-                    if (!isNaN(si) && isFinite(si)) {
+-                      finalT = Math.max(0, si);
+-                    }
+-                  }
+-                }
+-              }
+-              const color = getColor(finalT, maxI, scheme, ricisCriterion);
+-              data[offset] = color.r;
+-              data[offset + 1] = color.g;
+-              data[offset + 2] = color.b;
+-              data[offset + 3] = 255;
+-            }
+-          }
+-        }
+-      }
+-    }
+-
+-    ctx.putImageData(imgData, 0, 0);
+-    const duration = performance.now() - tStart;
+-    setRenderTimeMs(duration);
+-  };
++      const pxStart = bx * blockSize;
++      const pxEnd = Math.min(pxStart + blockSize, width);
++      const blockMidX = (pxStart + pxEnd - 1) / 2;
++
++      let blockReNum = baseCXNum;
++      let blockImNum = baseCYNum;
++
++      if (useBlockAnchors) {
++        const offsetXFromCenter = (blockMidX + 0.5 - width / 2) * dxVal;
++        const offsetYFromCenter = (0.5 + blockMidY - height / 2) * dyVal;
++        blockReNum = baseCXNum + offsetXFromCenter;
++        blockImNum = baseCYNum - offsetYFromCenter;
++      } else {
++        blockReNum = baseCXNum - 0.5 * zoomVal * aspect;
++        blockImNum = baseCYNum + 0.5 * zoomVal;
++      }
++
++      for (let py = pyStart; py < pyEnd; py++) {
++        let im = 0;
++        if (useBlockAnchors) {
++          im = blockImNum - (py - blockMidY) * dyVal;
++        } else {
++          const stY = (py + 0.5) / height;
++          im = blockImNum - stY * zoomVal;
++        }
++
++        for (let px = pxStart; px < pxEnd; px++) {
++          let re = 0;
++          if (useBlockAnchors) {
++            re = blockReNum + (px - blockMidX) * dxVal;
++          } else {
++            const stX = (px + 0.5) / width;
++            re = blockReNum + stX * zoomVal * aspect;
++          }
++
++          let zr = isJulia ? re : 0.0;
++          let zi = isJulia ? im : 0.0;
++          const cr = isJulia ? jx : re;
++          const ci = isJulia ? jy : im;
++
++          let iter = 0;
++          let escaped = false;
++          let finalDeltaSq = 0.0;
++
++          while (iter < maxI) {
++            const r2 = zr * zr;
++            const i2 = zi * zi;
++
++            if (!isFinite(r2 + i2) || isNaN(r2 + i2)) {
++              escaped = true;
++              break;
++            }
++
++            if (!ricisCriterion && (r2 + i2 > 4.0)) {
++              escaped = true;
++              break;
++            }
++
++            let nextR = 0.0;
++            let nextI = 0.0;
++
++            if (formula === 'cubic') {
++              nextR = zr * zr * zr - 3.0 * zr * i2 + cr;
++              nextI = 3.0 * r2 * zi - zi * i2 + ci;
++            } else if (formula === 'quartic') {
++              nextR = r2 * r2 - 6.0 * r2 * i2 + i2 * i2 + cr;
++              nextI = 4.0 * zr * zr * zr * zi - 4.0 * zr * zi * i2 + ci;
++            } else if (formula === 'burning_ship') {
++              const abs_zr = Math.abs(zr);
++              const abs_zi = Math.abs(zi);
++              nextR = abs_zr * abs_zr - abs_zi * abs_zi + cr;
++              nextI = 2.0 * abs_zr * abs_zi + ci;
++            } else if (formula === 'tricorn') {
++              nextR = r2 - i2 + cr;
++              nextI = -2.0 * zr * zi + ci;
++            } else {
++              nextR = r2 - i2 + cr;
++              nextI = 2.0 * zr * zi + ci;
++            }
++
++            if (theta > 0.0) {
++              nextR += theta * 0.08 * Math.sin(zr * 2.0);
++              nextI += theta * 0.08 * Math.cos(zi * 2.0);
++            }
++
++            if (ricisCriterion) {
++              const dzr = nextR - zr;
++              const dzi = nextI - zi;
++              finalDeltaSq = dzr * dzr + dzi * dzi;
++              if (finalDeltaSq > 16.0 || r2 + i2 > 16.0 || !isFinite(finalDeltaSq) || isNaN(finalDeltaSq)) {
++                escaped = true;
++                break;
++              }
++            }
++
++            zr = nextR;
++            zi = nextI;
++            iter++;
++          }
++
++          const offset = (py * width + px) * 4;
++          if (!escaped) {
++            data[offset] = 4;
++            data[offset + 1] = 4;
++            data[offset + 2] = 10;
++            data[offset + 3] = 255;
++          } else {
++            let finalT = iter;
++            if (smooth) {
++              if (ricisCriterion) {
++                const delta = Math.sqrt(finalDeltaSq);
++                if (delta > 0 && isFinite(delta)) {
++                  const si = iter - Math.log2(Math.log2(delta));
++                  if (!isNaN(si) && isFinite(si)) {
++                    finalT = Math.max(0, si);
++                  }
++                }
++              } else {
++                const mag = Math.sqrt(zr * zr + zi * zi);
++                if (mag > 0 && isFinite(mag)) {
++                  const si = iter + 1 - Math.log(Math.log(mag)) / Math.log(2.0);
++                  if (!isNaN(si) && isFinite(si)) {
++                    finalT = Math.max(0, si);
++                  }
++                }
++              }
++            }
++            const color = getColor(finalT, maxI, scheme, ricisCriterion);
++            data[offset] = color.r;
++            data[offset + 1] = color.g;
++            data[offset + 2] = color.b;
++            data[offset + 3] = 255;
++          }
++        }
++      }
++
++      // Move to next block asynchronously to avoid freezing the UI thread
++      let nextBx = bx + 1;
++      let nextBy = by;
++      if (nextBx >= blocksX) {
++        nextBx = 0;
++        nextBy++;
++      }
++
++      if (nextBy < blocksY) {
++        if (nextBx === 0) { // Render current progress every row
++          ctx.putImageData(imgData, 0, 0);
++        }
++        setTimeout(() => renderBlock(nextBx, nextBy), 0);
++      } else {
++        ctx.putImageData(imgData, 0, 0);
++        const duration = performance.now() - tStart;
++        setRenderTimeMs(duration);
++        setIsServerRendering(false);
++        
++        // Save stable render coordinates and update navigation cache image buffer here
++        stableCenterXRef.current = cxDec.toNumber();
++        stableCenterYRef.current = cyDec.toNumber();
++        stableZoomRef.current = zoomVal;
++
++        const sCanvas = getStableBuffer(width, height);
++        const sCtx = sCanvas.getContext('2d');
++        if (sCtx) {
++          sCtx.clearRect(0, 0, width, height);
++          sCtx.drawImage(canvas, 0, 0);
++        }
++      }
++    };
++
++    // Start block rendering
++    renderBlock(0, 0);
++  };

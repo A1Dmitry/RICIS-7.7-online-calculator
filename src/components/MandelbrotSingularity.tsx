@@ -137,6 +137,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
 
   // Fractal Computation Parameters
   const [maxIterations, setMaxIterations] = useState<number>(300);
+  const [autoMaxIter, setAutoMaxIter] = useState<number>(0);
   const [autoIterations, setAutoIterations] = useState<boolean>(true);
   const [colorScheme, setColorScheme] = useState<'classic' | 'psychedelic' | 'rainbow' | 'monochrome' | 'fire' | 'cosmic'>('cosmic');
   const [smoothColoring, setSmoothColoring] = useState<boolean>(true);
@@ -149,7 +150,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
   const [autoEngineSwitch, setAutoEngineSwitch] = useState<boolean>(true);
 
   // Client-Server Hybrid Engine States
-  const [hybridTool, setHybridTool] = useState<'box' | 'pan'>('box');
+  const [activeTool, setActiveTool] = useState<'box' | 'pan' | 'zoom-in' | 'zoom-out'>('zoom-in');
   const [serverImageDataUrl, setServerImageDataUrl] = useState<string | null>(null);
   const [isServerRendering, setIsServerRendering] = useState<boolean>(false);
   const [serverRenderStats, setServerRenderStats] = useState<{
@@ -188,7 +189,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
     // RICIS scale-adaptive logarithmic iteration formula (4-8x rendering acceleration)
     const ricisNmax = Math.floor(kappa * (30 + 6 * log2s));
     
-    const cap = isCPUMode ? 2200 : 8000;
+    const cap = isCPUMode ? 100000 : 8000;
     return Math.min(cap, Math.max(baseIter, ricisNmax));
   };
 
@@ -290,11 +291,26 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
     if (!stableBufferCanvasRef.current) {
       stableBufferCanvasRef.current = document.createElement('canvas');
     }
-    if (stableBufferCanvasRef.current.width !== w || stableBufferCanvasRef.current.height !== h) {
-      stableBufferCanvasRef.current.width = w;
-      stableBufferCanvasRef.current.height = h;
+    const canvas = stableBufferCanvasRef.current;
+    if (canvas.width !== w || canvas.height !== h) {
+      if (canvas.width > 0 && canvas.height > 0) {
+        const temp = document.createElement('canvas');
+        temp.width = canvas.width;
+        temp.height = canvas.height;
+        const tempCtx = temp.getContext('2d');
+        if (tempCtx) tempCtx.drawImage(canvas, 0, 0);
+
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.drawImage(temp, 0, 0, temp.width, temp.height, 0, 0, w, h);
+      } else {
+        canvas.width = w;
+        canvas.height = h;
+      }
     }
-    return stableBufferCanvasRef.current;
+    return canvas;
   };
 
   // Push state into history stack
@@ -490,6 +506,13 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
                     vec2 zi3 = ds_mul(zi_df, ds_sub(ds_mul(vec2(3.0, 0.0), r2), i2));
                     nextR = ds_add(zr3, cr_df);
                     nextI = ds_add(zi3, ci_df);
+                } else if (u_formula_type == 2) {
+                    vec2 z2_r = ds_sub(r2, i2);
+                    vec2 z2_i = ds_mul(vec2(2.0, 0.0), ds_mul(zr_df, zi_df));
+                    vec2 z4_r = ds_sub(ds_sqr(z2_r), ds_sqr(z2_i));
+                    vec2 z4_i = ds_mul(vec2(2.0, 0.0), ds_mul(z2_r, z2_i));
+                    nextR = ds_add(z4_r, cr_df);
+                    nextI = ds_add(z4_i, ci_df);
                 } else if (u_formula_type == 3) {
                     vec2 abs_zr = vec2(abs(zr_df.x), abs(zr_df.y));
                     vec2 abs_zi = vec2(abs(zi_df.x), abs(zi_df.y));
@@ -500,6 +523,15 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
                 } else if (u_formula_type == 4) {
                     nextR = ds_add(ds_sub(r2, i2), cr_df);
                     nextI = ds_sub(ci_df, ds_mul(vec2(2.0, 0.0), ds_mul(zr_df, zi_df)));
+                } else if (u_formula_type == 5) {
+                    // Snowflake Ice Crystal Lattice: z_n+1 = z_bar^2 * cos(6 * theta) + c
+                    float theta = atan(zi_df.x, zr_df.x);
+                    float cos6 = cos(6.0 * theta);
+                    vec2 cos6_df = vec2(cos6, 0.0);
+                    vec2 zbar2_r = ds_sub(r2, i2);
+                    vec2 zbar2_i = ds_mul(vec2(-2.0, 0.0), ds_mul(zr_df, zi_df));
+                    nextR = ds_add(ds_mul(zbar2_r, cos6_df), cr_df);
+                    nextI = ds_add(ds_mul(zbar2_i, cos6_df), ci_df);
                 } else {
                     nextR = ds_add(ds_sub(r2, i2), cr_df);
                     nextI = ds_add(ds_mul(vec2(2.0, 0.0), ds_mul(zr_df, zi_df)), ci_df);
@@ -515,7 +547,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
                 if (u_ricis_criterion > 0.5) {
                     vec2 deltaR = ds_sub(nextR, zr_df);
                     vec2 deltaI = ds_sub(nextI, zi_df);
-                    if (deltaR.x * deltaR.x + deltaI.x * deltaI.x > 16.0) { // RICIS |Δn| > 4 early escape
+                    if (deltaR.x * deltaR.x + deltaI.x * deltaI.x > 16.0 || r2.x + i2.x > 16.0) { // RICIS |Δn| > 4 OR |zn| > 4 early escape
                         escaped = true;
                         iter = i;
                         break;
@@ -731,7 +763,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
   };
 
   // Full-Frame CPU High-Precision Perturbation Engine
-  const renderFullFrameCPU = (
+  const renderFullFrameCPU = async (
     canvas: HTMLCanvasElement,
     width: number,
     height: number,
@@ -746,10 +778,16 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
     jx: number,
     jy: number,
     formula: string,
-    ricisCriterion = true
+    ricisCriterion = true,
+    onNeedMoreIterations?: (newMaxI: number) => void
   ) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    setIsServerRendering(true);
+    
+    // Yield to the main thread so React can update the cursor to wait/hourglass
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 10)));
 
     const tStart = performance.now();
 
@@ -850,15 +888,21 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
         };
       }
 
-      // 2. Pixel iteration via perturbation theory + direct double transition
+      // RICIS scale delegate simplification:
+      const scale = zoomVal / height;
+      const halfW = width / 2.0;
+      const halfH = height / 2.0;
+
       for (let py = 0; py < height; py++) {
-        const stY = (py + 0.5) / height;
-        const delta_c_im = (0.5 - stY) * zoomVal + centerShiftY;
+        if (isNavigatingRef.current) {
+          setIsServerRendering(false);
+          return;
+        }
+        const delta_c_im = (halfH - py - 0.5) * scale + centerShiftY;
         const c_im = refC_im + delta_c_im;
 
         for (let px = 0; px < width; px++) {
-          const stX = (px + 0.5) / width;
-          const delta_c_re = (stX - 0.5) * zoomVal * aspect + centerShiftX;
+          const delta_c_re = (px + 0.5 - halfW) * scale + centerShiftX;
           const c_re = refC_re + delta_c_re;
 
           let dzr = 0.0;
@@ -869,10 +913,14 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
           let abs_z_re = 0.0;
           let abs_z_im = 0.0;
           let inPerturbation = true;
+          let finalDeltaSq = 0.0;
 
           while (iter < maxI) {
+            const prev_abs_z_re = abs_z_re;
+            const prev_abs_z_im = abs_z_im;
+
             if (inPerturbation) {
-              if (iter < N_ref && (dzr * dzr + dzi * dzi) < 4.0) {
+              if (iter < N_ref && (dzr * dzr + dzi * dzi) < 1.0) {
                 const Z_re = refOrbitReal[iter];
                 const Z_im = refOrbitImag[iter];
 
@@ -886,23 +934,14 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
                 dzi = term_im + dzi2 + delta_c_im;
 
                 const dz_sq = dzr * dzr + dzi * dzi;
-                if (dz_sq >= 1.0) {
-                  const Ref_curr_re = refOrbitReal[iter + 1];
-                  const Ref_curr_im = refOrbitImag[iter + 1];
-                  abs_z_re = Ref_curr_re + dzr;
-                  abs_z_im = Ref_curr_im + dzi;
-
-                  if (ricisCriterion) {
-                    if (dz_sq > 16.0 || (abs_z_re * abs_z_re + abs_z_im * abs_z_im > 16.0)) {
-                      escaped = true;
-                      break;
-                    }
-                  } else {
-                    if (abs_z_re * abs_z_re + abs_z_im * abs_z_im > 4.0) {
-                      escaped = true;
-                      break;
-                    }
-                  }
+                const Ref_curr_re = refOrbitReal[Math.min(iter + 1, N_ref)];
+                const Ref_curr_im = refOrbitImag[Math.min(iter + 1, N_ref)];
+                abs_z_re = Ref_curr_re + dzr;
+                abs_z_im = Ref_curr_im + dzi;
+                
+                if (!isFinite(dz_sq) || isNaN(dz_sq)) {
+                  escaped = true;
+                  break;
                 }
               } else {
                 inPerturbation = false;
@@ -918,17 +957,26 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
               const next_im = 2.0 * abs_z_re * abs_z_im + c_im;
               abs_z_re = next_re;
               abs_z_im = next_im;
+            }
 
-              if (ricisCriterion) {
-                if (abs_z_re * abs_z_re + abs_z_im * abs_z_im > 16.0) {
-                  escaped = true;
-                  break;
-                }
-              } else {
-                if (abs_z_re * abs_z_re + abs_z_im * abs_z_im > 4.0) {
-                  escaped = true;
-                  break;
-                }
+            const abs_z_sq = abs_z_re * abs_z_re + abs_z_im * abs_z_im;
+            if (!isFinite(abs_z_sq) || isNaN(abs_z_sq)) {
+              escaped = true;
+              break;
+            }
+
+            if (ricisCriterion) {
+              const diff_re = abs_z_re - prev_abs_z_re;
+              const diff_im = abs_z_im - prev_abs_z_im;
+              finalDeltaSq = diff_re * diff_re + diff_im * diff_im;
+              if (finalDeltaSq > 16.0 || abs_z_sq > 16.0) {
+                escaped = true;
+                break;
+              }
+            } else {
+              if (abs_z_sq > 4.0) {
+                escaped = true;
+                break;
               }
             }
 
@@ -945,8 +993,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
             let finalT = iter;
             if (smooth) {
               if (ricisCriterion) {
-                const dz_sq = dzr * dzr + dzi * dzi;
-                const delta = Math.sqrt(dz_sq);
+                const delta = Math.sqrt(finalDeltaSq);
                 if (delta > 0 && isFinite(delta)) {
                   const si = iter - Math.log2(Math.log2(delta));
                   if (!isNaN(si) && isFinite(si)) {
@@ -972,176 +1019,208 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
           }
         }
       }
+
+      // Post-render Cache Analysis (RICIS auto-iteration plateau check)
+      const P = width * height;
+      let satCount = 0;
+      let flatCount = 0;
+      for (let i = 0; i < P; i++) {
+        const r = data[i * 4];
+        const g = data[i * 4 + 1];
+        const b = data[i * 4 + 2];
+        if (r === 4 && g === 4 && b === 10) satCount++;
+        if (i > 0 && r === data[(i - 1) * 4] && g === data[(i - 1) * 4 + 1] && b === data[(i - 1) * 4 + 2]) {
+          flatCount++;
+        }
+      }
+      const sat = satCount / P;
+      const flat = flatCount / P;
+      const need = flat > 0.2 || sat > 0.5;
+
+      if (need && onNeedMoreIterations && maxI < 100000) {
+        const nextMaxI = Math.min(100000, Math.floor(maxI * 1.7));
+        if (nextMaxI > maxI) {
+          setTimeout(() => onNeedMoreIterations(nextMaxI), 0);
+        }
+      }
+
       ctx.putImageData(imgData, 0, 0);
       const duration = performance.now() - tStart;
       setRenderTimeMs(duration);
+      setIsServerRendering(false);
+
+      stableCenterXRef.current = cxDec.toNumber();
+      stableCenterYRef.current = cyDec.toNumber();
+      stableZoomRef.current = zoomVal;
+
+      const sCanvas = getStableBuffer(width, height);
+      const sCtx = sCanvas.getContext('2d');
+      if (sCtx) {
+        sCtx.clearRect(0, 0, width, height);
+        sCtx.drawImage(canvas, 0, 0);
+      }
       return;
     }
 
-    // Direct iteration with RICIS v13 Local Block Centering for deep zooms (scale up to 10e15)
+    // Direct iteration with RICIS v13 Local Block Centering for deep zooms
     const baseCXNum = cxDec.toNumber();
     const baseCYNum = cyDec.toNumber();
 
-    const currentScale = width / (zoomVal * aspect);
-    const useBlockAnchors = zoomVal < 1e-10;
+    const scale = zoomVal / height;
+    const halfW = width / 2.0;
+    const halfH = height / 2.0;
 
-    let blockSize = width;
-    if (useBlockAnchors) {
-      if (currentScale > 1e15) blockSize = 8;
-      else if (currentScale > 1e14) blockSize = 16;
-      else if (currentScale > 1e13) blockSize = 32;
-      else blockSize = 64;
+    for (let py = 0; py < height; py++) {
+      if (isNavigatingRef.current) {
+        setIsServerRendering(false);
+        return;
+      }
+      const im = baseCYNum + (halfH - py - 0.5) * scale;
+
+      for (let px = 0; px < width; px++) {
+        const re = baseCXNum + (px + 0.5 - halfW) * scale;
+
+        let zr = isJulia ? re : 0.0;
+        let zi = isJulia ? im : 0.0;
+        const cr = isJulia ? jx : re;
+        const ci = isJulia ? jy : im;
+
+        let iter = 0;
+        let escaped = false;
+        let finalDeltaSq = 0.0;
+
+        while (iter < maxI) {
+          const r2 = zr * zr;
+          const i2 = zi * zi;
+
+          if (!isFinite(r2 + i2) || isNaN(r2 + i2)) {
+            escaped = true;
+            break;
+          }
+
+          if (!ricisCriterion && (r2 + i2 > 4.0)) {
+            escaped = true;
+            break;
+          }
+
+          let nextR = 0.0;
+          let nextI = 0.0;
+
+          if (formula === 'cubic') {
+            nextR = zr * zr * zr - 3.0 * zr * i2 + cr;
+            nextI = 3.0 * r2 * zi - zi * i2 + ci;
+          } else if (formula === 'quartic') {
+            nextR = r2 * r2 - 6.0 * r2 * i2 + i2 * i2 + cr;
+            nextI = 4.0 * zr * zr * zr * zi - 4.0 * zr * zi * i2 + ci;
+          } else if (formula === 'burning_ship') {
+            const abs_zr = Math.abs(zr);
+            const abs_zi = Math.abs(zi);
+            nextR = abs_zr * abs_zr - abs_zi * abs_zi + cr;
+            nextI = 2.0 * abs_zr * abs_zi + ci;
+          } else if (formula === 'tricorn') {
+            nextR = r2 - i2 + cr;
+            nextI = -2.0 * zr * zi + ci;
+          } else {
+            nextR = r2 - i2 + cr;
+            nextI = 2.0 * zr * zi + ci;
+          }
+
+          if (theta > 0.0) {
+            nextR += theta * 0.08 * Math.sin(zr * 2.0);
+            nextI += theta * 0.08 * Math.cos(zi * 2.0);
+          }
+
+          if (ricisCriterion) {
+            const dzr = nextR - zr;
+            const dzi = nextI - zi;
+            finalDeltaSq = dzr * dzr + dzi * dzi;
+            if (finalDeltaSq > 16.0 || r2 + i2 > 16.0 || !isFinite(finalDeltaSq) || isNaN(finalDeltaSq)) {
+              escaped = true;
+              break;
+            }
+          }
+
+          zr = nextR;
+          zi = nextI;
+          iter++;
+        }
+
+        const offset = (py * width + px) * 4;
+        if (!escaped) {
+          data[offset] = 4;
+          data[offset + 1] = 4;
+          data[offset + 2] = 10;
+          data[offset + 3] = 255;
+        } else {
+          let finalT = iter;
+          if (smooth) {
+            if (ricisCriterion) {
+              const delta = Math.sqrt(finalDeltaSq);
+              if (delta > 0 && isFinite(delta)) {
+                const si = iter - Math.log2(Math.log2(delta));
+                if (!isNaN(si) && isFinite(si)) {
+                  finalT = Math.max(0, si);
+                }
+              }
+            } else {
+              const log_zn = Math.log(zr * zr + zi * zi) / 2.0;
+              let log_factor = Math.LN2;
+              if (formula === 'cubic') log_factor = Math.log(3.0);
+              else if (formula === 'quartic') log_factor = Math.log(4.0);
+              const log_val = Math.log(log_zn / log_factor) / log_factor;
+              if (!isNaN(log_val) && isFinite(log_val)) {
+                finalT = iter + 1.0 - log_val;
+              }
+            }
+          }
+          const [r, g, b] = getColorRGB(finalT, maxI, smooth, scheme, theta);
+          data[offset] = r;
+          data[offset + 1] = g;
+          data[offset + 2] = b;
+          data[offset + 3] = 255;
+        }
+      }
     }
 
-    const blocksX = Math.ceil(width / blockSize);
-    const blocksY = Math.ceil(height / blockSize);
+    // Post-render Cache Analysis (RICIS auto-iteration plateau check)
+    const P = width * height;
+    let satCount = 0;
+    let flatCount = 0;
+    for (let i = 0; i < P; i++) {
+      const r = data[i * 4];
+      const g = data[i * 4 + 1];
+      const b = data[i * 4 + 2];
+      if (r === 4 && g === 4 && b === 10) satCount++;
+      if (i > 0 && r === data[(i - 1) * 4] && g === data[(i - 1) * 4 + 1] && b === data[(i - 1) * 4 + 2]) {
+        flatCount++;
+      }
+    }
+    const sat = satCount / P;
+    const flat = flatCount / P;
+    const need = flat > 0.2 || sat > 0.5;
 
-    const dxVal = (zoomVal * aspect) / width;
-    const dyVal = zoomVal / height;
-
-    for (let by = 0; by < blocksY; by++) {
-      const pyStart = by * blockSize;
-      const pyEnd = Math.min(pyStart + blockSize, height);
-      const blockMidY = (pyStart + pyEnd - 1) / 2;
-
-      for (let bx = 0; bx < blocksX; bx++) {
-        const pxStart = bx * blockSize;
-        const pxEnd = Math.min(pxStart + blockSize, width);
-        const blockMidX = (pxStart + pxEnd - 1) / 2;
-
-        let blockReNum = baseCXNum;
-        let blockImNum = baseCYNum;
-
-        if (useBlockAnchors) {
-          const offsetXFromCenter = (blockMidX + 0.5 - width / 2) * dxVal;
-          const offsetYFromCenter = (0.5 + blockMidY - height / 2) * dyVal;
-          blockReNum = baseCXNum + offsetXFromCenter;
-          blockImNum = baseCYNum - offsetYFromCenter;
-        } else {
-          blockReNum = baseCXNum - 0.5 * zoomVal * aspect;
-          blockImNum = baseCYNum + 0.5 * zoomVal;
-        }
-
-        for (let py = pyStart; py < pyEnd; py++) {
-          let im = 0;
-          if (useBlockAnchors) {
-            im = blockImNum - (py - blockMidY) * dyVal;
-          } else {
-            const stY = (py + 0.5) / height;
-            im = blockImNum - stY * zoomVal;
-          }
-
-          for (let px = pxStart; px < pxEnd; px++) {
-            let re = 0;
-            if (useBlockAnchors) {
-              re = blockReNum + (px - blockMidX) * dxVal;
-            } else {
-              const stX = (px + 0.5) / width;
-              re = blockReNum + stX * zoomVal * aspect;
-            }
-
-            let zr = isJulia ? re : 0.0;
-            let zi = isJulia ? im : 0.0;
-            const cr = isJulia ? jx : re;
-            const ci = isJulia ? jy : im;
-
-            let iter = 0;
-            let escaped = false;
-            let finalDeltaSq = 0.0;
-
-            while (iter < maxI) {
-              const r2 = zr * zr;
-              const i2 = zi * zi;
-
-              if (!ricisCriterion && (r2 + i2 > 4.0)) {
-                escaped = true;
-                break;
-              }
-
-              let nextR = 0.0;
-              let nextI = 0.0;
-
-              if (formula === 'cubic') {
-                nextR = zr * zr * zr - 3.0 * zr * i2 + cr;
-                nextI = 3.0 * r2 * zi - zi * i2 + ci;
-              } else if (formula === 'quartic') {
-                nextR = r2 * r2 - 6.0 * r2 * i2 + i2 * i2 + cr;
-                nextI = 4.0 * zr * zr * zr * zi - 4.0 * zr * zi * i2 + ci;
-              } else if (formula === 'burning_ship') {
-                const abs_zr = Math.abs(zr);
-                const abs_zi = Math.abs(zi);
-                nextR = abs_zr * abs_zr - abs_zi * abs_zi + cr;
-                nextI = 2.0 * abs_zr * abs_zi + ci;
-              } else if (formula === 'tricorn') {
-                nextR = r2 - i2 + cr;
-                nextI = -2.0 * zr * zi + ci;
-              } else {
-                nextR = r2 - i2 + cr;
-                nextI = 2.0 * zr * zi + ci;
-              }
-
-              if (theta > 0.0) {
-                nextR += theta * 0.08 * Math.sin(zr * 2.0);
-                nextI += theta * 0.08 * Math.cos(zi * 2.0);
-              }
-
-              if (ricisCriterion) {
-                const dzr = nextR - zr;
-                const dzi = nextI - zi;
-                finalDeltaSq = dzr * dzr + dzi * dzi;
-                if (finalDeltaSq > 16.0 || r2 + i2 > 16.0) {
-                  escaped = true;
-                  break;
-                }
-              }
-
-              zr = nextR;
-              zi = nextI;
-              iter++;
-            }
-
-            const offset = (py * width + px) * 4;
-            if (!escaped) {
-              data[offset] = 4;
-              data[offset + 1] = 4;
-              data[offset + 2] = 10;
-              data[offset + 3] = 255;
-            } else {
-              let finalT = iter;
-              if (smooth) {
-                if (ricisCriterion) {
-                  const delta = Math.sqrt(finalDeltaSq);
-                  if (delta > 0 && isFinite(delta)) {
-                    const si = iter - Math.log2(Math.log2(delta));
-                    if (!isNaN(si) && isFinite(si)) {
-                      finalT = Math.max(0, si);
-                    }
-                  }
-                } else {
-                  const log_zn = Math.log(zr * zr + zi * zi) / 2.0;
-                  let log_factor = Math.LN2;
-                  if (formula === 'cubic') log_factor = Math.log(3.0);
-                  else if (formula === 'quartic') log_factor = Math.log(4.0);
-                  const log_val = Math.log(log_zn / log_factor) / log_factor;
-                  if (!isNaN(log_val) && isFinite(log_val)) {
-                    finalT = iter + 1.0 - log_val;
-                  }
-                }
-              }
-              const [r, g, b] = getColorRGB(finalT, maxI, smooth, scheme, theta);
-              data[offset] = r;
-              data[offset + 1] = g;
-              data[offset + 2] = b;
-              data[offset + 3] = 255;
-            }
-          }
-        }
+    if (need && onNeedMoreIterations && maxI < 100000) {
+      const nextMaxI = Math.min(100000, Math.floor(maxI * 1.7));
+      if (nextMaxI > maxI) {
+        setTimeout(() => onNeedMoreIterations(nextMaxI), 0);
       }
     }
 
     ctx.putImageData(imgData, 0, 0);
     const duration = performance.now() - tStart;
     setRenderTimeMs(duration);
+    setIsServerRendering(false);
+    
+    stableCenterXRef.current = cxDec.toNumber();
+    stableCenterYRef.current = cyDec.toNumber();
+    stableZoomRef.current = zoomVal;
+
+    const sCanvas = getStableBuffer(width, height);
+    const sCtx = sCanvas.getContext('2d');
+    if (sCtx) {
+      sCtx.clearRect(0, 0, width, height);
+      sCtx.drawImage(canvas, 0, 0);
+    }
   };
 
   // Draw Transformed Static Buffer during Navigation
@@ -1340,7 +1419,8 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
 
     const tStart = performance.now();
 
-    const effectiveMaxI = getAdaptiveIterations(maxIterations, currentZoom, autoIterations, isCPUMode);
+    const baseEffectiveMaxI = getAdaptiveIterations(maxIterations, currentZoom, autoIterations, isCPUMode);
+    const effectiveMaxI = Math.max(baseEffectiveMaxI, autoMaxIter);
 
     let engineName = 'WebGL DS (64-bit Emulated)';
     let rendered = false;
@@ -1386,7 +1466,12 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
         juliaX,
         juliaY,
         formulaType,
-        useRicisCriterion
+        useRicisCriterion,
+        (nextMaxI) => {
+          if (autoIterations) {
+            setAutoMaxIter(nextMaxI);
+          }
+        }
       );
     }
 
@@ -1445,6 +1530,8 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
     centerYRef.current = finalCY;
     zoomRef.current = finalZ;
 
+    setAutoMaxIter(0);
+
     pushHistoryState(finalCX, finalCY, finalZ, exactViewCenterXRef.current, exactViewCenterYRef.current);
     renderFractal();
   };
@@ -1467,7 +1554,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
 
   // Stage SVG Box Selection Handlers for Hybrid Mode
   const handleStagePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (renderMode === 'hybrid' && hybridTool === 'box') {
+    if (renderMode === 'hybrid' && activeTool === 'box') {
       const rect = stageRef.current?.getBoundingClientRect();
       if (!rect) return;
       const px = e.clientX - rect.left;
@@ -1479,7 +1566,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
   };
 
   const handleStagePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (renderMode === 'hybrid' && hybridTool === 'box' && isSelectingBox) {
+    if (renderMode === 'hybrid' && activeTool === 'box' && isSelectingBox) {
       const rect = stageRef.current?.getBoundingClientRect();
       if (!rect) return;
       setBoxCurrent({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -1487,7 +1574,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
   };
 
   const handleStagePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (renderMode === 'hybrid' && hybridTool === 'box' && isSelectingBox && boxStart && boxCurrent) {
+    if (renderMode === 'hybrid' && activeTool === 'box' && isSelectingBox && boxStart && boxCurrent) {
       const x1 = Math.min(boxStart.x, boxCurrent.x);
       const x2 = Math.max(boxStart.x, boxCurrent.x);
       const y1 = Math.min(boxStart.y, boxCurrent.y);
@@ -1552,6 +1639,50 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
     isDragging.current = true;
     dragStart.current = { x: e.clientX, y: e.clientY };
 
+    if (activeTool === 'zoom-in' || activeTool === 'zoom-out') {
+      isInteractingRef.current = true;
+      isDragging.current = false;
+      
+      const rect = canvas.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      const width = canvas.clientWidth || 1;
+      const height = canvas.clientHeight || 1;
+      const aspect = width / height;
+      
+      const stX = px / width - 0.5;
+      const stY = 0.5 - py / height;
+
+      const zoomFactor = activeTool === 'zoom-in' ? 0.5 : 2.0;
+      const currentZ = viewZoomRef.current;
+      const nextZoom = Math.max(1e-300, Math.min(20, currentZ * zoomFactor));
+
+      const deltaX = stX * aspect * (currentZ - nextZoom);
+      const deltaY = stY * (currentZ - nextZoom);
+
+      const dXDec = new Decimal(deltaX);
+      const dYDec = new Decimal(deltaY);
+
+      exactViewCenterXRef.current = exactViewCenterXRef.current.plus(dXDec);
+      exactViewCenterYRef.current = exactViewCenterYRef.current.plus(dYDec);
+      viewCenterXRef.current = exactViewCenterXRef.current.toNumber();
+      viewCenterYRef.current = exactViewCenterYRef.current.toNumber();
+      viewZoomRef.current = nextZoom;
+
+      setViewCenterX(viewCenterXRef.current);
+      setViewCenterY(viewCenterYRef.current);
+      setViewZoom(nextZoom);
+
+      if (!isNavigatingRef.current) {
+        isNavigatingRef.current = true;
+        setIsNavigating(true);
+      }
+
+      drawStaticBufferTransformed();
+      scheduleNavRecalculate(500);
+      return;
+    }
+
     if (!isNavigatingRef.current) {
       exactViewCenterXRef.current = exactCenterXRef.current;
       exactViewCenterYRef.current = exactCenterYRef.current;
@@ -1566,6 +1697,8 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDragging.current) return;
+    if (activeTool === 'zoom-in' || activeTool === 'zoom-out' || activeTool === 'box') return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -1780,13 +1913,25 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
 
   // Quick Zoom Helper Buttons
   const zoomIn = () => {
-    const nextZ = Math.max(1e-300, zoomRef.current * 0.5);
-    setCameraPositionDirect(centerXRef.current, centerYRef.current, nextZ, exactCenterXRef.current, exactCenterYRef.current);
+    const currentZ = viewZoomRef.current;
+    const nextZ = Math.max(1e-300, currentZ * 0.5);
+    viewZoomRef.current = nextZ;
+    setViewZoom(nextZ);
+    isNavigatingRef.current = true;
+    setIsNavigating(true);
+    drawStaticBufferTransformed();
+    scheduleNavRecalculate(500);
   };
 
   const zoomOut = () => {
-    const nextZ = Math.min(20, zoomRef.current * 2.0);
-    setCameraPositionDirect(centerXRef.current, centerYRef.current, nextZ, exactCenterXRef.current, exactCenterYRef.current);
+    const currentZ = viewZoomRef.current;
+    const nextZ = Math.min(20, currentZ * 2.0);
+    viewZoomRef.current = nextZ;
+    setViewZoom(nextZ);
+    isNavigatingRef.current = true;
+    setIsNavigating(true);
+    drawStaticBufferTransformed();
+    scheduleNavRecalculate(500);
   };
 
   const resetView = () => {
@@ -1813,7 +1958,7 @@ export function MandelbrotSingularity({ preset, onChangeState, isActive = true }
   useEffect(() => {
     if (!isActive) return;
     renderFractal();
-  }, [isActive, centerX, centerY, zoom, maxIterations, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, formulaType, renderMode]);
+  }, [isActive, centerX, centerY, zoom, maxIterations, autoMaxIter, colorScheme, smoothColoring, juliaMode, juliaX, juliaY, ricisTheta, formulaType, renderMode]);
 
   // Handle window resizing
   useEffect(() => {
@@ -1992,28 +2137,46 @@ ${pathElements}</svg>`;
                 : `CPU Canvas (${renderTimeMs}ms)`}
           </span>
 
-          {renderMode === 'hybrid' && (
-            <div className="flex items-center gap-1 bg-cyan-950/60 p-0.5 rounded border border-cyan-500/30">
+          <div className="flex items-center gap-1 bg-cyan-950/60 p-0.5 rounded border border-cyan-500/30">
+            {renderMode === 'hybrid' && (
               <button
-                onClick={() => setHybridTool('box')}
+                onClick={() => setActiveTool('box')}
                 className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
-                  hybridTool === 'box' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
+                  activeTool === 'box' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
                 title={t('Выделение области рамкой SVG для сервера', 'Select region with SVG box for server render')}
               >
                 🔲 {t('SVG РАМКА', 'SVG BOX')}
               </button>
-              <button
-                onClick={() => setHybridTool('pan')}
-                className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
-                  hybridTool === 'pan' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-                title={t('Панорамирование и зум мышью', 'Pan & Drag viewport')}
-              >
-                🖱️ {t('ПАН', 'PAN')}
-              </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => setActiveTool('pan')}
+              className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
+                activeTool === 'pan' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+              title={t('Панорамирование и зум мышью', 'Pan & Drag viewport')}
+            >
+              🖱️ {t('ПАН', 'PAN')}
+            </button>
+            <button
+              onClick={() => setActiveTool('zoom-in')}
+              className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
+                activeTool === 'zoom-in' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Zoom In"
+            >
+              🔍+
+            </button>
+            <button
+              onClick={() => setActiveTool('zoom-out')}
+              className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
+                activeTool === 'zoom-out' ? 'bg-cyan-500 text-black shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Zoom Out"
+            >
+              🔍-
+            </button>
+          </div>
 
           <button
             onClick={() => setShowRicisTheoryModal(true)}
@@ -2080,7 +2243,15 @@ ${pathElements}</svg>`;
               onTouchEnd={handleTouchEnd}
               onTouchCancel={handleTouchEnd}
               className={`w-full h-full block touch-none select-none ${
-                renderMode === 'hybrid' && hybridTool === 'box' ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'
+                isServerRendering 
+                  ? 'cursor-wait' 
+                  : activeTool === 'box' 
+                    ? 'cursor-crosshair' 
+                    : activeTool === 'zoom-in' 
+                      ? 'cursor-zoom-in' 
+                      : activeTool === 'zoom-out'
+                        ? 'cursor-zoom-out'
+                        : 'cursor-move'
               }`}
               id="mandelbrot-stage"
             />
@@ -2260,7 +2431,9 @@ ${pathElements}</svg>`;
                 ].map(f => (
                   <button
                     key={f.id}
-                    onClick={() => setFormulaType(f.id as any)}
+                    onClick={() => {
+                      setFormulaType(f.id as any);
+                    }}
                     className={`px-2.5 py-1.5 rounded text-xs font-medium border transition cursor-pointer text-left truncate ${
                       formulaType === f.id
                         ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-bold'
@@ -2361,7 +2534,7 @@ ${pathElements}</svg>`;
                   {t('Глубина итераций', 'Max Iterations')}
                   {autoIterations && (
                     <span className="text-[9px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded font-mono font-bold border border-cyan-500/30">
-                      AUTO ({getAdaptiveIterations(maxIterations, zoom, true)})
+                      AUTO ({Math.max(getAdaptiveIterations(maxIterations, zoom, true), autoMaxIter)})
                     </span>
                   )}
                 </span>
@@ -2369,7 +2542,7 @@ ${pathElements}</svg>`;
               </div>
               <input
                 type="range"
-                min="50" max="1000" step="10"
+                min="50" max={Math.max(1000, maxIterations)} step="10"
                 value={maxIterations}
                 onChange={e => setMaxIterations(parseInt(e.target.value))}
                 className="w-full accent-cyan-400 cursor-pointer h-1"

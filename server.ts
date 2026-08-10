@@ -432,6 +432,11 @@ app.post('/api/mandelbrot/render', (req, res) => {
           const r2 = zr * zr;
           const i2 = zi * zi;
 
+          if (!isFinite(r2 + i2) || isNaN(r2 + i2)) {
+            escaped = true;
+            break;
+          }
+
           if (!rCriterion && (r2 + i2 > 4.0)) {
             escaped = true;
             break;
@@ -454,6 +459,13 @@ app.post('/api/mandelbrot/render', (req, res) => {
           } else if (formula === 'tricorn') {
             nextR = r2 - i2 + cr;
             nextI = -2.0 * zr * zi + ci;
+          } else if (formula === 'snowflake') {
+            const theta = Math.atan2(zi, zr);
+            const cos6 = Math.cos(6.0 * theta);
+            const zbar2_r = r2 - i2;
+            const zbar2_i = -2.0 * zr * zi;
+            nextR = zbar2_r * cos6 + cr;
+            nextI = zbar2_i * cos6 + ci;
           } else {
             nextR = r2 - i2 + cr;
             nextI = 2.0 * zr * zi + ci;
@@ -468,7 +480,7 @@ app.post('/api/mandelbrot/render', (req, res) => {
             const dzr = nextR - zr;
             const dzi = nextI - zi;
             finalDeltaSq = dzr * dzr + dzi * dzi;
-            if (finalDeltaSq > 16.0 || r2 + i2 > 16.0) {
+            if (finalDeltaSq > 16.0 || r2 + i2 > 16.0 || !isFinite(finalDeltaSq) || isNaN(finalDeltaSq)) {
               escaped = true;
               break;
             }
