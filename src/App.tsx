@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import packageJson from '../package.json';
 import { SingularityMode } from './types';
 import { useLanguage, setLanguage } from './lib/i18n';
 import GravitationalSingularity from './components/GravitationalSingularity';
@@ -385,7 +386,7 @@ export default function App() {
             <div className="flex items-center gap-3.5">
               <span className="text-white font-bold tracking-widest uppercase">{t('RICIS III PARADIGM')}</span>
               <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 font-semibold">
-                v3.0.4-Alpha
+                v{packageJson.version}
               </span>
               <div className="w-px h-3 bg-white/10 hidden sm:block" />
               <span className="text-emerald-400 font-bold flex items-center gap-1.5">
@@ -440,7 +441,7 @@ export default function App() {
                     RICIS III PARADIGM
                   </h1>
                   <span className="text-[9px] uppercase tracking-wider font-semibold font-mono px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 select-none">
-                    v3.0.4-Alpha
+                    v{packageJson.version}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1 max-w-xl">
