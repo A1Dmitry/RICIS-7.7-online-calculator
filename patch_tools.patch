@@ -1,7 +1,0 @@
---- src/components/MandelbrotSingularity.tsx
-+++ src/components/MandelbrotSingularity.tsx
-@@ -151,3 +151,3 @@
-   const [renderMode, setRenderMode] = useState<'cpu' | 'webgl' | 'hybrid'>('hybrid');
--  const [hybridTool, setHybridTool] = useState<'box' | 'pan'>('box');
-+  const [activeTool, setActiveTool] = useState<'box' | 'pan' | 'zoom-in' | 'zoom-out'>('pan');
-   const [serverImageDataUrl, setServerImageDataUrl] = useState<string | null>(null);

@@ -8,100 +8,143 @@ import path from 'path';
 import fs from 'fs';
 
 const DB_PATH = path.join(process.cwd(), 'ricis_database.db');
+const REVIEWS_BACKUP_PATH = path.join(process.cwd(), 'reviews_db.json');
 
-export const db = new DatabaseSync(DB_PATH);
+function createDatabaseSchema(dbInstance: DatabaseSync) {
+  dbInstance.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      user_key TEXT PRIMARY KEY,
+      username TEXT DEFAULT 'Исследователь',
+      created_at TEXT NOT NULL,
+      last_seen TEXT NOT NULL,
+      visit_count INTEGER DEFAULT 1,
+      last_ip TEXT
+    );
 
-// Enable PRAGMAs for speed and relational enforcement
-try {
-  db.exec('PRAGMA journal_mode = WAL;');
-  db.exec('PRAGMA synchronous = NORMAL;');
-  db.exec('PRAGMA foreign_keys = ON;');
-} catch (e) {
-  console.error('Error setting SQLite PRAGMA:', e);
+    CREATE TABLE IF NOT EXISTS ip_addresses (
+      ip TEXT PRIMARY KEY,
+      country TEXT DEFAULT 'Cloud Ingress',
+      country_code TEXT DEFAULT 'XX',
+      region TEXT DEFAULT 'Global Region',
+      city TEXT DEFAULT 'Server Node',
+      isp TEXT DEFAULT 'Direct Network Connection',
+      org TEXT DEFAULT 'Client Gateway',
+      is_academic INTEGER DEFAULT 0,
+      institution_name TEXT,
+      institution_type TEXT,
+      first_seen TEXT NOT NULL,
+      last_seen TEXT NOT NULL,
+      total_visits INTEGER DEFAULT 1,
+      top_applet_used TEXT DEFAULT 'RICIS Agent'
+    );
+
+    CREATE TABLE IF NOT EXISTS user_ip_links (
+      user_key TEXT NOT NULL,
+      ip TEXT NOT NULL,
+      first_seen TEXT NOT NULL,
+      last_seen TEXT NOT NULL,
+      visit_count INTEGER DEFAULT 1,
+      PRIMARY KEY (user_key, ip),
+      FOREIGN KEY (user_key) REFERENCES users(user_key) ON DELETE CASCADE,
+      FOREIGN KEY (ip) REFERENCES ip_addresses(ip) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS visit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_key TEXT NOT NULL,
+      ip TEXT NOT NULL,
+      mode TEXT DEFAULT 'general',
+      user_agent TEXT,
+      timestamp TEXT NOT NULL,
+      FOREIGN KEY (user_key) REFERENCES users(user_key) ON DELETE CASCADE,
+      FOREIGN KEY (ip) REFERENCES ip_addresses(ip) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS reviews (
+      id TEXT PRIMARY KEY,
+      user_key TEXT,
+      text TEXT NOT NULL,
+      author TEXT DEFAULT 'Исследователь',
+      timestamp INTEGER NOT NULL,
+      is_completed INTEGER DEFAULT 0,
+      is_hidden INTEGER DEFAULT 0,
+      FOREIGN KEY (user_key) REFERENCES users(user_key) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS applet_stats (
+      mode TEXT PRIMARY KEY,
+      total_visits INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS applet_user_logs (
+      mode TEXT NOT NULL,
+      user_key TEXT NOT NULL,
+      PRIMARY KEY (mode, user_key),
+      FOREIGN KEY (user_key) REFERENCES users(user_key) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS global_meta (
+      key TEXT PRIMARY KEY,
+      value INTEGER DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_visit_logs_user ON visit_logs(user_key);
+    CREATE INDEX IF NOT EXISTS idx_visit_logs_ip ON visit_logs(ip);
+    CREATE INDEX IF NOT EXISTS idx_user_ip_links_ip ON user_ip_links(ip);
+  `);
 }
 
-// --- NORMALIZED RELATIONAL TABLE SCHEMAS ---
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    user_key TEXT PRIMARY KEY,
-    username TEXT DEFAULT 'Исследователь',
-    created_at TEXT NOT NULL,
-    last_seen TEXT NOT NULL,
-    visit_count INTEGER DEFAULT 1,
-    last_ip TEXT
-  );
+function cleanCorruptedDatabaseFiles() {
+  try {
+    const timestamp = Date.now();
+    if (fs.existsSync(DB_PATH)) {
+      try {
+        fs.copyFileSync(DB_PATH, `${DB_PATH}.corrupt.${timestamp}`);
+      } catch (_) {}
+      try {
+        fs.unlinkSync(DB_PATH);
+      } catch (_) {}
+    }
+    if (fs.existsSync(`${DB_PATH}-wal`)) {
+      try { fs.unlinkSync(`${DB_PATH}-wal`); } catch (_) {}
+    }
+    if (fs.existsSync(`${DB_PATH}-shm`)) {
+      try { fs.unlinkSync(`${DB_PATH}-shm`); } catch (_) {}
+    }
+  } catch (err) {
+    console.error('Failed to purge corrupted database files:', err);
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS ip_addresses (
-    ip TEXT PRIMARY KEY,
-    country TEXT DEFAULT 'Cloud Ingress',
-    country_code TEXT DEFAULT 'XX',
-    region TEXT DEFAULT 'Global Region',
-    city TEXT DEFAULT 'Server Node',
-    isp TEXT DEFAULT 'Direct Network Connection',
-    org TEXT DEFAULT 'Client Gateway',
-    is_academic INTEGER DEFAULT 0,
-    institution_name TEXT,
-    institution_type TEXT,
-    first_seen TEXT NOT NULL,
-    last_seen TEXT NOT NULL,
-    total_visits INTEGER DEFAULT 1,
-    top_applet_used TEXT DEFAULT 'RICIS Agent'
-  );
+function initDatabase(): DatabaseSync {
+  try {
+    const instance = new DatabaseSync(DB_PATH);
+    // Use TRUNCATE mode instead of WAL to prevent -shm/-wal corruption on container filesystems
+    instance.exec('PRAGMA journal_mode = TRUNCATE;');
+    instance.exec('PRAGMA synchronous = NORMAL;');
+    instance.exec('PRAGMA foreign_keys = ON;');
 
-  CREATE TABLE IF NOT EXISTS user_ip_links (
-    user_key TEXT NOT NULL,
-    ip TEXT NOT NULL,
-    first_seen TEXT NOT NULL,
-    last_seen TEXT NOT NULL,
-    visit_count INTEGER DEFAULT 1,
-    PRIMARY KEY (user_key, ip),
-    FOREIGN KEY (user_key) REFERENCES users(user_key) ON DELETE CASCADE,
-    FOREIGN KEY (ip) REFERENCES ip_addresses(ip) ON DELETE CASCADE
-  );
+    const check = instance.prepare('PRAGMA integrity_check;').all() as any[];
+    if (!check || !check[0] || check[0].integrity_check !== 'ok') {
+      throw new Error(`Database integrity check failed: ${JSON.stringify(check)}`);
+    }
 
-  CREATE TABLE IF NOT EXISTS visit_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_key TEXT NOT NULL,
-    ip TEXT NOT NULL,
-    mode TEXT DEFAULT 'general',
-    user_agent TEXT,
-    timestamp TEXT NOT NULL,
-    FOREIGN KEY (user_key) REFERENCES users(user_key) ON DELETE CASCADE,
-    FOREIGN KEY (ip) REFERENCES ip_addresses(ip) ON DELETE CASCADE
-  );
+    createDatabaseSchema(instance);
+    return instance;
+  } catch (err) {
+    console.error('SQLite integrity check failed or database disk image malformed. Initiating self-healing recovery...', err);
+    cleanCorruptedDatabaseFiles();
 
-  CREATE TABLE IF NOT EXISTS reviews (
-    id TEXT PRIMARY KEY,
-    user_key TEXT,
-    text TEXT NOT NULL,
-    author TEXT DEFAULT 'Исследователь',
-    timestamp INTEGER NOT NULL,
-    is_completed INTEGER DEFAULT 0,
-    is_hidden INTEGER DEFAULT 0,
-    FOREIGN KEY (user_key) REFERENCES users(user_key) ON DELETE SET NULL
-  );
+    const freshInstance = new DatabaseSync(DB_PATH);
+    freshInstance.exec('PRAGMA journal_mode = TRUNCATE;');
+    freshInstance.exec('PRAGMA synchronous = NORMAL;');
+    freshInstance.exec('PRAGMA foreign_keys = ON;');
+    createDatabaseSchema(freshInstance);
+    return freshInstance;
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS applet_stats (
-    mode TEXT PRIMARY KEY,
-    total_visits INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS applet_user_logs (
-    mode TEXT NOT NULL,
-    user_key TEXT NOT NULL,
-    PRIMARY KEY (mode, user_key),
-    FOREIGN KEY (user_key) REFERENCES users(user_key) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS global_meta (
-    key TEXT PRIMARY KEY,
-    value INTEGER DEFAULT 0
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_visit_logs_user ON visit_logs(user_key);
-  CREATE INDEX IF NOT EXISTS idx_visit_logs_ip ON visit_logs(ip);
-  CREATE INDEX IF NOT EXISTS idx_user_ip_links_ip ON user_ip_links(ip);
-`);
+export const db: DatabaseSync = initDatabase();
 
 // --- LEGACY DATABASE MIGRATION SYSTEM ---
 function migrateLegacyDataToNormalized() {
@@ -465,6 +508,24 @@ export function dbGetReviews(includeHidden = false): SqliteReview[] {
   }));
 }
 
+function syncReviewsBackup() {
+  try {
+    const rows = db.prepare('SELECT * FROM reviews ORDER BY timestamp DESC').all() as any[];
+    const jsonList = rows.map((r) => ({
+      id: r.id,
+      userKey: r.user_key || undefined,
+      text: r.text,
+      author: r.author,
+      timestamp: r.timestamp,
+      isCompleted: Boolean(r.is_completed),
+      isHidden: Boolean(r.is_hidden)
+    }));
+    fs.writeFileSync(REVIEWS_BACKUP_PATH, JSON.stringify(jsonList, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('Failed to sync reviews backup to JSON:', err);
+  }
+}
+
 export function dbAddReview(review: { text: string; author?: string; userKey?: string }): SqliteReview {
   const id = 'rev-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now();
   const timestamp = Date.now();
@@ -476,6 +537,8 @@ export function dbAddReview(review: { text: string; author?: string; userKey?: s
     INSERT INTO reviews (id, user_key, text, author, timestamp, is_completed, is_hidden)
     VALUES (?, ?, ?, ?, ?, 0, 0)
   `).run(id, userKey, text, author, timestamp);
+
+  syncReviewsBackup();
 
   return {
     id,
@@ -503,6 +566,8 @@ export function dbUpdateReview(id: string, updates: { text?: string; author?: st
     WHERE id = ?
   `).run(text, author, isCompleted, isHidden, id);
 
+  syncReviewsBackup();
+
   return {
     id,
     userKey: existing.user_key || undefined,
@@ -516,7 +581,11 @@ export function dbUpdateReview(id: string, updates: { text?: string; author?: st
 
 export function dbDeleteReview(id: string): boolean {
   const info = db.prepare('DELETE FROM reviews WHERE id = ?').run(id) as any;
-  return info.changes > 0;
+  if (info.changes > 0) {
+    syncReviewsBackup();
+    return true;
+  }
+  return false;
 }
 
 // --- GEO VISITORS QUERIES ---
